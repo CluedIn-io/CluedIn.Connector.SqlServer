@@ -1,0 +1,21 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Description>CluedIn.Connector.SqlServer provides connectivity to a Microsoft Sql Server database</Description>
+    <AssemblyName>CluedIn.Connector.SqlServer</AssemblyName>
+    <RootNamespace>CluedIn.Connector.SqlServer</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <None Remove="Resources\SqlServer.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="Provider.sql" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Resources\sqlserver.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="CluedIn.Core.Agent" />
+    <PackageReference Include="CluedIn.Crawling" />
+    <PackageReference Include="ComponentHost" />
+  </ItemGroup>
+</Project>
