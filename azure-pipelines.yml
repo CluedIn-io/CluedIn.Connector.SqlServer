@@ -1,7 +1,7 @@
 name: $(Date:yyyyMMdd)$(Rev:.r)
 
 parameters:
-    - buildConfiguration: Release
+  - buildConfiguration: Release
 
 trigger:
   - master
