@@ -3,6 +3,7 @@
     <Description>CluedIn.Connector.SqlServer provides connectivity to a Microsoft Sql Server database</Description>
     <AssemblyName>CluedIn.Connector.SqlServer</AssemblyName>
     <RootNamespace>CluedIn.Connector.SqlServer</RootNamespace>
+    <IsCluedInServerComponent>true</IsCluedInServerComponent>
   </PropertyGroup>
   <ItemGroup>
     <None Remove="Resources\SqlServer.png" />
@@ -14,6 +15,7 @@
     <EmbeddedResource Include="Resources\sqlserver.png" />
   </ItemGroup>
   <ItemGroup>
+    <PackageReference Include="CluedIn.Core" />
     <PackageReference Include="CluedIn.Core.Agent" />
     <PackageReference Include="CluedIn.Crawling" />
     <PackageReference Include="ComponentHost" />

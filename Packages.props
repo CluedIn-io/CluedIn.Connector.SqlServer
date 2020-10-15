@@ -2,11 +2,11 @@
   <PropertyGroup Label="Dependency Versions">
     <_CacheCow>2.7.2</_CacheCow>
     <_EasyNetQ>3.7.1</_EasyNetQ>
-    <_EntityFramework>3.1.3</_EntityFramework>
-    <_MicrosoftExtensions>3.1.3</_MicrosoftExtensions>
-    <_ComponentHost>2.0.0-alpha-14</_ComponentHost>
+    <_EntityFramework>3.1.5</_EntityFramework>
+    <_MicrosoftExtensions>3.1.5</_MicrosoftExtensions>
+    <_ComponentHost>2.0.0-*</_ComponentHost>
     <_AutoFixture>4.11.0</_AutoFixture>
-    <_CluedIn>3.0.0-netcore.*</_CluedIn>
+    <_CluedIn>3.3.0-*</_CluedIn>
   </PropertyGroup>
 
   <ItemGroup>

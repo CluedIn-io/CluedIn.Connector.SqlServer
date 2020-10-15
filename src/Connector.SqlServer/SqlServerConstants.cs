@@ -16,13 +16,13 @@ namespace CluedIn.Connector.SqlServer
             public const string PortNumber = "portNumber";
         }
         
-        public const string ConnectorName = "Sql Server Connector";
+        public const string ConnectorName = "SqlServerConnector";
         public const string ConnectorComponentName = "SqlServerConnector";
         public const string ConnectorDescription = "Sql Server Connector is a ... to be completed ...";
         public const string Uri = "https://www.microsoft.com/en-us/sql-server";
 
         public static readonly Guid ProviderId = Guid.Parse("838E4EA2-80E0-4B60-B1D1-F052BFCD0CAF");  
-        public const string ProviderName = "SqlServerConnector";         
+        public const string ProviderName = "Sql Server Connector";         
         public const bool SupportsConfiguration = false;          
         public const bool SupportsWebHooks = false;            
         public const bool SupportsAutomaticWebhookCreation = false;            
@@ -34,7 +34,7 @@ namespace CluedIn.Connector.SqlServer
         public static IList<string> Aliases = new List<string> { "SqlServerConnector" };
         public const string IconResourceName = "Resources.sqlserver.png";
         public const string Instructions = "Provide authentication instructions here, if applicable";
-        public const IntegrationType Type = IntegrationType.OnPremise;
+        public const IntegrationType Type = IntegrationType.Connector;
         public const string Category = "Connectivity";
         public const string Details = "Provides connectivity to a Microsoft Sql Server database";
 

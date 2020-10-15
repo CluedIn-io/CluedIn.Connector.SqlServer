@@ -72,7 +72,7 @@ namespace CluedIn.Connector.SqlServer
                 return Task.FromResult(result.ToDictionary());
             }
 
-            throw new InvalidOperationException($"Unexpected data type for AcceptanceCrawlJobData, {jobData.GetType()}");
+            throw new InvalidOperationException($"Unexpected data type for SqlServerConnectorJobData, {jobData.GetType()}");
         }
 
         public override Task<IDictionary<string, object>> GetHelperConfiguration(
@@ -106,7 +106,7 @@ namespace CluedIn.Connector.SqlServer
 
         public override string Schedule(DateTimeOffset relativeDateTime, bool webHooksEnabled)
         {
-            return null;
+            return $"{relativeDateTime.Minute} 0/23 * * *";
         }
 
         public override Task<IEnumerable<WebHookSignature>> CreateWebHook(ExecutionContext context, [NotNull] CrawlJobData jobData, [NotNull] IWebhookDefinition webhookDefinition, [NotNull] IDictionary<string, object> config)
