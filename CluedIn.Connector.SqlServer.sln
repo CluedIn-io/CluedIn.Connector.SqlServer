@@ -48,7 +48,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Git", "Git", "{17EE3C8D-BAE
 		.gitignore = .gitignore
 	EndProjectSection
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CluedIn.Connector.SqlServer", "src\Connector.SqlServer\CluedIn.Connector.SqlServer.csproj", "{ED656EF9-9D15-45CA-B505-AF48AD8D0145}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Connector.SqlServer", "src\Connector.SqlServer\Connector.SqlServer.csproj", "{ED656EF9-9D15-45CA-B505-AF48AD8D0145}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

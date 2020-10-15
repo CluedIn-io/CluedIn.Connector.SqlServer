@@ -1,26 +1,20 @@
+parameters:
+  - name: Configuration
+    default: Release
+
 name: $(Date:yyyyMMdd)$(Rev:.r)
 
 trigger:
-  branches:
-    include:
-    - master
-    - develop
-  tags:
-    include:
-      - v*
-  paths:
-    exclude:
-    - '*.md'
+  - master
+  - develop
+  - release/*
+  - hotfix/*
 
 pr:
-  branches:
-    include:
-    - develop
-    - master
-    - release/*
-  paths:
-    exclude:
-    - '*.md'
+  - develop
+  - master
+  - release/*
+  - hotfix/*
 
 resources:
   repositories:
@@ -33,13 +27,15 @@ pool:
   vmImage: 'windows-latest'
 
 variables:
-  - group: nuget  
+  - group: nuget
   - name: testFolderPath
     value: '$(Build.SourcesDirectory)/test'
   - name: DOTNET_SKIP_FIRST_TIME_EXPERIENCE
     value: true
   - name: DOTNET_CLI_TELEMETRY_OPTOUT
     value: true
+  - name: buildConfiguration
+    value: ${{ parameters.Configuration }}
 
 steps:
 
