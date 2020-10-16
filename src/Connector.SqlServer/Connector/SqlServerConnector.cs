@@ -62,9 +62,24 @@ namespace CluedIn.Connector.SqlServer.Connector
             return str;
         }
 
-        public override Task EmptyContainer(ExecutionContext executionContext, Guid providerDefinitionId, string id)
+        public override async Task EmptyContainer(ExecutionContext executionContext, Guid providerDefinitionId, string id)
         {
-            throw new NotImplementedException();
+            var config = await base.GetAuthenticationDetails(executionContext, providerDefinitionId);
+            var connection = await GetConnection(config);
+
+            var databaseName = (string)config.Authentication[SqlServerConstants.KeyName.DatabaseName];
+
+            var builder = new StringBuilder();
+            builder.Append($"USE [{Sanitize(databaseName)}]");
+            builder.Append("GO");
+            builder.Append($"TRUNCATE [{Sanitize(id)}]");
+            builder.Append("GO");
+
+            var cmd = connection.CreateCommand();
+#pragma warning disable CA2100 // Review SQL queries for security vulnerabilities
+            cmd.CommandText = builder.ToString();
+#pragma warning restore CA2100 // Review SQL queries for security vulnerabilities
+            await cmd.ExecuteNonQueryAsync();
         }
 
         private async Task<SqlConnection> GetConnection(IConnectorConnection config)
