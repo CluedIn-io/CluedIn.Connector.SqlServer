@@ -67,7 +67,7 @@ namespace CluedIn.Connector.SqlServer
                 {
                     name = KeyName.Password,
                     displayName = "Password",
-                    type = "input",
+                    type = "password",
                     isRequired = true
                 },
                 new Control
@@ -75,7 +75,7 @@ namespace CluedIn.Connector.SqlServer
                     name = KeyName.PortNumber,
                     displayName = "Port Number",
                     type = "input",
-                    isRequired = true
+                    isRequired = false
                 }
             }
         };
