@@ -1,12 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Text;
 using System.Threading.Tasks;
 using CluedIn.Core;
 using CluedIn.Core.Connectors;
 using CluedIn.Core.Data.Vocabularies;
 using CluedIn.Core.DataStore;
 using Microsoft.Data.SqlClient;
-using RabbitMQ.Client.Apigen.Attributes;
 
 namespace CluedIn.Connector.SqlServer.Connector
 {
@@ -17,31 +17,54 @@ namespace CluedIn.Connector.SqlServer.Connector
             ProviderId = SqlServerConstants.ProviderId;
         }
 
-        public override Task CreateContainer(ExecutionContext executionContext, CreateContainerModel model)
-        {
-            throw new NotImplementedException();
-        }
-
-        public override Task EmptyContainer(ExecutionContext executionContext, string id)
-        {
-            throw new NotImplementedException();
-        }
-
-        public override async Task<IEnumerable<IConnectorContainer>> GetContainers(ExecutionContext executionContext, Guid providerDefinitionId)
+        public override async Task CreateContainer(ExecutionContext executionContext, Guid providerDefinitionId, CreateContainerModel model)
         {
             var config = await base.GetAuthenticationDetails(executionContext, providerDefinitionId);
             var connection = await GetConnection(config);
 
-            var tables = connection.GetSchema("Tables");
+            var databaseName = (string)config.Authentication[SqlServerConstants.KeyName.DatabaseName];
 
-            var result = new List<SqlServerConnectorContainer>();
-            foreach (System.Data.DataRow row in tables.Rows)
+            var builder = new StringBuilder();
+            builder.Append($"USE [{Sanitize(databaseName)}]");
+            builder.Append("GO");
+            builder.Append("");
+            builder.Append("SET ANSI_NULLS ON");
+            builder.Append("GO");
+            builder.Append("");
+            builder.Append("SET QUOTED_IDENTIFIER ON");
+            builder.Append("GO");
+            builder.Append("");
+            builder.Append($"CREATE TABLE [{Sanitize(model.Name)}](");
+            builder.Append("");
+
+            var index = 0;
+            var count = model.DataTypes.Count;
+            foreach (var type in model.DataTypes)
             {
-                var tableName = row["TABLE_NAME"] as string;
-                result.Add(new SqlServerConnectorContainer { Id = tableName, Name = tableName });
-            }
+                builder.Append($"[{Sanitize(type.Name)}][{GetDbType(type.Type)}] NULL{(index < count -1 ? "," : "")}");
 
-            return result;
+                index++;
+            }
+            builder.Append(") ON[PRIMARY]");
+            builder.Append("GO");
+
+            var cmd = connection.CreateCommand();
+#pragma warning disable CA2100 // Review SQL queries for security vulnerabilities
+            cmd.CommandText = builder.ToString();
+#pragma warning restore CA2100 // Review SQL queries for security vulnerabilities
+            await cmd.ExecuteNonQueryAsync();
+
+        }
+
+        private string Sanitize(string str)
+        {
+            // TODO Sanitize to prevent Sql Injection
+            return str;
+        }
+
+        public override Task EmptyContainer(ExecutionContext executionContext, Guid providerDefinitionId, string id)
+        {
+            throw new NotImplementedException();
         }
 
         private async Task<SqlConnection> GetConnection(IConnectorConnection config)
@@ -84,52 +107,58 @@ namespace CluedIn.Connector.SqlServer.Connector
 
         private VocabularyKeyDataType GetVocabType(string rawType)
         {
-            switch (rawType.ToLower())
+            return rawType.ToLower() switch
             {
-                case "bigint":
-                case "int":
-                case "smallint":
-                case "tinyint":
-                    return VocabularyKeyDataType.Integer;
-                case "bit":
-                    return VocabularyKeyDataType.Boolean;
-                case "decimal":
-                case "numeric":
-                case "float":
-                case "real":
-                    return VocabularyKeyDataType.Number;
-                case "money":
-                case "smallmoney":
-                    return VocabularyKeyDataType.Money;
-                case "datetime":
-                case "smalldatetime":
-                case "date":
-                case "datetimeoffset":
-                case "datetime2":
-                    return VocabularyKeyDataType.DateTime;
-                case "time":
-                    return VocabularyKeyDataType.Time;
-                case "char":
-                case "varchar":
-                case "text":
-                case "nchar":
-                case "nvarchar":
-                case "ntext":
-                    return VocabularyKeyDataType.Text;
-                case "XML":
-                    return VocabularyKeyDataType.Xml;
-                case "binary":
-                case "varbinary":
-                case "image":
-                case "timestamp":
-                case "uniqueidentifier":
-                    return VocabularyKeyDataType.Guid;
-                case "geometry":
-                case "geography":
-                    return VocabularyKeyDataType.GeographyLocation;
-                default:
-                    return VocabularyKeyDataType.Text;
-            }
+                "bigint" => VocabularyKeyDataType.Integer,
+                "int" => VocabularyKeyDataType.Integer,
+                "smallint" => VocabularyKeyDataType.Integer,
+                "tinyint" => VocabularyKeyDataType.Integer,
+                "bit" => VocabularyKeyDataType.Boolean,
+                "decimal" => VocabularyKeyDataType.Number,
+                "numeric" => VocabularyKeyDataType.Number,
+                "float" => VocabularyKeyDataType.Number,
+                "real" => VocabularyKeyDataType.Number,
+                "money" => VocabularyKeyDataType.Money,
+                "smallmoney" => VocabularyKeyDataType.Money,
+                "datetime" => VocabularyKeyDataType.DateTime,
+                "smalldatetime" => VocabularyKeyDataType.DateTime,
+                "date" => VocabularyKeyDataType.DateTime,
+                "datetimeoffset" => VocabularyKeyDataType.DateTime,
+                "datetime2" => VocabularyKeyDataType.DateTime,
+                "time" => VocabularyKeyDataType.Time,
+                "char" => VocabularyKeyDataType.Text,
+                "varchar" => VocabularyKeyDataType.Text,
+                "text" => VocabularyKeyDataType.Text,
+                "nchar" => VocabularyKeyDataType.Text,
+                "nvarchar" => VocabularyKeyDataType.Text,
+                "ntext" => VocabularyKeyDataType.Text,
+                "binary" => VocabularyKeyDataType.Text,
+                "varbinary" => VocabularyKeyDataType.Text,
+                "image" => VocabularyKeyDataType.Text,
+                "timestamp" => VocabularyKeyDataType.Text,
+                "uniqueidentifier" => VocabularyKeyDataType.Guid,
+                "XML" => VocabularyKeyDataType.Xml,
+                "geometry" => VocabularyKeyDataType.Text,
+                "geography" => VocabularyKeyDataType.GeographyLocation,
+                _ => VocabularyKeyDataType.Text
+            };
+        }
+
+
+        private string GetDbType(VocabularyKeyDataType type)
+        {
+            return type switch
+            {
+                VocabularyKeyDataType.Integer => "bigint",
+                VocabularyKeyDataType.Number => "decimal(18,4)",
+                VocabularyKeyDataType.Money => "money",
+                VocabularyKeyDataType.DateTime => "datetime2",
+                VocabularyKeyDataType.Time => "time",
+                VocabularyKeyDataType.Xml => "XML",
+                VocabularyKeyDataType.Guid => "binary",
+                VocabularyKeyDataType.GeographyLocation => "geography",
+                _ => "nvarchar(max)"
+            };
         }
 
         public override Task<bool> VerifyConnection(ExecutionContext executionContext, Guid providerDefinitionId)
