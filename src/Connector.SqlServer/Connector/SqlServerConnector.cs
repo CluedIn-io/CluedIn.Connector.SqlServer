@@ -99,6 +99,23 @@ namespace CluedIn.Connector.SqlServer.Connector
             return result;
         }
 
+        public override async Task<IEnumerable<IConnectorContainer>> GetContainers(ExecutionContext executionContext, Guid providerDefinitionId)
+        {
+            var config = await base.GetAuthenticationDetails(executionContext, providerDefinitionId);
+            var connection = await GetConnection(config);
+
+            var tables = connection.GetSchema("Tables");
+
+            var result = new List<SqlServerConnectorContainer>();
+            foreach (System.Data.DataRow row in tables.Rows)
+            {
+                var tableName = row["TABLE_NAME"] as string;
+                result.Add(new SqlServerConnectorContainer { Id = tableName, Name = tableName });
+            }
+
+            return result;
+        }
+
         public override async Task<IEnumerable<IConnectionDataType>> GetDataTypes(ExecutionContext executionContext, Guid providerDefinitionId, string containerId)
         {
             var config = await base.GetAuthenticationDetails(executionContext, providerDefinitionId);
