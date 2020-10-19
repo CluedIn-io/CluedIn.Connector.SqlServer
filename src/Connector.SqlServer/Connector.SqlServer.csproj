@@ -19,5 +19,7 @@
     <PackageReference Include="CluedIn.Core.Agent" />
     <PackageReference Include="CluedIn.Crawling" />
     <PackageReference Include="ComponentHost" />
+    <PackageReference Include="Dapper" />
+    <PackageReference Include="Dapper.SqlBuilder" />
   </ItemGroup>
 </Project>

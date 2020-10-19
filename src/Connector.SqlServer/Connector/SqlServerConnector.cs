@@ -1,140 +1,160 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Text;
 using System.Threading.Tasks;
 using CluedIn.Core;
 using CluedIn.Core.Connectors;
 using CluedIn.Core.Data.Vocabularies;
 using CluedIn.Core.DataStore;
+using Dapper;
 using Microsoft.Data.SqlClient;
+using Microsoft.Extensions.Logging;
 
 namespace CluedIn.Connector.SqlServer.Connector
 {
     public class SqlServerConnector : ConnectorBase
     {
-        public SqlServerConnector(IConfigurationRepository repo) : base(repo)
+        private ILogger<SqlServerConnector> _logger;
+
+        public SqlServerConnector(IConfigurationRepository repo, ILogger<SqlServerConnector> logger) : base(repo)
         {
             ProviderId = SqlServerConstants.ProviderId;
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
         public override async Task CreateContainer(ExecutionContext executionContext, Guid providerDefinitionId, CreateContainerModel model)
         {
-            var config = await base.GetAuthenticationDetails(executionContext, providerDefinitionId);
-            var connection = await GetConnection(config);
-
-            var databaseName = (string)config.Authentication[SqlServerConstants.KeyName.DatabaseName];
-
-            var builder = new StringBuilder();
-            builder.Append($"USE [{Sanitize(databaseName)}]");
-            builder.Append("GO");
-            builder.Append("");
-            builder.Append("SET ANSI_NULLS ON");
-            builder.Append("GO");
-            builder.Append("");
-            builder.Append("SET QUOTED_IDENTIFIER ON");
-            builder.Append("GO");
-            builder.Append("");
-            builder.Append($"CREATE TABLE [{Sanitize(model.Name)}](");
-            builder.Append("");
-
-            var index = 0;
-            var count = model.DataTypes.Count;
-            foreach (var type in model.DataTypes)
+            try
             {
-                builder.Append($"[{Sanitize(type.Name)}][{GetDbType(type.Type)}] NULL{(index < count -1 ? "," : "")}");
+                var config = await base.GetAuthenticationDetails(executionContext, providerDefinitionId);
+                var connection = await GetConnection(config);
 
-                index++;
+                var databaseName = (string)config.Authentication[SqlServerConstants.KeyName.DatabaseName];
+                var tableName = model.Name;
+
+                var builder = new StringBuilder();
+                builder.Append("USE [@databaseName]");
+                builder.Append("GO");
+                builder.Append("");
+                builder.Append("SET ANSI_NULLS ON");
+                builder.Append("GO");
+                builder.Append("");
+                builder.Append("SET QUOTED_IDENTIFIER ON");
+                builder.Append("GO");
+                builder.Append("");
+                builder.Append("CREATE TABLE [@tableName](");
+                builder.Append("");
+
+                var param = new Dictionary<string, object>
+                {
+                    { "@databaseName", databaseName },
+                    { "@tableName", tableName }
+                };
+
+                var index = 0;
+                var count = model.DataTypes.Count;
+                foreach (var type in model.DataTypes)
+                {
+                    builder.Append($"[@field{index}][{GetDbType(type.Type)}] NULL{(index < count - 1 ? "," : "")}");
+                    param.Add($"@field{index}", type.Name);
+                    index++;
+                }
+
+                builder.Append(") ON[PRIMARY]");
+                builder.Append("GO");
+
+                var cmd = await connection.ExecuteAsync(builder.ToString(), new DynamicParameters(param));
             }
-            builder.Append(") ON[PRIMARY]");
-            builder.Append("GO");
-
-            var cmd = connection.CreateCommand();
-#pragma warning disable CA2100 // Review SQL queries for security vulnerabilities
-            cmd.CommandText = builder.ToString();
-#pragma warning restore CA2100 // Review SQL queries for security vulnerabilities
-            await cmd.ExecuteNonQueryAsync();
-
-        }
-
-        private string Sanitize(string str)
-        {
-            // TODO Sanitize to prevent Sql Injection
-            return str;
+            catch (Exception e)
+            {
+                _logger.LogError(e, "Error Creating Container");
+                throw;
+            }
         }
 
         public override async Task EmptyContainer(ExecutionContext executionContext, Guid providerDefinitionId, string id)
         {
-            var config = await base.GetAuthenticationDetails(executionContext, providerDefinitionId);
-            var connection = await GetConnection(config);
-
-            var databaseName = (string)config.Authentication[SqlServerConstants.KeyName.DatabaseName];
-
-            var builder = new StringBuilder();
-            builder.Append($"USE [{Sanitize(databaseName)}]");
-            builder.Append("GO");
-            builder.Append($"TRUNCATE [{Sanitize(id)}]");
-            builder.Append("GO");
-
-            var cmd = connection.CreateCommand();
-#pragma warning disable CA2100 // Review SQL queries for security vulnerabilities
-            cmd.CommandText = builder.ToString();
-#pragma warning restore CA2100 // Review SQL queries for security vulnerabilities
-            await cmd.ExecuteNonQueryAsync();
-        }
-
-        private async Task<SqlConnection> GetConnection(IConnectorConnection config)
-        {
-            var cnxString = new SqlConnectionStringBuilder
+            try
             {
-                Authentication = SqlAuthenticationMethod.SqlPassword,
-                Password = (string)config.Authentication[SqlServerConstants.KeyName.Password],
-                UserID = (string)config.Authentication[SqlServerConstants.KeyName.Username],
-                DataSource = (string)config.Authentication[SqlServerConstants.KeyName.Host],
-                InitialCatalog = (string)config.Authentication[SqlServerConstants.KeyName.DatabaseName],
-            };
-            var result = new SqlConnection(cnxString.ToString());
+                var config = await base.GetAuthenticationDetails(executionContext, providerDefinitionId);
+                var connection = await GetConnection(config);
 
-            await result.OpenAsync();
+                var databaseName = (string)config.Authentication[SqlServerConstants.KeyName.DatabaseName];
 
-            return result;
+                var builder = new StringBuilder();
+                builder.Append("USE [@databaseName]");
+                builder.Append("GO");
+                builder.Append("TRUNCATE [@id]");
+                builder.Append("GO");
+
+                var param = new Dictionary<string, object>
+                {
+                    { "@databaseName", databaseName},
+                    { "@id", id}
+                };
+
+                var cmd = await connection.ExecuteAsync(builder.ToString(), new DynamicParameters(param));
+            }
+            catch (Exception e)
+            {
+                _logger.LogError(e, "Error Emptying Container");
+                throw;
+            }
         }
 
         public override async Task<IEnumerable<IConnectorContainer>> GetContainers(ExecutionContext executionContext, Guid providerDefinitionId)
         {
-            var config = await base.GetAuthenticationDetails(executionContext, providerDefinitionId);
-            var connection = await GetConnection(config);
-
-            var tables = connection.GetSchema("Tables");
-
-            var result = new List<SqlServerConnectorContainer>();
-            foreach (System.Data.DataRow row in tables.Rows)
+            try
             {
-                var tableName = row["TABLE_NAME"] as string;
-                result.Add(new SqlServerConnectorContainer { Id = tableName, Name = tableName });
-            }
+                var config = await base.GetAuthenticationDetails(executionContext, providerDefinitionId);
+                var connection = await GetConnection(config);
 
-            return result;
+                var tables = connection.GetSchema("Tables");
+
+                var result = new List<SqlServerConnectorContainer>();
+                foreach (DataRow row in tables.Rows)
+                {
+                    var tableName = row["TABLE_NAME"] as string;
+                    result.Add(new SqlServerConnectorContainer { Id = tableName, Name = tableName });
+                }
+
+                return result;
+            }
+            catch (Exception e)
+            {
+                _logger.LogError(e, "Error Getting Container");
+                throw;
+            }
         }
 
         public override async Task<IEnumerable<IConnectionDataType>> GetDataTypes(ExecutionContext executionContext, Guid providerDefinitionId, string containerId)
         {
-            var config = await base.GetAuthenticationDetails(executionContext, providerDefinitionId);
-            var connection = await GetConnection(config);
-
-            var restrictions = new string[4];
-            restrictions[2] = containerId;
-            var tables = connection.GetSchema("Columns", restrictions);
-
-            var result = new List<SqlServerConnectorDataType>();
-            foreach (System.Data.DataRow row in tables.Rows)
+            try
             {
-                var name = row["COLUMN_NAME"] as string;
-                var rawType = row["DATA_TYPE"] as string;
-                var type = GetVocabType(rawType);
-                result.Add(new SqlServerConnectorDataType { Name = name, RawDataType = rawType, Type = type });
-            }
+                var config = await base.GetAuthenticationDetails(executionContext, providerDefinitionId);
+                var connection = await GetConnection(config);
 
-            return result;
+                var restrictions = new string[4];
+                restrictions[2] = containerId;
+                var tables = connection.GetSchema("Columns", restrictions);
+
+                var result = new List<SqlServerConnectorDataType>();
+                foreach (DataRow row in tables.Rows)
+                {
+                    var name = row["COLUMN_NAME"] as string;
+                    var rawType = row["DATA_TYPE"] as string;
+                    var type = GetVocabType(rawType);
+                    result.Add(new SqlServerConnectorDataType { Name = name, RawDataType = rawType, Type = type });
+                }
+
+                return result;
+            }
+            catch (Exception e)
+            {
+                _logger.LogError(e, "Error getting Data Types");
+                throw e;
+            }
         }
 
         private VocabularyKeyDataType GetVocabType(string rawType)
@@ -193,14 +213,40 @@ namespace CluedIn.Connector.SqlServer.Connector
             };
         }
 
-        public override Task<bool> VerifyConnection(ExecutionContext executionContext, Guid providerDefinitionId)
+        private async Task<SqlConnection> GetConnection(IDictionary<string, object> config)
         {
-            throw new NotImplementedException();
+            var cnxString = new SqlConnectionStringBuilder
+            {
+                Authentication = SqlAuthenticationMethod.SqlPassword,
+                Password = (string)config[SqlServerConstants.KeyName.Password],
+                UserID = (string)config[SqlServerConstants.KeyName.Username],
+                DataSource = (string)config[SqlServerConstants.KeyName.Host],
+                InitialCatalog = (string)config[SqlServerConstants.KeyName.DatabaseName],
+            };
+
+            var result = new SqlConnection(cnxString.ToString());
+
+            await result.OpenAsync();
+
+            return result;
         }
 
-        public override Task<bool> VerifyConnection(ExecutionContext executionContext, IDictionary<string, object> authenticationData)
+        private async Task<SqlConnection> GetConnection(IConnectorConnection config)
         {
-            throw new NotImplementedException();
+            return await GetConnection(config.Authentication);
+        }
+
+        public override async Task<bool> VerifyConnection(ExecutionContext executionContext, Guid providerDefinitionId)
+        {
+            var config = await base.GetAuthenticationDetails(executionContext, providerDefinitionId);
+            return await VerifyConnection(executionContext, config.Authentication);
+        }
+
+        public override async Task<bool> VerifyConnection(ExecutionContext executionContext, IDictionary<string, object> config)
+        {
+            var connection = await GetConnection(config);
+
+            return connection.State == ConnectionState.Open;
         }
     }
 }
