@@ -31,40 +31,36 @@ namespace CluedIn.Connector.SqlServer.Connector
                 var connection = await GetConnection(config);
 
                 var databaseName = (string)config.Authentication[SqlServerConstants.KeyName.DatabaseName];
-                var tableName = model.Name;
 
                 var builder = new StringBuilder();
-                builder.Append("USE [@databaseName]");
-                builder.Append("GO");
-                builder.Append("");
-                builder.Append("SET ANSI_NULLS ON");
-                builder.Append("GO");
-                builder.Append("");
-                builder.Append("SET QUOTED_IDENTIFIER ON");
-                builder.Append("GO");
-                builder.Append("");
-                builder.Append("CREATE TABLE [@tableName](");
-                builder.Append("");
-
-                var param = new Dictionary<string, object>
-                {
-                    { "@databaseName", databaseName },
-                    { "@tableName", tableName }
-                };
+                builder.AppendLine($"USE quotename({Sanitize(databaseName)})");
+                builder.AppendLine("GO");
+                builder.AppendLine("");
+                builder.AppendLine("SET ANSI_NULLS ON");
+                builder.AppendLine("GO");
+                builder.AppendLine("");
+                builder.AppendLine("SET QUOTED_IDENTIFIER ON");
+                builder.AppendLine("GO");
+                builder.AppendLine("");
+                builder.AppendLine($"CREATE TABLE quotename({Sanitize(model.Name)})(");
+                builder.AppendLine("");
 
                 var index = 0;
                 var count = model.DataTypes.Count;
                 foreach (var type in model.DataTypes)
                 {
-                    builder.Append($"[@field{index}][{GetDbType(type.Type)}] NULL{(index < count - 1 ? "," : "")}");
-                    param.Add($"@field{index}", type.Name);
+                    builder.AppendLine($"quotename({Sanitize(type.Name)}][{GetDbType(type.Type)}) NULL{(index < count - 1 ? "," : "")}");
+
                     index++;
                 }
+                builder.AppendLine(") ON[PRIMARY]");
+                builder.AppendLine("GO");
 
-                builder.Append(") ON[PRIMARY]");
-                builder.Append("GO");
-
-                var cmd = await connection.ExecuteAsync(builder.ToString(), new DynamicParameters(param));
+                var cmd = connection.CreateCommand();
+#pragma warning disable CA2100 // Review SQL queries for security vulnerabilities
+                cmd.CommandText = builder.ToString();
+#pragma warning restore CA2100 // Review SQL queries for security vulnerabilities
+                await cmd.ExecuteNonQueryAsync();
             }
             catch (Exception e)
             {
@@ -83,24 +79,27 @@ namespace CluedIn.Connector.SqlServer.Connector
                 var databaseName = (string)config.Authentication[SqlServerConstants.KeyName.DatabaseName];
 
                 var builder = new StringBuilder();
-                builder.Append("USE [@databaseName]");
-                builder.Append("GO");
-                builder.Append("TRUNCATE [@id]");
-                builder.Append("GO");
+                builder.AppendLine($"USE quotename({Sanitize(databaseName)})");
+                builder.AppendLine("GO");
+                builder.AppendLine($"TRUNCATE quotename({Sanitize(id)})");
+                builder.AppendLine("GO");
 
-                var param = new Dictionary<string, object>
-                {
-                    { "@databaseName", databaseName},
-                    { "@id", id}
-                };
-
-                var cmd = await connection.ExecuteAsync(builder.ToString(), new DynamicParameters(param));
+                var cmd = connection.CreateCommand();
+#pragma warning disable CA2100 // Review SQL queries for security vulnerabilities
+                cmd.CommandText = builder.ToString();
+#pragma warning restore CA2100 // Review SQL queries for security vulnerabilities
+                await cmd.ExecuteNonQueryAsync();
             }
             catch (Exception e)
             {
                 _logger.LogError(e, "Error Emptying Container");
                 throw;
             }
+        }
+
+        private string Sanitize(string str)
+        {
+            return str;
         }
 
         public override async Task<IEnumerable<IConnectorContainer>> GetContainers(ExecutionContext executionContext, Guid providerDefinitionId)
