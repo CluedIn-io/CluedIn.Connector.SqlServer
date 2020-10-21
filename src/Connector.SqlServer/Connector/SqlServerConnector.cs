@@ -1,7 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Reflection.Metadata.Ecma335;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using CluedIn.Core;
 using CluedIn.Core.Connectors;
@@ -29,32 +31,19 @@ namespace CluedIn.Connector.SqlServer.Connector
             {
                 var config = await base.GetAuthenticationDetails(executionContext, providerDefinitionId);
                 var connection = await GetConnection(config);
-
-                var databaseName = (string)config.Authentication[SqlServerConstants.KeyName.DatabaseName];
-
+                
                 var builder = new StringBuilder();
-                builder.AppendLine($"USE quotename({Sanitize(databaseName)})");
-                builder.AppendLine("GO");
-                builder.AppendLine("");
-                builder.AppendLine("SET ANSI_NULLS ON");
-                builder.AppendLine("GO");
-                builder.AppendLine("");
-                builder.AppendLine("SET QUOTED_IDENTIFIER ON");
-                builder.AppendLine("GO");
-                builder.AppendLine("");
-                builder.AppendLine($"CREATE TABLE quotename({Sanitize(model.Name)})(");
-                builder.AppendLine("");
+                builder.AppendLine($"CREATE TABLE [{Sanitize(model.Name)}](");
 
                 var index = 0;
                 var count = model.DataTypes.Count;
                 foreach (var type in model.DataTypes)
                 {
-                    builder.AppendLine($"quotename({Sanitize(type.Name)}][{GetDbType(type.Type)}) NULL{(index < count - 1 ? "," : "")}");
+                    builder.AppendLine($"[{Sanitize(type.Name)}] {GetDbType(type.Type)} NULL{(index < count - 1 ? "," : "")}");
 
                     index++;
                 }
                 builder.AppendLine(") ON[PRIMARY]");
-                builder.AppendLine("GO");
 
                 var cmd = connection.CreateCommand();
 #pragma warning disable CA2100 // Review SQL queries for security vulnerabilities
@@ -76,13 +65,8 @@ namespace CluedIn.Connector.SqlServer.Connector
                 var config = await base.GetAuthenticationDetails(executionContext, providerDefinitionId);
                 var connection = await GetConnection(config);
 
-                var databaseName = (string)config.Authentication[SqlServerConstants.KeyName.DatabaseName];
-
                 var builder = new StringBuilder();
-                builder.AppendLine($"USE quotename({Sanitize(databaseName)})");
-                builder.AppendLine("GO");
-                builder.AppendLine($"TRUNCATE quotename({Sanitize(id)})");
-                builder.AppendLine("GO");
+                builder.AppendLine($"TRUNCATE TABLE [{Sanitize(id)}]");
 
                 var cmd = connection.CreateCommand();
 #pragma warning disable CA2100 // Review SQL queries for security vulnerabilities
@@ -97,9 +81,19 @@ namespace CluedIn.Connector.SqlServer.Connector
             }
         }
 
+        public override Task StoreData(ExecutionContext executionContext, Guid providerDefinitionId, IList<StoreDataModel> data)
+        {
+            throw new NotImplementedException();
+        }
+
         private string Sanitize(string str)
         {
-            return str.Replace("--","").Replace(";", "");       // Bare-bones sanitization to prevent Sql Injection. Extra info here http://sommarskog.se/dynamic_sql.html
+            return str.Replace("--","").Replace(";", "").Replace("'", "");       // Bare-bones sanitization to prevent Sql Injection. Extra info here http://sommarskog.se/dynamic_sql.html
+        }
+
+        public override string GetValidDataTypeName(string name)
+        {
+            return Regex.Replace(name, @"[^A-Za-z0-9]+", "");
         }
 
         public override async Task<IEnumerable<IConnectorContainer>> GetContainers(ExecutionContext executionContext, Guid providerDefinitionId)

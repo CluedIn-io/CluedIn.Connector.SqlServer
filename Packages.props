@@ -6,7 +6,7 @@
     <_MicrosoftExtensions>3.1.5</_MicrosoftExtensions>
     <_ComponentHost>2.0.0-*</_ComponentHost>
     <_AutoFixture>4.11.0</_AutoFixture>
-    <_CluedIn>3.3.0-alpha1.22</_CluedIn>
+    <_CluedIn>3.3.0-alpha1.24</_CluedIn>
   </PropertyGroup>
 
   <ItemGroup>
