@@ -81,11 +81,6 @@ namespace CluedIn.Connector.SqlServer.Connector
             }
         }
 
-        public override Task StoreData(ExecutionContext executionContext, Guid providerDefinitionId, IList<StoreDataModel> data)
-        {
-            throw new NotImplementedException();
-        }
-
         private string Sanitize(string str)
         {
             return str.Replace("--","").Replace(";", "").Replace("'", "");       // Bare-bones sanitization to prevent Sql Injection. Extra info here http://sommarskog.se/dynamic_sql.html
@@ -189,7 +184,6 @@ namespace CluedIn.Connector.SqlServer.Connector
             };
         }
 
-
         private string GetDbType(VocabularyKeyDataType type)
         {
             return type switch
@@ -240,6 +234,12 @@ namespace CluedIn.Connector.SqlServer.Connector
             var connection = await GetConnection(config);
 
             return connection.State == ConnectionState.Open;
+        }
+
+        public override Task StoreData(ExecutionContext executionContext, Guid providerDefinitionId, string containerName, IDictionary<string, object> data)
+        {
+            _logger.LogDebug("[NOT IMPLEMENTED] Persisting information to external target");
+            return Task.CompletedTask;
         }
     }
 }
