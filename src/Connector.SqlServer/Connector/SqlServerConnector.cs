@@ -99,7 +99,7 @@ namespace CluedIn.Connector.SqlServer.Connector
 
         private string Sanitize(string str)
         {
-            return str;
+            return str.Replace("--","").Replace(";", "");       // Bare-bones sanitization to prevent Sql Injection. Extra info here http://sommarskog.se/dynamic_sql.html
         }
 
         public override async Task<IEnumerable<IConnectorContainer>> GetContainers(ExecutionContext executionContext, Guid providerDefinitionId)
