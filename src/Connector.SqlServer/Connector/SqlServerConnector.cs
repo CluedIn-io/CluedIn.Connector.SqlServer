@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Data;
-using System.Reflection.Metadata.Ecma335;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
@@ -9,15 +8,15 @@ using CluedIn.Core;
 using CluedIn.Core.Connectors;
 using CluedIn.Core.Data.Vocabularies;
 using CluedIn.Core.DataStore;
-using Dapper;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Logging;
 
 namespace CluedIn.Connector.SqlServer.Connector
 {
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Security", "CA2100:Review SQL queries for security vulnerabilities", Justification = "<Pending>")]
     public class SqlServerConnector : ConnectorBase
     {
-        private ILogger<SqlServerConnector> _logger;
+        private readonly ILogger<SqlServerConnector> _logger;
 
         public SqlServerConnector(IConfigurationRepository repo, ILogger<SqlServerConnector> logger) : base(repo)
         {
@@ -31,7 +30,7 @@ namespace CluedIn.Connector.SqlServer.Connector
             {
                 var config = await base.GetAuthenticationDetails(executionContext, providerDefinitionId);
                 var connection = await GetConnection(config);
-                
+
                 var builder = new StringBuilder();
                 builder.AppendLine($"CREATE TABLE [{Sanitize(model.Name)}](");
 
@@ -46,9 +45,10 @@ namespace CluedIn.Connector.SqlServer.Connector
                 builder.AppendLine(") ON[PRIMARY]");
 
                 var cmd = connection.CreateCommand();
-#pragma warning disable CA2100 // Review SQL queries for security vulnerabilities
                 cmd.CommandText = builder.ToString();
-#pragma warning restore CA2100 // Review SQL queries for security vulnerabilities
+
+                _logger.LogDebug($"Sql Server Connector - Create Container - Generated query: {builder}");
+
                 await cmd.ExecuteNonQueryAsync();
             }
             catch (Exception e)
@@ -58,6 +58,7 @@ namespace CluedIn.Connector.SqlServer.Connector
             }
         }
 
+        
         public override async Task EmptyContainer(ExecutionContext executionContext, Guid providerDefinitionId, string id)
         {
             try
@@ -69,9 +70,10 @@ namespace CluedIn.Connector.SqlServer.Connector
                 builder.AppendLine($"TRUNCATE TABLE [{Sanitize(id)}]");
 
                 var cmd = connection.CreateCommand();
-#pragma warning disable CA2100 // Review SQL queries for security vulnerabilities
                 cmd.CommandText = builder.ToString();
-#pragma warning restore CA2100 // Review SQL queries for security vulnerabilities
+
+                _logger.LogDebug($"Sql Server Connector - Empty Container - Generated query: {builder}");
+
                 await cmd.ExecuteNonQueryAsync();
             }
             catch (Exception e)
@@ -83,8 +85,9 @@ namespace CluedIn.Connector.SqlServer.Connector
 
         private string Sanitize(string str)
         {
-            return str.Replace("--","").Replace(";", "").Replace("'", "");       // Bare-bones sanitization to prevent Sql Injection. Extra info here http://sommarskog.se/dynamic_sql.html
+            return str.Replace("--", "").Replace(";", "").Replace("'", "");       // Bare-bones sanitization to prevent Sql Injection. Extra info here http://sommarskog.se/dynamic_sql.html
         }
+
 
         public override string GetValidDataTypeName(string name)
         {
@@ -236,10 +239,52 @@ namespace CluedIn.Connector.SqlServer.Connector
             return connection.State == ConnectionState.Open;
         }
 
-        public override Task StoreData(ExecutionContext executionContext, Guid providerDefinitionId, string containerName, IDictionary<string, object> data)
+        public override async Task StoreData(ExecutionContext executionContext, Guid providerDefinitionId, string containerName, IDictionary<string, object> data)
         {
-            _logger.LogDebug("[NOT IMPLEMENTED] Persisting information to external target");
-            return Task.CompletedTask;
+            try
+            {
+                var config = await base.GetAuthenticationDetails(executionContext, providerDefinitionId);
+                var connection = await GetConnection(config);
+
+                var builder = new StringBuilder();
+                builder.Append($"insert into [{Sanitize(containerName)}] (");
+
+                var index = 0;
+                var count = data.Count;
+                foreach (var dataType in data)
+                {
+                    builder.Append($"[{Sanitize(dataType.Key)}]{(index < count - 1 ? "," : "")}");
+                    index++;
+                }
+                builder.Append(") values (");
+
+                var param = new List<SqlParameter>();
+                index = 0;
+                foreach (var dataType in data)
+                {
+                    var name = Sanitize(dataType.Key);
+                    builder.Append($"@{name}{(index < count - 1 ? "," : "")}");
+                    param.Add(new SqlParameter
+                    {
+                        ParameterName = name
+                    });
+                    index++;
+                }
+                builder.Append(")");
+
+                var cmd = new SqlCommand(builder.ToString(), connection);
+                cmd.Parameters.AddRange(param.ToArray());
+
+                _logger.LogDebug($"Sql Server Connector - Store Data - Generated query: {builder}");
+
+                await cmd.ExecuteNonQueryAsync();
+            }
+            catch (Exception e)
+            {
+                _logger.LogError(e, "Error storing data");
+                throw e;
+            }
         }
+
     }
 }
