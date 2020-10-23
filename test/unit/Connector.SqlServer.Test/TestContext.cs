@@ -31,43 +31,28 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests
     {
         public WindsorContainer Container;
 
-        public Mock<IServer> Server;
-        public Mock<IBus> Bus;
-        public Mock<ISystemConnectionStrings> SystemConnectionStrings;
-        public Mock<ISystemDataShards> SystemDataShards;
-        public Mock<SystemContext> SystemContext;
-        public Mock<ApplicationContext> AppContext;
-
-        public Mock<IPrimaryEntityDataStore<Entity>> PrimaryEntityDataStore;
-        public Mock<IGraphEntityDataStore<Entity>> GraphEntityDataStore;
-        public Mock<IBlobEntityDataStore<Entity>> BlobEntityDataStore;
-        public Mock<IAgentDataStoreImpl> AgentDataStoreMock;
-
-        public IAgentDataStore AgentDataStore;
-
-        public Mock<IOrganizationRepository> OrganizationRepository;
-
-        public Mock<IClueProcessingPipeline> ClueProcessingPipeline;
-        public Mock<IClueToEntityMappingProcessor> ClueToEntityMappingProcessor;
-
-        public Mock<ISystemVocabularies> SystemVocabularies;
-
-        public Mock<IExternalSearchProvidersRepository> ExternalSearchProvidersRepository;
-        public Mock<IExternalSearchRepository> ExternalSearchRepository;
-        public Mock<IRuleRepository> RuleRepository;
-        public Mock<IRuleEngine> RuleEngine;
-
-        public Mock<ISystemProcessingHub> ProcessingHub;
-        public Mock<IProcessingStatistics> ProcessingStatistics;
-
-        public Mock<WorkflowRepository> WorkflowRepository;
-        public Mock<InMemoryApplicationCache> ApplicationCache;
-
-        public Mock<IMailTemplates> MailTemplates;
-
-        public Func<ExecutionContext, Guid, IOrganization> OrganizationFactory;
-
-        public ILogger Logger;
+        public readonly Mock<IServer> Server;
+        public readonly Mock<IBus> Bus;
+        public readonly Mock<ISystemConnectionStrings> SystemConnectionStrings;
+        public readonly Mock<ISystemDataShards> SystemDataShards;
+        public readonly Mock<SystemContext> SystemContext;
+        public readonly Mock<ApplicationContext> AppContext;
+         
+        public readonly Mock<IPrimaryEntityDataStore<Entity>> PrimaryEntityDataStore;
+        public readonly Mock<IGraphEntityDataStore<Entity>> GraphEntityDataStore;
+        public readonly Mock<IBlobEntityDataStore<Entity>> BlobEntityDataStore;
+        
+        public readonly Mock<IOrganizationRepository> OrganizationRepository;
+          
+           
+        public readonly Mock<ISystemVocabularies> SystemVocabularies;
+        
+        public readonly Mock<WorkflowRepository> WorkflowRepository;
+        public readonly Mock<InMemoryApplicationCache> ApplicationCache;
+          
+        public readonly Func<ExecutionContext, Guid, IOrganization> OrganizationFactory;
+     
+        public readonly ILogger Logger;
 
         private ExecutionContext context;
 
@@ -108,18 +93,11 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests
             PrimaryEntityDataStore = new Mock<IPrimaryEntityDataStore<Entity>>(MockBehavior.Loose);
             GraphEntityDataStore = new Mock<IGraphEntityDataStore<Entity>>(MockBehavior.Loose);
             BlobEntityDataStore = new Mock<IBlobEntityDataStore<Entity>>(MockBehavior.Loose);
-            AgentDataStoreMock = new Mock<IAgentDataStoreImpl>();
 
             OrganizationRepository = new Mock<IOrganizationRepository>(MockBehavior.Loose).As<IOrganizationRepository>();
 
             SystemVocabularies = new Mock<SystemVocabularies>(MockBehavior.Loose, AppContext.Object).As<ISystemVocabularies>();
-            ExternalSearchRepository = new Mock<IExternalSearchRepository>(MockBehavior.Loose).As<IExternalSearchRepository>();
-            RuleRepository = new Mock<IRuleRepository>(MockBehavior.Loose).As<IRuleRepository>();
-            RuleEngine = new Mock<IRuleEngine>(MockBehavior.Loose).As<IRuleEngine>();
 
-            ProcessingHub = new Mock<ISystemProcessingHub>();
-            ProcessingStatistics = new Mock<IProcessingStatistics>();
-            MailTemplates = new Mock<IMailTemplates>();
             WorkflowRepository = new Mock<WorkflowRepository>(MockBehavior.Loose, AppContext.Object);
             ApplicationCache = new Mock<InMemoryApplicationCache>(MockBehavior.Loose, Container);
 
@@ -127,11 +105,8 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests
             SystemDataShards.CallBase = true;
             SystemContext.CallBase = true;
             AppContext.CallBase = true;
-            ClueProcessingPipeline.CallBase = true;
-            ClueToEntityMappingProcessor.CallBase = true;
             OrganizationRepository.CallBase = true;
             SystemVocabularies.CallBase = true;
-            ExternalSearchProvidersRepository.CallBase = true;
             WorkflowRepository.CallBase = true;
             ApplicationCache.CallBase = true;
 
@@ -181,30 +156,19 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests
             Container.Register(Component.For<IPrimaryEntityDataStore<Entity>>().UsingFactoryMethod(() => proxyGenerator.CreateInterfaceProxyWithTarget(PrimaryEntityDataStore.Object)));
             Container.Register(Component.For<IGraphEntityDataStore<Entity>>().UsingFactoryMethod(() => proxyGenerator.CreateInterfaceProxyWithTarget(GraphEntityDataStore.Object)));
             Container.Register(Component.For<IBlobEntityDataStore<Entity>>().UsingFactoryMethod(() => proxyGenerator.CreateInterfaceProxyWithTarget(BlobEntityDataStore.Object)));
-            Container.Register(Component.For<IClueProcessingPipeline>().UsingFactoryMethod(() => ClueProcessingPipeline.Object));
-            Container.Register(Component.For<IClueToEntityMappingProcessor>().UsingFactoryMethod(() => ClueToEntityMappingProcessor.Object));
+
             Container.Register(Component.For<IOrganizationRepository>().UsingFactoryMethod(() => proxyGenerator.CreateInterfaceProxyWithTarget(OrganizationRepository.Object)));
             Container.Register(Component.For<IServer>().UsingFactoryMethod(() => proxyGenerator.CreateInterfaceProxyWithTarget(Server.Object)));
             Container.Register(Component.For<IBus>().UsingFactoryMethod(() => proxyGenerator.CreateInterfaceProxyWithTarget(Bus.Object)));
-            Container.Register(Component.For<IAgentDataStore>().UsingFactoryMethod(() => AgentDataStore));
             Container.Register(Component.For<ISystemVocabularies>().UsingFactoryMethod(() => SystemVocabularies.Object));
-            Container.Register(Component.For<IExternalSearchProvidersRepository>().UsingFactoryMethod(() => ExternalSearchProvidersRepository.Object));
-            Container.Register(Component.For<IExternalSearchRepository>().UsingFactoryMethod(() => proxyGenerator.CreateInterfaceProxyWithTarget(ExternalSearchRepository.Object)));
-            Container.Register(Component.For<IRuleRepository>().UsingFactoryMethod(() => proxyGenerator.CreateInterfaceProxyWithTarget(RuleRepository.Object)));
-            Container.Register(Component.For<IRuleEngine>().UsingFactoryMethod(() => proxyGenerator.CreateInterfaceProxyWithTarget(RuleEngine.Object)));
-            Container.Register(Component.For<ISystemProcessingHub>().UsingFactoryMethod(() => proxyGenerator.CreateInterfaceProxyWithTarget(ProcessingHub.Object)));
-            Container.Register(Component.For<IProcessingStatistics>().UsingFactoryMethod(() => proxyGenerator.CreateInterfaceProxyWithTarget(ProcessingStatistics.Object)));
             Container.Register(Component.For<WorkflowRepository>().UsingFactoryMethod(() => WorkflowRepository.Object));
             Container.Register(Component.For<IApplicationCache>().UsingFactoryMethod(() => ApplicationCache.Object));
-            Container.Register(Component.For<IMailTemplates>().UsingFactoryMethod(() => proxyGenerator.CreateInterfaceProxyWithTarget(MailTemplates.Object)));
 
 
             // Setup
             Server.Setup(s => s.ApplicationContext).Returns(() => Container.Resolve<ApplicationContext>());
             Bus.Setup(s => s.IsConnected).Returns(false);
             Bus.Setup(s => s.Advanced.IsConnected).Returns(false);
-
-            ProcessingHub.Setup(h => h.SendCommand(It.IsAny<IProcessingCommand>()));
 
             OrganizationFactory = (ctx, id) => new TestOrganization(ctx.ApplicationContext, id);
 

@@ -238,10 +238,10 @@ namespace CluedIn.Connector.SqlServer.Connector
             }
         }
 
-        private string BuildStoreDataSql(string containerName, IDictionary<string, object> data, out List<SqlParameter> param)
+        public string BuildStoreDataSql(string containerName, IDictionary<string, object> data, out List<SqlParameter> param)
         {
             var builder = new StringBuilder();
-            builder.Append($"insert into [{Sanitize(containerName)}] (");
+            builder.Append($"INSERT INTO [{Sanitize(containerName)}] (");
 
             var index = 0;
             var count = data.Count;
@@ -251,7 +251,7 @@ namespace CluedIn.Connector.SqlServer.Connector
                 index++;
             }
 
-            builder.Append(") values (");
+            builder.Append(") VALUES (");
 
             param = new List<SqlParameter>();
             index = 0;
@@ -261,7 +261,8 @@ namespace CluedIn.Connector.SqlServer.Connector
                 builder.Append($"@{name}{(index < count - 1 ? "," : "")}");
                 param.Add(new SqlParameter
                 {
-                    ParameterName = name
+                    ParameterName = name,
+                    Value = dataType.Value
                 });
                 index++;
             }
