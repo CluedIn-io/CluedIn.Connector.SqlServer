@@ -10,10 +10,8 @@ namespace CluedIn.Connector.SqlServer
     {
         public void Install(IWindsorContainer container, IConfigurationStore store)
         {
-            if (container == null)
-                throw new ArgumentNullException(nameof(container));
-            if (store == null)
-                throw new ArgumentNullException(nameof(store));
+            if (container == null) throw new ArgumentNullException(nameof(container));
+            if (store == null) throw new ArgumentNullException(nameof(store));
 
             if (!container.Kernel.HasComponent(typeof(ISystemNotifications)) && !container.Kernel.HasComponent(typeof(SystemNotifications)))
             {

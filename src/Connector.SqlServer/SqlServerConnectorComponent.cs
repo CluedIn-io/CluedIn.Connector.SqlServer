@@ -1,5 +1,6 @@
 using System.Reflection;
 using Castle.MicroKernel.Registration;
+using CluedIn.Connector.SqlServer.Connector;
 using CluedIn.Core;
 using CluedIn.Core.Providers;
 using CluedIn.Core.Server;
@@ -22,7 +23,7 @@ namespace CluedIn.Connector.SqlServer
         {
             // Dev. Note: Potential for compiler warning here ... CA2214: Do not call overridable methods in constructors
             //   this class has been sealed to prevent the CA2214 waring being raised by the compiler
-            this.Container.Register(Component.For<SqlServerConnectorComponent>().Instance(this));
+            Container.Register(Component.For<SqlServerConnectorComponent>().Instance(this));
         }
 
         /**********************************************************************************************************
@@ -32,21 +33,26 @@ namespace CluedIn.Connector.SqlServer
         /// <summary>Starts this instance.</summary>
         public override void Start()
         {
-            this.Container.Install(new InstallComponents());
-            var asm = Assembly.GetExecutingAssembly();
-            this.Container.Register(Types.FromAssembly(asm).BasedOn<IProvider>().WithServiceFromInterface().If(t => !t.IsAbstract).LifestyleSingleton());
-            this.Container.Register(Types.FromAssembly(asm).BasedOn<IEntityActionBuilder>().WithServiceFromInterface().If(t => !t.IsAbstract).LifestyleSingleton());
+            Container.Install(new InstallComponents());
 
-            this.State = ServiceState.Started;
+
+
+            Container.Register(Component.For<ISqlClient>().ImplementedBy(typeof(SqlClient)));
+
+            var asm = Assembly.GetExecutingAssembly();
+            Container.Register(Types.FromAssembly(asm).BasedOn<IProvider>().WithServiceFromInterface().If(t => !t.IsAbstract).LifestyleSingleton());
+            Container.Register(Types.FromAssembly(asm).BasedOn<IEntityActionBuilder>().WithServiceFromInterface().If(t => !t.IsAbstract).LifestyleSingleton());
+
+            State = ServiceState.Started;
         }
 
         /// <summary>Stops this instance.</summary>
         public override void Stop()
         {
-            if (this.State == ServiceState.Stopped)
+            if (State == ServiceState.Stopped)
                 return;
 
-            this.State = ServiceState.Stopped;
+            State = ServiceState.Stopped;
         }
     }
 }
