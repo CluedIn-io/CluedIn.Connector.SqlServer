@@ -10,7 +10,7 @@ namespace CluedIn.Connector.SqlServer.Connector
     {
         Task ExecuteCommandAsync(IConnectorConnection config, string commandText, IList<SqlParameter> param = null);
         Task<SqlConnection> GetConnection(IDictionary<string, object> config);
-        Task<DataTable> GetTables(IDictionary<string, object> config);
+        Task<DataTable> GetTables(IDictionary<string, object> config, string name = null);
         Task<DataTable> GetTableColumns(IDictionary<string, object> config, string tableName);
     }
 }

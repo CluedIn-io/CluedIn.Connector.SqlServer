@@ -98,9 +98,52 @@ namespace CluedIn.Connector.SqlServer.Connector
             return str.Replace("--", "").Replace(";", "").Replace("'", "");       // Bare-bones sanitization to prevent Sql Injection. Extra info here http://sommarskog.se/dynamic_sql.html
         }
 
-        public override string GetValidDataTypeName(string name)
+        public override Task<string> GetValidDataTypeName(ExecutionContext executionContext, Guid providerDefinitionId, string name)
         {
-            return Regex.Replace(name, @"[^A-Za-z0-9]+", "");
+            // Strip non-alpha numeric characters
+            var result = Regex.Replace(name, @"[^A-Za-z0-9]+", "");
+
+            return Task.FromResult(result);
+        }
+
+        public override async Task<string> GetValidContainerName(ExecutionContext executionContext, Guid providerDefinitionId, string name)
+        {
+            // Strip non-alpha numeric characters
+            var result = Regex.Replace(name, @"[^A-Za-z0-9]+", "");
+            
+            // Check if exists
+            if (await CheckTableExists(executionContext, providerDefinitionId, result))
+            {
+                // If exists, append count like in windows explorer
+                var count = 0;
+                string newName;
+                do
+                {
+                    count++;
+                    newName = $"{result}{count}";
+                } while (await CheckTableExists(executionContext, providerDefinitionId, newName));
+
+                result = newName;
+            }
+
+            // return new name
+            return result;
+        }
+
+        private async Task<bool> CheckTableExists(ExecutionContext executionContext, Guid providerDefinitionId, string name)
+        {
+            try
+            {
+                var config = await base.GetAuthenticationDetails(executionContext, providerDefinitionId);
+                var tables = await _client.GetTables(config.Authentication, name);
+
+                return tables.Rows.Count > 0;
+            }
+            catch (Exception e)
+            {
+                _logger.LogError(e, "Error Getting Container");
+                throw;
+            }
         }
 
         public override async Task<IEnumerable<IConnectorContainer>> GetContainers(ExecutionContext executionContext, Guid providerDefinitionId)

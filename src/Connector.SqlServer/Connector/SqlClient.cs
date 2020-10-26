@@ -39,11 +39,21 @@ namespace CluedIn.Connector.SqlServer.Connector
             return result;
         }
 
-        public async Task<DataTable> GetTables(IDictionary<string, object> config)
+        public async Task<DataTable> GetTables(IDictionary<string, object> config, string name = null)
         {
             var connection = await GetConnection(config);
+            DataTable result;
+            if (!string.IsNullOrEmpty(name))
+            {
+                var restrictions = new string[4];
+                restrictions[2] = name;
 
-            var result = connection.GetSchema("Tables");
+                result = connection.GetSchema("Tables", restrictions);
+            }
+            else
+            {
+                result = connection.GetSchema("Tables");
+            }
 
             return result;
         }
