@@ -41,8 +41,9 @@ namespace CluedIn.Connector.SqlServer.Connector
             }
             catch (Exception e)
             {
-                _logger.LogError(e, "Error Creating Container");
-                throw;
+                var message = $"Could not create Container {model.Name} for Connector {providerDefinitionId}";
+                _logger.LogError(e, message);
+                throw new CreateContainerException(message);
             }
         }
 
@@ -65,7 +66,7 @@ namespace CluedIn.Connector.SqlServer.Connector
             var sql = builder.ToString();
             return sql;
         }
-        
+
         public override async Task EmptyContainer(ExecutionContext executionContext, Guid providerDefinitionId, string id)
         {
             try
@@ -80,8 +81,10 @@ namespace CluedIn.Connector.SqlServer.Connector
             }
             catch (Exception e)
             {
-                _logger.LogError(e, "Error Emptying Container");
-                throw;
+                var message = $"Could not empty Container {id}";
+                _logger.LogError(e, message);
+                
+                throw new EmptyContainerException(message);
             }
         }
 
@@ -110,7 +113,7 @@ namespace CluedIn.Connector.SqlServer.Connector
         {
             // Strip non-alpha numeric characters
             var result = Regex.Replace(name, @"[^A-Za-z0-9]+", "");
-            
+
             // Check if exists
             if (await CheckTableExists(executionContext, providerDefinitionId, result))
             {
@@ -141,8 +144,9 @@ namespace CluedIn.Connector.SqlServer.Connector
             }
             catch (Exception e)
             {
-                _logger.LogError(e, "Error Getting Container");
-                throw;
+                var message = $"Error checking Container '{name}' exists for Connector {providerDefinitionId}";
+                _logger.LogError(e, message);
+                throw new ConnectionException(message);
             }
         }
 
@@ -161,8 +165,9 @@ namespace CluedIn.Connector.SqlServer.Connector
             }
             catch (Exception e)
             {
-                _logger.LogError(e, "Error Getting Container");
-                throw;
+                var message = $"Could not get Containers for Connector {providerDefinitionId}";
+                _logger.LogError(e, message);
+                throw new GetContainersException(message);
             }
         }
 
@@ -188,8 +193,9 @@ namespace CluedIn.Connector.SqlServer.Connector
             }
             catch (Exception e)
             {
-                _logger.LogError(e, "Error getting Data Types");
-                throw e;
+                var message = $"Could not get Data types for Container '{containerId}' for Connector {providerDefinitionId}";
+                _logger.LogError(e, message);
+                throw new GetDataTypesException(message);
             }
         }
 
@@ -256,9 +262,17 @@ namespace CluedIn.Connector.SqlServer.Connector
 
         public override async Task<bool> VerifyConnection(ExecutionContext executionContext, IDictionary<string, object> config)
         {
-            var connection = await _client.GetConnection(config);
+            try
+            {
+                var connection = await _client.GetConnection(config);
 
-            return connection.State == ConnectionState.Open;
+                return connection.State == ConnectionState.Open;
+            }
+            catch (Exception e)
+            {
+                _logger.LogError(e, "Error verifying connection");
+                throw new ConnectionException();
+            }
         }
 
         public override async Task StoreData(ExecutionContext executionContext, Guid providerDefinitionId, string containerName, IDictionary<string, object> data)
@@ -271,13 +285,13 @@ namespace CluedIn.Connector.SqlServer.Connector
 
                 _logger.LogDebug($"Sql Server Connector - Store Data - Generated query: {sql}");
 
-
                 await _client.ExecuteCommandAsync(config, sql, param);
             }
             catch (Exception e)
             {
-                _logger.LogError(e, "Error storing data");
-                throw e;
+                var message = $"Could not store data into Container '{containerName}' for Connector {providerDefinitionId}";
+                _logger.LogError(e, message);
+                throw new StoreDataException(message);
             }
         }
 
