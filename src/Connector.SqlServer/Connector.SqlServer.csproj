@@ -9,9 +9,6 @@
     <None Remove="Resources\SqlServer.png" />
   </ItemGroup>
   <ItemGroup>
-    <Content Include="Provider.sql" />
-  </ItemGroup>
-  <ItemGroup>
     <EmbeddedResource Include="Resources\sqlserver.png" />
   </ItemGroup>
   <ItemGroup>

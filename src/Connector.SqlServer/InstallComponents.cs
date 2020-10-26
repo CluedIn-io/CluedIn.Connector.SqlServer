@@ -1,8 +1,6 @@
-﻿using System;
-using Castle.MicroKernel.Registration;
+﻿using Castle.MicroKernel.Registration;
 using Castle.MicroKernel.SubSystems.Configuration;
 using Castle.Windsor;
-using CluedIn.Core;
 
 namespace CluedIn.Connector.SqlServer
 {
@@ -10,13 +8,7 @@ namespace CluedIn.Connector.SqlServer
     {
         public void Install(IWindsorContainer container, IConfigurationStore store)
         {
-            if (container == null) throw new ArgumentNullException(nameof(container));
-            if (store == null) throw new ArgumentNullException(nameof(store));
-
-            if (!container.Kernel.HasComponent(typeof(ISystemNotifications)) && !container.Kernel.HasComponent(typeof(SystemNotifications)))
-            {
-                container.Register(Component.For<ISystemNotifications, SystemNotifications>());
-            }
+            //container.Register(Component.For<ISqlClient>().ImplementedBy<SqlClient>().OnlyNewServices());
         }
     }
 }

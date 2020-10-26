@@ -5,6 +5,7 @@ using CluedIn.Core;
 using CluedIn.Core.Providers;
 using CluedIn.Core.Server;
 using ComponentHost;
+using Microsoft.Extensions.Logging;
 
 namespace CluedIn.Connector.SqlServer
 {
@@ -24,6 +25,8 @@ namespace CluedIn.Connector.SqlServer
             // Dev. Note: Potential for compiler warning here ... CA2214: Do not call overridable methods in constructors
             //   this class has been sealed to prevent the CA2214 waring being raised by the compiler
             Container.Register(Component.For<SqlServerConnectorComponent>().Instance(this));
+
+            //Container.Register(Component.For<ISqlClient>().ImplementedBy<SqlClient>().OnlyNewServices());
         }
 
         /**********************************************************************************************************
@@ -33,16 +36,17 @@ namespace CluedIn.Connector.SqlServer
         /// <summary>Starts this instance.</summary>
         public override void Start()
         {
+
             Container.Install(new InstallComponents());
-
-
-
-            Container.Register(Component.For<ISqlClient>().ImplementedBy(typeof(SqlClient)));
 
             var asm = Assembly.GetExecutingAssembly();
             Container.Register(Types.FromAssembly(asm).BasedOn<IProvider>().WithServiceFromInterface().If(t => !t.IsAbstract).LifestyleSingleton());
             Container.Register(Types.FromAssembly(asm).BasedOn<IEntityActionBuilder>().WithServiceFromInterface().If(t => !t.IsAbstract).LifestyleSingleton());
 
+            Container.Register(Component.For<ISqlClient>().ImplementedBy<SqlClient>().OnlyNewServices());
+
+
+            this.Log.LogInformation("SqlClient Registered");
             State = ServiceState.Started;
         }
 
