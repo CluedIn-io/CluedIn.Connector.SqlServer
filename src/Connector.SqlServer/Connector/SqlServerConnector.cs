@@ -248,7 +248,7 @@ namespace CluedIn.Connector.SqlServer.Connector
                 VocabularyKeyDataType.DateTime => "datetime2",
                 VocabularyKeyDataType.Time => "time",
                 VocabularyKeyDataType.Xml => "XML",
-                VocabularyKeyDataType.Guid => "binary",
+                VocabularyKeyDataType.Guid => "uniqueidentifier",
                 VocabularyKeyDataType.GeographyLocation => "geography",
                 _ => "nvarchar(max)"
             };
