@@ -318,8 +318,8 @@ namespace CluedIn.Connector.SqlServer.Connector
                 builder.Append($"@{name}{(index < count - 1 ? "," : "")}");
                 param.Add(new SqlParameter
                 {
-                    ParameterName = name,
-                    Value = dataType.Value
+                    ParameterName = "@" + name,
+                    Value = dataType.Value ?? ""
                 });
                 index++;
             }
