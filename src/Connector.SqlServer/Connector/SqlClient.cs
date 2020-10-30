@@ -12,13 +12,17 @@ namespace CluedIn.Connector.SqlServer.Connector
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Security", "CA2100:Review SQL queries for security vulnerabilities", Justification = "<Pending>")]
         public async Task ExecuteCommandAsync(IConnectorConnection config, string commandText, IList<SqlParameter> param = null)
         {
-            var connection = await GetConnection(config.Authentication);
-            var cmd = connection.CreateCommand();
-            cmd.CommandText = commandText;
+            using (var connection = await GetConnection(config.Authentication))
+            {
+                var cmd = connection.CreateCommand();
 
-            if (param != null) cmd.Parameters.AddRange(param.ToArray());
+                cmd.CommandText = commandText;
 
-            await cmd.ExecuteNonQueryAsync();
+                if (param != null)
+                    cmd.Parameters.AddRange(param.ToArray());
+
+                await cmd.ExecuteNonQueryAsync();
+            }
         }
 
         public async Task<SqlConnection> GetConnection(IDictionary<string, object> config)
@@ -41,33 +45,37 @@ namespace CluedIn.Connector.SqlServer.Connector
 
         public async Task<DataTable> GetTables(IDictionary<string, object> config, string name = null)
         {
-            var connection = await GetConnection(config);
-            DataTable result;
-            if (!string.IsNullOrEmpty(name))
+            using (var connection = await GetConnection(config))
             {
-                var restrictions = new string[4];
-                restrictions[2] = name;
+                DataTable result;
+                if (!string.IsNullOrEmpty(name))
+                {
+                    var restrictions = new string[4];
+                    restrictions[2] = name;
 
-                result = connection.GetSchema("Tables", restrictions);
-            }
-            else
-            {
-                result = connection.GetSchema("Tables");
-            }
+                    result = connection.GetSchema("Tables", restrictions);
+                }
+                else
+                {
+                    result = connection.GetSchema("Tables");
+                }
 
-            return result;
+                return result;
+            }
         }
 
         public async Task<DataTable> GetTableColumns(IDictionary<string, object> config, string tableName)
         {
-            var connection = await GetConnection(config);
+            using (var connection = await GetConnection(config))
+            {
 
-            var restrictions = new string[4];
-            restrictions[2] = tableName;
+                var restrictions = new string[4];
+                restrictions[2] = tableName;
 
-            var result = connection.GetSchema("Columns", restrictions);
+                var result = connection.GetSchema("Columns", restrictions);
 
-            return result;
+                return result;
+            }
         }
     }
 }
