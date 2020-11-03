@@ -352,7 +352,7 @@ namespace CluedIn.Connector.SqlServer.Connector
 
         private string BuildRenameContainerSql(string id, string newName, out List<SqlParameter> param)
         {
-            var result = @"EXEC sp_rename @tableName, @newName";
+            var result = $"IF EXISTS(SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = '{Sanitize(id)}') EXEC sp_rename @tableName, @newName";
 
             param = new List<SqlParameter>
             {
@@ -371,7 +371,7 @@ namespace CluedIn.Connector.SqlServer.Connector
 
         private string BuildRemoveContainerSql(string id)
         {
-            var result = $"DROP TABLE [{Sanitize(id)}]";
+            var result = $"DROP TABLE [{Sanitize(id)}] IF EXISTS";
 
             return result;
         }
