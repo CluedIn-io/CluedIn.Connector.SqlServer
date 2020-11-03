@@ -327,5 +327,97 @@ namespace CluedIn.Connector.SqlServer.Connector
             builder.Append(")");
             return builder.ToString();
         }
+
+        public override async Task ArchiveContainer(ExecutionContext executionContext, Guid providerDefinitionId, string id)
+        {
+            try
+            {
+                var config = await base.GetAuthenticationDetails(executionContext, providerDefinitionId);
+
+                var newName = await GetValidContainerName(executionContext, providerDefinitionId, $"{id}{DateTime.Now:yy/MM/yyyyHHmmss}");
+                var sql = BuildRenameContainerSql(id, newName, out var param);
+
+                _logger.LogDebug($"Sql Server Connector - Archive Container - Generated query: {sql}");
+
+                await _client.ExecuteCommandAsync(config, sql, param);
+            }
+            catch (Exception e)
+            {
+                var message = $"Could not archive Container {id}";
+                _logger.LogError(e, message);
+
+                throw new EmptyContainerException(message);
+            }
+        }
+
+        private string BuildRenameContainerSql(string id, string newName, out List<SqlParameter> param)
+        {
+            var result = @"EXEC sp_rename @tableName, @newName";
+
+            param = new List<SqlParameter>
+            {
+                new SqlParameter("@tableName", SqlDbType.NVarChar)
+                {
+                    Value = Sanitize(id)
+                },
+                new SqlParameter("@newName", SqlDbType.NVarChar)
+                {
+                    Value = Sanitize(newName)
+                }
+            };
+
+            return result;
+        }
+
+        private string BuildRemoveContainerSql(string id)
+        {
+            var result = $"DROP TABLE [{Sanitize(id)}]";
+
+            return result;
+        }
+
+        public override async Task RenameContainer(ExecutionContext executionContext, Guid providerDefinitionId, string id, string newName)
+        {
+            try
+            {
+                var config = await base.GetAuthenticationDetails(executionContext, providerDefinitionId);
+
+                var tempName = Sanitize(newName);
+
+                var sql = BuildRenameContainerSql(id, tempName, out var param);
+
+                _logger.LogDebug($"Sql Server Connector - Rename Container - Generated query: {sql}");
+
+                await _client.ExecuteCommandAsync(config, sql, param);
+            }
+            catch (Exception e)
+            {
+                var message = $"Could not rename Container {id}";
+                _logger.LogError(e, message);
+
+                throw new EmptyContainerException(message);
+            }
+        }
+
+        public override async Task RemoveContainer(ExecutionContext executionContext, Guid providerDefinitionId, string id)
+        {
+            try
+            {
+                var config = await base.GetAuthenticationDetails(executionContext, providerDefinitionId);
+
+                var sql = BuildRemoveContainerSql(id);
+
+                _logger.LogDebug($"Sql Server Connector - Remove Container - Generated query: {sql}");
+
+                await _client.ExecuteCommandAsync(config, sql);
+            }
+            catch (Exception e)
+            {
+                var message = $"Could not remove Container {id}";
+                _logger.LogError(e, message);
+
+                throw new EmptyContainerException(message);
+            }
+        }
     }
 }
