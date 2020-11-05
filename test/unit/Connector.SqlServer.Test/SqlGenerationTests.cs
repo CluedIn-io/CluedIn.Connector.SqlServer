@@ -52,7 +52,14 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests
 
             var result = Sut.BuildStoreDataSql(name, data, out var param);
 
-            Assert.Equal($"INSERT INTO [{name}] ([Field1],[Field2],[Field3],[Field4],[Field5]) VALUES (@Field1,@Field2,@Field3,@Field4,@Field5)", result.Trim());
+            Assert.Equal($"MERGE [{name}] AS target" + Environment.NewLine +
+                         "USING (SELECT @Field1, @Field2, @Field3, @Field4, @Field5) AS source ([Field1], [Field2], [Field3], [Field4], [Field5])" + Environment.NewLine +
+                         "  ON (target.OriginEntityCode = source.OriginEntityCode)" + Environment.NewLine +
+                         "WHEN MATCHED THEN" + Environment.NewLine +
+                         "  UPDATE SET [Field1] = source.Field1, [Field2] = source.Field2, [Field3] = source.Field3, [Field4] = source.Field4, [Field5] = source.Field5" + Environment.NewLine +
+                         "WHEN NOT MATCHED THEN" + Environment.NewLine +
+                         "  INSERT ([Field1], [Field2], [Field3], [Field4], [Field5])" + Environment.NewLine +
+                         "  VALUES (source.Field1, source.Field2, source.Field3, source.Field4, source.Field5);", result.Trim());
             Assert.Equal(data.Count, param.Count);
 
             for (var index = 0; index < data.Count; index++)

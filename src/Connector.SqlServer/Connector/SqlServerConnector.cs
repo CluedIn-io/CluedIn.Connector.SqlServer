@@ -298,33 +298,24 @@ namespace CluedIn.Connector.SqlServer.Connector
         public string BuildStoreDataSql(string containerName, IDictionary<string, object> data, out List<SqlParameter> param)
         {
             var builder = new StringBuilder();
-            builder.Append($"INSERT INTO [{Sanitize(containerName)}] (");
 
-            var index = 0;
-            var count = data.Count;
-            foreach (var dataType in data)
-            {
-                builder.Append($"[{Sanitize(dataType.Key)}]{(index < count - 1 ? "," : "")}");
-                index++;
-            }
+            var nameList = data.Select(n => Sanitize(n.Key)).ToList();
+            var fieldList = string.Join(", ", nameList.Select(n => $"[{n}]"));
+            var paramList = string.Join(", ", nameList.Select(n => $"@{n}"));
+            var insertList = string.Join(", ", nameList.Select(n => $"source.{n}"));
+            var updateList = string.Join(", ", nameList.Select(n => $"[{n}] = source.{n}"));
 
-            builder.Append(") VALUES (");
+            builder.AppendLine($"MERGE [{Sanitize(containerName)}] AS target");
+            builder.AppendLine($"USING (SELECT {paramList}) AS source ({fieldList})");
+            builder.AppendLine("  ON (target.OriginEntityCode = source.OriginEntityCode)");
+            builder.AppendLine("WHEN MATCHED THEN");
+            builder.AppendLine($"  UPDATE SET {updateList}");
+            builder.AppendLine("WHEN NOT MATCHED THEN");
+            builder.AppendLine($"  INSERT ({fieldList})");
+            builder.AppendLine($"  VALUES ({insertList});");
 
-            param = new List<SqlParameter>();
-            index = 0;
-            foreach (var dataType in data)
-            {
-                var name = Sanitize(dataType.Key);
-                builder.Append($"@{name}{(index < count - 1 ? "," : "")}");
-                param.Add(new SqlParameter
-                {
-                    ParameterName = "@" + name,
-                    Value = dataType.Value ?? ""
-                });
-                index++;
-            }
+            param = (from dataType in data let name = Sanitize(dataType.Key) select new SqlParameter {ParameterName = $"@{name}", Value = dataType.Value ?? ""}).ToList();
 
-            builder.Append(")");
             return builder.ToString();
         }
 
@@ -334,7 +325,7 @@ namespace CluedIn.Connector.SqlServer.Connector
             {
                 var config = await base.GetAuthenticationDetails(executionContext, providerDefinitionId);
 
-                var newName = await GetValidContainerName(executionContext, providerDefinitionId, $"{id}{DateTime.Now:yy/MM/yyyyHHmmss}");
+                var newName = await GetValidContainerName(executionContext, providerDefinitionId, $"{id}{DateTime.Now:yyyyMMddHHmmss}");
                 var sql = BuildRenameContainerSql(id, newName, out var param);
 
                 _logger.LogDebug($"Sql Server Connector - Archive Container - Generated query: {sql}");
