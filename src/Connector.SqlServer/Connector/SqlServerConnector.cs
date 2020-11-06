@@ -283,7 +283,7 @@ namespace CluedIn.Connector.SqlServer.Connector
 
                 var sql = BuildStoreDataSql(containerName, data, out var param);
 
-                _logger.LogDebug($"Sql Server Connector - Store Data - Generated query: {sql}");
+                _logger.LogDebug("Sql Server Connector - Store Data - Generated query: {sql}, Params: {@param}", sql, param);
 
                 await _client.ExecuteCommandAsync(config, sql, param);
             }
@@ -313,6 +313,8 @@ namespace CluedIn.Connector.SqlServer.Connector
             builder.AppendLine("WHEN NOT MATCHED THEN");
             builder.AppendLine($"  INSERT ({fieldList})");
             builder.AppendLine($"  VALUES ({insertList});");
+
+
 
             param = (from dataType in data let name = Sanitize(dataType.Key) select new SqlParameter {ParameterName = $"@{name}", Value = dataType.Value ?? ""}).ToList();
 
