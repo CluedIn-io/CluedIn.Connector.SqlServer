@@ -283,7 +283,7 @@ namespace CluedIn.Connector.SqlServer.Connector
 
                 var sql = BuildStoreDataSql(containerName, data, out var param);
 
-                _logger.LogDebug("Sql Server Connector - Store Data - Generated query: {sql}, Params: {@param}", sql, param);
+                _logger.LogDebug($"Sql Server Connector - Store Data - Generated query: {sql}");
 
                 await _client.ExecuteCommandAsync(config, sql, param);
             }
