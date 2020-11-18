@@ -15,20 +15,20 @@ namespace CluedIn.Connector.SqlServer
             public const string Password = "password";
             public const string PortNumber = "portNumber";
         }
-        
+
         public const string ConnectorName = "SqlServerConnector";
         public const string ConnectorComponentName = "SqlServerConnector";
-        public const string ConnectorDescription = "Sql Server Connector is a ... to be completed ...";
+        public const string ConnectorDescription = "Supports publishing of data to external SQL databases.";
         public const string Uri = "https://www.microsoft.com/en-us/sql-server";
 
-        public static readonly Guid ProviderId = Guid.Parse("838E4EA2-80E0-4B60-B1D1-F052BFCD0CAF");  
-        public const string ProviderName = "Sql Server Connector";         
-        public const bool SupportsConfiguration = false;          
-        public const bool SupportsWebHooks = false;            
-        public const bool SupportsAutomaticWebhookCreation = false;            
-        public const bool RequiresAppInstall = false;           
-        public const string AppInstallUrl = null;            
-        public const string ReAuthEndpoint = null;            
+        public static readonly Guid ProviderId = Guid.Parse("838E4EA2-80E0-4B60-B1D1-F052BFCD0CAF");
+        public const string ProviderName = "Sql Server Connector";
+        public const bool SupportsConfiguration = false;
+        public const bool SupportsWebHooks = false;
+        public const bool SupportsAutomaticWebhookCreation = false;
+        public const bool RequiresAppInstall = false;
+        public const string AppInstallUrl = null;
+        public const string ReAuthEndpoint = null;
 
         public static IList<string> ServiceType = new List<string> { "Connector" };
         public static IList<string> Aliases = new List<string> { "SqlServerConnector" };
@@ -82,7 +82,7 @@ namespace CluedIn.Connector.SqlServer
 
         public static IEnumerable<Control> Properties = new List<Control>
         {
-            
+
         };
 
         public static readonly ComponentEmailDetails ComponentEmailDetails = new ComponentEmailDetails {
