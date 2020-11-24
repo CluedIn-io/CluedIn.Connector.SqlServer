@@ -1,20 +1,18 @@
-parameters:
-  - name: Configuration
-    default: Release
-
 name: $(Date:yyyyMMdd)$(Rev:.r)
 
 trigger:
-  - master
-  - develop
-  - release/*
-  - hotfix/*
+  branches:
+    include:
+    - develop
+    - master
+    - release/*
 
 pr:
-  - develop
-  - master
-  - release/*
-  - hotfix/*
+  branches:
+    include:
+    - develop
+    - master
+    - release/*
 
 resources:
   repositories:
@@ -22,6 +20,7 @@ resources:
       type: github
       name: CluedIn-io/AzurePipelines.Templates
       endpoint: 'CluedIn-io'
+      ref: refs/heads/refactor
 
 pool:
   vmImage: 'windows-latest'
@@ -35,7 +34,7 @@ variables:
   - name: DOTNET_CLI_TELEMETRY_OPTOUT
     value: true
   - name: buildConfiguration
-    value: ${{ parameters.Configuration }}
+    value: Release
 
 steps:
 
@@ -49,4 +48,4 @@ steps:
   env:
     NUGET_KEY: $(nuget.key)
 
-- template: crawler.netcore.build.yml@templates
+- template: crawler.build.yml@templates
