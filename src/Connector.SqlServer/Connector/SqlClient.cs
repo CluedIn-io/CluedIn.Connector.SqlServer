@@ -25,7 +25,7 @@ namespace CluedIn.Connector.SqlServer.Connector
             }
         }
 
-        public async Task<SqlConnection> GetConnection(IDictionary<string, object> config)
+        public string BuildConnectionString(IDictionary<string, object> config)
         {
             var cnxString = new SqlConnectionStringBuilder
             {
@@ -36,7 +36,16 @@ namespace CluedIn.Connector.SqlServer.Connector
                 InitialCatalog = (string)config[SqlServerConstants.KeyName.DatabaseName],
             };
 
-            var result = new SqlConnection(cnxString.ToString());
+            if (config.ContainsKey(SqlServerConstants.KeyName.PortNumber))
+                cnxString.DataSource = $"{cnxString.DataSource},{(int)config[SqlServerConstants.KeyName.PortNumber]}";
+
+            return cnxString.ToString();
+        }
+
+        public async Task<SqlConnection> GetConnection(IDictionary<string, object> config)
+        {
+            var connectionString = BuildConnectionString(config);
+            var result = new SqlConnection(connectionString);
 
             await result.OpenAsync();
 
