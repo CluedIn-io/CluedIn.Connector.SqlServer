@@ -1,4 +1,6 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
+using System.ComponentModel;
 using System.Data;
 using System.Linq;
 using System.Threading.Tasks;
@@ -36,10 +38,30 @@ namespace CluedIn.Connector.SqlServer.Connector
                 InitialCatalog = (string)config[SqlServerConstants.KeyName.DatabaseName],
             };
 
-            if (config.ContainsKey(SqlServerConstants.KeyName.PortNumber))
-                cnxString.DataSource = $"{cnxString.DataSource},{(int)config[SqlServerConstants.KeyName.PortNumber]}";
+            if (config.TryGetValue(SqlServerConstants.KeyName.PortNumber, out var portEntry) && portEntry != null)
+            {
+                int? port = null;
+                if (portEntry is int)
+                {
+                    port = (int)portEntry;
+                }
+                else
+                {
+                    try
+                    {
+                        port = (int)Convert.ChangeType(portEntry, typeof(int));
+                    }
+                    catch { }
+                }
+                
+                if(port.HasValue)
+                {
+                    cnxString.DataSource = $"{cnxString.DataSource},{port.Value}";
+                }
+            };
 
             return cnxString.ToString();
+
         }
 
         public async Task<SqlConnection> GetConnection(IDictionary<string, object> config)
