@@ -240,18 +240,20 @@ namespace CluedIn.Connector.SqlServer.Connector
 
         private string GetDbType(VocabularyKeyDataType type)
         {
-            return type switch
-            {
-                VocabularyKeyDataType.Integer => "bigint",
-                VocabularyKeyDataType.Number => "decimal(18,4)",
-                VocabularyKeyDataType.Money => "money",
-                VocabularyKeyDataType.DateTime => "datetime2",
-                VocabularyKeyDataType.Time => "time",
-                VocabularyKeyDataType.Xml => "XML",
-                VocabularyKeyDataType.Guid => "uniqueidentifier",
-                VocabularyKeyDataType.GeographyLocation => "geography",
-                _ => "nvarchar(max)"
-            };
+            //return type switch //TODO: LJU: Temporary change until we get vocabularies resolved @ LHO.
+            //{
+            //    VocabularyKeyDataType.Integer => "bigint",
+            //    VocabularyKeyDataType.Number => "decimal(18,4)",
+            //    VocabularyKeyDataType.Money => "money",
+            //    VocabularyKeyDataType.DateTime => "datetime2",
+            //    VocabularyKeyDataType.Time => "time",
+            //    VocabularyKeyDataType.Xml => "XML",
+            //    VocabularyKeyDataType.Guid => "uniqueidentifier",
+            //    VocabularyKeyDataType.GeographyLocation => "geography",
+            //    _ => "nvarchar(max)"
+            //};
+
+            return "nvarchar(max)";
         }
 
         public override async Task<bool> VerifyConnection(ExecutionContext executionContext, Guid providerDefinitionId)
