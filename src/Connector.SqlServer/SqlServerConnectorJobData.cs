@@ -16,7 +16,7 @@ namespace CluedIn.Connector.SqlServer
             DatabaseName = GetValue<string>(configuration, SqlServerConstants.KeyName.DatabaseName);
             Host = GetValue<string>(configuration, SqlServerConstants.KeyName.Host);
             Password = GetValue<string>(configuration, SqlServerConstants.KeyName.Password);
-            PortNumber = GetValue<int>(configuration, SqlServerConstants.KeyName.PortNumber);
+            PortNumber = GetValue<int>(configuration, SqlServerConstants.KeyName.PortNumber, 1433);
         }
 
         public IDictionary<string, object> ToDictionary()
