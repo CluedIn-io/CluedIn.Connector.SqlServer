@@ -49,7 +49,7 @@ namespace CluedIn.Connector.SqlServer.Connector
             }
 
             var tasks = new List<Task> { CreateTable(model.Name, model.DataTypes, "Data") };
-            if (model.CreatedEdgeTable)
+            if (model.CreateEdgeTable)
                 tasks.Add(CreateTable(EdgeContainerHelper.GetName(model.Name), new List<ConnectionDataType>
                 {
                     new ConnectionDataType { Name = Sanitize("OriginEntityCode"), Type = VocabularyKeyDataType.Text },
@@ -317,6 +317,29 @@ namespace CluedIn.Connector.SqlServer.Connector
             }
         }
 
+        public override async Task StoreEdgeData(ExecutionContext executionContext, Guid providerDefinitionId, string containerName, string originEntityCode, IEnumerable<string> edges)
+        {
+            try
+            {
+                var edgeTableName = EdgeContainerHelper.GetName(containerName);
+                if (await CheckTableExists(executionContext, providerDefinitionId, edgeTableName))
+                {
+                    var sql = BuildEdgeStoreDataSql(edgeTableName, originEntityCode,edges, out var param);
+
+                    _logger.LogDebug($"Sql Server Connector - Store Edge Data - Generated query: {sql}");
+
+                    var config = await base.GetAuthenticationDetails(executionContext, providerDefinitionId);
+                    await _client.ExecuteCommandAsync(config, sql, param);
+                }                
+            }
+            catch (Exception e)
+            {
+                var message = $"Could not store edge data into Container '{containerName}' for Connector {providerDefinitionId}";
+                _logger.LogError(e, message);
+                throw new StoreDataException(message);
+            }
+        }
+
         public string BuildStoreDataSql(string containerName, IDictionary<string, object> data, out List<SqlParameter> param)
         {
             var builder = new StringBuilder();
@@ -339,6 +362,34 @@ namespace CluedIn.Connector.SqlServer.Connector
 
 
             param = (from dataType in data let name = Sanitize(dataType.Key) select new SqlParameter { ParameterName = $"@{name}", Value = dataType.Value ?? "" }).ToList();
+
+            return builder.ToString();
+        }
+
+        public string BuildEdgeStoreDataSql(string containerName, string originEntityCode, IEnumerable<string> edges, out List<SqlParameter> param)
+        {
+            var originParam = new SqlParameter { ParameterName = "@OriginEntityCode", Value = originEntityCode };
+            param = new List<SqlParameter> { originParam };
+
+            var builder = new StringBuilder();
+            builder.AppendLine($"DELETE FROM [{Sanitize(containerName)}] where [OriginEntityCode] = {originParam.ParameterName}");
+            var edgeValues = new List<string>();
+            foreach (var edge in edges)
+            {
+                var edgeParam = new SqlParameter
+                {
+                    ParameterName = $"@{edgeValues.Count}",
+                    Value = edge
+                };
+                param.Add(edgeParam);
+                edgeValues.Add($"(@OriginEntityCode, {edgeParam.ParameterName})");
+            }
+
+            if(edgeValues.Count > 0)
+            {
+                builder.AppendLine($"INSERT INTO [{Sanitize(containerName)}] ([OriginEntityCode],[Code]) values");
+                builder.AppendJoin(", ", edgeValues);
+            }
 
             return builder.ToString();
         }
