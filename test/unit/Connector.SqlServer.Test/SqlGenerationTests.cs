@@ -33,9 +33,9 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests
                 }
             };
 
-            var result = Sut.BuildCreateContainerSql(model);
+            var result = Sut.BuildCreateContainerSql(model.Name, model.DataTypes);
 
-            Assert.Equal($"CREATE TABLE [{name}]( [Field1] bigint NULL, [Field2] nvarchar(max) NULL, [Field3] datetime2 NULL, [Field4] decimal(18,4) NULL, [Field5] nvarchar(max) NULL ) ON[PRIMARY]", result.Trim().Replace(Environment.NewLine, " "));
+            Assert.Equal($"CREATE TABLE [{name}]( [Field1] bigint NULL, [Field2] nvarchar(max) NULL, [Field3] datetime2 NULL, [Field4] decimal(18,4) NULL, [Field5] nvarchar(max) NULL) ON[PRIMARY]", result.Trim().Replace(Environment.NewLine, " "));
         }
 
         [Theory, InlineAutoData]
