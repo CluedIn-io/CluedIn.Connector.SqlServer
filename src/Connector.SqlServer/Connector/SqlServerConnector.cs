@@ -9,12 +9,12 @@ using CluedIn.Core;
 using CluedIn.Core.Connectors;
 using CluedIn.Core.Data.Vocabularies;
 using CluedIn.Core.DataStore;
+using CluedIn.Core.Streams.Models;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Logging;
 
 namespace CluedIn.Connector.SqlServer.Connector
 {
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Security", "CA2100:Review SQL queries for security vulnerabilities", Justification = "<Pending>")]
     public class SqlServerConnector : ConnectorBase
     {
         private readonly ILogger<SqlServerConnector> _logger;
@@ -29,77 +29,171 @@ namespace CluedIn.Connector.SqlServer.Connector
 
         public override async Task CreateContainer(ExecutionContext executionContext, Guid providerDefinitionId, CreateContainerModel model)
         {
-            try
+            var config = await base.GetAuthenticationDetails(executionContext, providerDefinitionId);
+
+            async Task CreateTable(string name, IEnumerable<ConnectionDataType> columns, string context)
             {
-                var config = await base.GetAuthenticationDetails(executionContext, providerDefinitionId);
+                var sql = BuildCreateContainerSql(name, columns);
+                _logger.LogDebug("Sql Server Connector - Create Container[{Context}] - Generated query: {sql}", context, sql);
 
-                var sql = BuildCreateContainerSql(model);
-
-                _logger.LogDebug($"Sql Server Connector - Create Container - Generated query: {sql}");
-
-                await _client.ExecuteCommandAsync(config, sql);
+                try
+                {
+                    await _client.ExecuteCommandAsync(config, sql);
+                }
+                catch (Exception e)
+                {
+                    var message = $"Could not create Container {name} for Connector {providerDefinitionId}";
+                    _logger.LogError(e, message);
+                    throw new CreateContainerException(message);
+                }
             }
-            catch (Exception e)
-            {
-                var message = $"Could not create Container {model.Name} for Connector {providerDefinitionId}";
-                _logger.LogError(e, message);
-                throw new CreateContainerException(message);
-            }
+
+            var tasks = new List<Task> { CreateTable(model.Name, model.DataTypes, "Data") };
+            if (model.CreateEdgeTable)
+                tasks.Add(CreateTable(EdgeContainerHelper.GetName(model.Name), new List<ConnectionDataType>
+                {
+                    new ConnectionDataType { Name = Sanitize("OriginEntityCode"), Type = VocabularyKeyDataType.Text },
+                    new ConnectionDataType { Name = Sanitize("Code"), Type = VocabularyKeyDataType.Text },
+                }, "Edges"));
+
+            await Task.WhenAll(tasks);
         }
 
-        public string BuildCreateContainerSql(CreateContainerModel model)
+        public override async Task EmptyContainer(ExecutionContext executionContext, Guid providerDefinitionId, string id)
         {
-            var builder = new StringBuilder();
-            builder.AppendLine($"CREATE TABLE [{Sanitize(model.Name)}](");
+            var config = await base.GetAuthenticationDetails(executionContext, providerDefinitionId);
 
-            var index = 0;
-            var count = model.DataTypes.Count;
-            foreach (var type in model.DataTypes)
+            async Task EmptyTable(string name, string context)
             {
-                builder.AppendLine($"[{Sanitize(type.Name)}] {GetDbType(type.Type)} NULL{(index < count - 1 ? "," : "")}");
+                var sql = BuildEmptyContainerSql(name);
+                _logger.LogDebug("Sql Server Connector - Empty Container[{Context}] - Generated query: {sql}", context, sql);
 
-                index++;
+                try
+                {
+                    await _client.ExecuteCommandAsync(config, sql);
+                }
+                catch (Exception e)
+                {
+                    var message = $"Could not empty Container {name}";
+                    _logger.LogError(e, message);
+                    throw new CreateContainerException(message);
+                }
             }
 
+            var tasks = new List<Task> { EmptyTable(id, "Data") };
+            var edgeTableName = EdgeContainerHelper.GetName(id);
+            if (await CheckTableExists(executionContext, providerDefinitionId, edgeTableName))
+                tasks.Add(EmptyTable(edgeTableName, "Edges"));
+
+            await Task.WhenAll(tasks);
+
+        }
+
+        public override async Task ArchiveContainer(ExecutionContext executionContext, Guid providerDefinitionId, string id)
+        {
+            var config = await base.GetAuthenticationDetails(executionContext, providerDefinitionId);
+
+            async Task ArchiveTable(string name, string context)
+            {
+                var newName = await GetValidContainerName(executionContext, providerDefinitionId, $"{name}{DateTime.Now:yyyyMMddHHmmss}");
+                var sql = BuildRenameContainerSql(name, newName, out var param);
+                _logger.LogDebug("Sql Server Connector - Archive Container[{Context}] - Generated query: {sql}", context, sql);
+
+                try
+                {
+                    await _client.ExecuteCommandAsync(config, sql, param);
+                }
+                catch (Exception e)
+                {
+                    var message = $"Could not Archive Container {name} for Connector {providerDefinitionId}";
+                    _logger.LogError(e, message);
+                    throw new CreateContainerException(message);
+                }
+            }
+
+            var tasks = new List<Task> { ArchiveTable(id, "Data") };
+            var edgeTableName = EdgeContainerHelper.GetName(id);
+            if (await CheckTableExists(executionContext, providerDefinitionId, edgeTableName))
+                tasks.Add(ArchiveTable(edgeTableName, "Edges"));
+
+            await Task.WhenAll(tasks);
+        }
+
+        public override async Task RenameContainer(ExecutionContext executionContext, Guid providerDefinitionId, string id, string newName)
+        {
+            var config = await base.GetAuthenticationDetails(executionContext, providerDefinitionId);
+
+            async Task RenameTable(string currentName, string updatedName, string context)
+            {
+                var tempName = Sanitize(updatedName);
+
+                var sql = BuildRenameContainerSql(currentName, tempName, out var param);
+
+                _logger.LogDebug("Sql Server Connector - Rename Container[{Context}] - Generated query: {sql}", context, sql);
+
+                try
+                {
+                    await _client.ExecuteCommandAsync(config, sql, param);
+                }
+                catch (Exception e)
+                {
+                    var message = $"Could not Rename Container {currentName} for Connector {providerDefinitionId}";
+                    _logger.LogError(e, message);
+                    throw new CreateContainerException(message);
+                }
+            }
+
+            var tasks = new List<Task> { RenameTable(id, newName, "Data") };
+            var edgeTableName = EdgeContainerHelper.GetName(id);
+            if (await CheckTableExists(executionContext, providerDefinitionId, edgeTableName))
+                tasks.Add(RenameTable(edgeTableName, EdgeContainerHelper.GetName(newName), "Edges"));
+
+            await Task.WhenAll(tasks);
+
+        }
+
+        public override async Task RemoveContainer(ExecutionContext executionContext, Guid providerDefinitionId, string id)
+        {
+            var config = await base.GetAuthenticationDetails(executionContext, providerDefinitionId);
+
+            async Task RemoveTable(string name, string context)
+            {
+                var sql = BuildRemoveContainerSql(name);
+
+                _logger.LogDebug("Sql Server Connector - Remove Container[{Context}] - Generated query: {sql}", context, sql);
+
+                try
+                {
+                    await _client.ExecuteCommandAsync(config, sql);
+                }
+                catch (Exception e)
+                {
+                    var message = $"Could not Remove Container {name} for Connector {providerDefinitionId}";
+                    _logger.LogError(e, message);
+                    throw new CreateContainerException(message);
+                }
+            }
+
+            var tasks = new List<Task> { RemoveTable(id, "Data") };
+            var edgeTableName = EdgeContainerHelper.GetName(id);
+            if (await CheckTableExists(executionContext, providerDefinitionId, edgeTableName))
+                tasks.Add(RemoveTable(edgeTableName, "Edges"));
+
+            await Task.WhenAll(tasks);
+        }
+
+        public string BuildCreateContainerSql(string name, IEnumerable<ConnectionDataType> columns)
+        {
+            var builder = new StringBuilder();
+            builder.AppendLine($"CREATE TABLE [{Sanitize(name)}](");
+            builder.AppendJoin(", ", columns.Select(c => $"[{Sanitize(c.Name)}] {GetDbType(c.Type)} NULL"));
             builder.AppendLine(") ON[PRIMARY]");
 
             var sql = builder.ToString();
             return sql;
         }
 
-        public override async Task EmptyContainer(ExecutionContext executionContext, Guid providerDefinitionId, string id)
-        {
-            try
-            {
-                var config = await base.GetAuthenticationDetails(executionContext, providerDefinitionId);
-
-                var sql = BuildEmptyContainerSql(id);
-
-                _logger.LogDebug($"Sql Server Connector - Empty Container - Generated query: {sql}");
-
-                await _client.ExecuteCommandAsync(config, sql);
-            }
-            catch (Exception e)
-            {
-                var message = $"Could not empty Container {id}";
-                _logger.LogError(e, message);
-                
-                throw new EmptyContainerException(message);
-            }
-        }
-
-        public string BuildEmptyContainerSql(string id)
-        {
-            var builder = new StringBuilder();
-            builder.AppendLine($"TRUNCATE TABLE [{Sanitize(id)}]");
-            var sql = builder.ToString();
-            return sql;
-        }
-
-        private string Sanitize(string str)
-        {
-            return str.Replace("--", "").Replace(";", "").Replace("'", "");       // Bare-bones sanitization to prevent Sql Injection. Extra info here http://sommarskog.se/dynamic_sql.html
-        }
+        public string BuildEmptyContainerSql(string id) => $"TRUNCATE TABLE [{Sanitize(id)}]";
 
         public override Task<string> GetValidDataTypeName(ExecutionContext executionContext, Guid providerDefinitionId, string name)
         {
@@ -131,23 +225,6 @@ namespace CluedIn.Connector.SqlServer.Connector
 
             // return new name
             return result;
-        }
-
-        private async Task<bool> CheckTableExists(ExecutionContext executionContext, Guid providerDefinitionId, string name)
-        {
-            try
-            {
-                var config = await base.GetAuthenticationDetails(executionContext, providerDefinitionId);
-                var tables = await _client.GetTables(config.Authentication, name);
-
-                return tables.Rows.Count > 0;
-            }
-            catch (Exception e)
-            {
-                var message = $"Error checking Container '{name}' exists for Connector {providerDefinitionId}";
-                _logger.LogError(e, message);
-                throw new ConnectionException(message);
-            }
         }
 
         public override async Task<IEnumerable<IConnectorContainer>> GetContainers(ExecutionContext executionContext, Guid providerDefinitionId)
@@ -197,6 +274,155 @@ namespace CluedIn.Connector.SqlServer.Connector
                 _logger.LogError(e, message);
                 throw new GetDataTypesException(message);
             }
+        }
+
+        public override async Task<bool> VerifyConnection(ExecutionContext executionContext, Guid providerDefinitionId)
+        {
+            var config = await base.GetAuthenticationDetails(executionContext, providerDefinitionId);
+            return await VerifyConnection(executionContext, config.Authentication);
+        }
+
+        public override async Task<bool> VerifyConnection(ExecutionContext executionContext, IDictionary<string, object> config)
+        {
+            try
+            {
+                var connection = await _client.GetConnection(config);
+
+                return connection.State == ConnectionState.Open;
+            }
+            catch (Exception e)
+            {
+                _logger.LogError(e, "Error verifying connection");
+                throw new ConnectionException();
+            }
+        }
+
+        public override async Task StoreData(ExecutionContext executionContext, Guid providerDefinitionId, string containerName, IDictionary<string, object> data)
+        {
+            try
+            {
+                var config = await base.GetAuthenticationDetails(executionContext, providerDefinitionId);
+
+                var sql = BuildStoreDataSql(containerName, data, out var param);
+
+                _logger.LogDebug($"Sql Server Connector - Store Data - Generated query: {sql}");
+
+                await _client.ExecuteCommandAsync(config, sql, param);
+            }
+            catch (Exception e)
+            {
+                var message = $"Could not store data into Container '{containerName}' for Connector {providerDefinitionId}";
+                _logger.LogError(e, message);
+                throw new StoreDataException(message);
+            }
+        }
+
+        public override async Task StoreEdgeData(ExecutionContext executionContext, Guid providerDefinitionId, string containerName, string originEntityCode, IEnumerable<string> edges)
+        {
+            try
+            {
+                var edgeTableName = EdgeContainerHelper.GetName(containerName);
+                if (await CheckTableExists(executionContext, providerDefinitionId, edgeTableName))
+                {
+                    var sql = BuildEdgeStoreDataSql(edgeTableName, originEntityCode,edges, out var param);
+
+                    _logger.LogDebug($"Sql Server Connector - Store Edge Data - Generated query: {sql}");
+
+                    var config = await base.GetAuthenticationDetails(executionContext, providerDefinitionId);
+                    await _client.ExecuteCommandAsync(config, sql, param);
+                }                
+            }
+            catch (Exception e)
+            {
+                var message = $"Could not store edge data into Container '{containerName}' for Connector {providerDefinitionId}";
+                _logger.LogError(e, message);
+                throw new StoreDataException(message);
+            }
+        }
+
+        public string BuildStoreDataSql(string containerName, IDictionary<string, object> data, out List<SqlParameter> param)
+        {
+            var builder = new StringBuilder();
+
+            var nameList = data.Select(n => Sanitize(n.Key)).ToList();
+            var fieldList = string.Join(", ", nameList.Select(n => $"[{n}]"));
+            var paramList = string.Join(", ", nameList.Select(n => $"@{n}"));
+            var insertList = string.Join(", ", nameList.Select(n => $"source.[{n}]"));
+            var updateList = string.Join(", ", nameList.Select(n => $"target.[{n}] = source.[{n}]"));
+
+            builder.AppendLine($"MERGE [{Sanitize(containerName)}] AS target");
+            builder.AppendLine($"USING (SELECT {paramList}) AS source ({fieldList})");
+            builder.AppendLine("  ON (target.[OriginEntityCode] = source.[OriginEntityCode])");
+            builder.AppendLine("WHEN MATCHED THEN");
+            builder.AppendLine($"  UPDATE SET {updateList}");
+            builder.AppendLine("WHEN NOT MATCHED THEN");
+            builder.AppendLine($"  INSERT ({fieldList})");
+            builder.AppendLine($"  VALUES ({insertList});");
+
+
+
+            param = (from dataType in data let name = Sanitize(dataType.Key) select new SqlParameter { ParameterName = $"@{name}", Value = dataType.Value ?? "" }).ToList();
+
+            return builder.ToString();
+        }
+
+        public string BuildEdgeStoreDataSql(string containerName, string originEntityCode, IEnumerable<string> edges, out List<SqlParameter> param)
+        {
+            var originParam = new SqlParameter { ParameterName = "@OriginEntityCode", Value = originEntityCode };
+            param = new List<SqlParameter> { originParam };
+
+            var builder = new StringBuilder();
+            builder.AppendLine($"DELETE FROM [{Sanitize(containerName)}] where [OriginEntityCode] = {originParam.ParameterName}");
+            var edgeValues = new List<string>();
+            foreach (var edge in edges)
+            {
+                var edgeParam = new SqlParameter
+                {
+                    ParameterName = $"@{edgeValues.Count}",
+                    Value = edge
+                };
+                param.Add(edgeParam);
+                edgeValues.Add($"(@OriginEntityCode, {edgeParam.ParameterName})");
+            }
+
+            if(edgeValues.Count > 0)
+            {
+                builder.AppendLine($"INSERT INTO [{Sanitize(containerName)}] ([OriginEntityCode],[Code]) values");
+                builder.AppendJoin(", ", edgeValues);
+            }
+
+            return builder.ToString();
+        }
+
+        private string BuildRenameContainerSql(string id, string newName, out List<SqlParameter> param)
+        {
+            var result = $"IF EXISTS(SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = '{Sanitize(id)}') EXEC sp_rename @tableName, @newName";
+
+            param = new List<SqlParameter>
+            {
+                new SqlParameter("@tableName", SqlDbType.NVarChar)
+                {
+                    Value = Sanitize(id)
+                },
+                new SqlParameter("@newName", SqlDbType.NVarChar)
+                {
+                    Value = Sanitize(newName)
+                }
+            };
+
+            return result;
+        }
+
+        private string BuildRemoveContainerSql(string id)
+        {
+            var result = $"DROP TABLE [{Sanitize(id)}] IF EXISTS";
+
+            return result;
+        }
+
+        private string Sanitize(string str)
+        {
+            return str.Replace("--", "").Replace(";", "").Replace("'", "");       // Bare-bones sanitization to prevent Sql Injection. Extra info here http://sommarskog.se/dynamic_sql.html
         }
 
         private VocabularyKeyDataType GetVocabType(string rawType)
@@ -254,163 +480,22 @@ namespace CluedIn.Connector.SqlServer.Connector
             };
         }
 
-        public override async Task<bool> VerifyConnection(ExecutionContext executionContext, Guid providerDefinitionId)
-        {
-            var config = await base.GetAuthenticationDetails(executionContext, providerDefinitionId);
-            return await VerifyConnection(executionContext, config.Authentication);
-        }
-
-        public override async Task<bool> VerifyConnection(ExecutionContext executionContext, IDictionary<string, object> config)
-        {
-            try
-            {
-                var connection = await _client.GetConnection(config);
-
-                return connection.State == ConnectionState.Open;
-            }
-            catch (Exception e)
-            {
-                _logger.LogError(e, "Error verifying connection");
-                throw new ConnectionException();
-            }
-        }
-
-        public override async Task StoreData(ExecutionContext executionContext, Guid providerDefinitionId, string containerName, IDictionary<string, object> data)
+        private async Task<bool> CheckTableExists(ExecutionContext executionContext, Guid providerDefinitionId, string name)
         {
             try
             {
                 var config = await base.GetAuthenticationDetails(executionContext, providerDefinitionId);
+                var tables = await _client.GetTables(config.Authentication, name);
 
-                var sql = BuildStoreDataSql(containerName, data, out var param);
-
-                _logger.LogDebug($"Sql Server Connector - Store Data - Generated query: {sql}");
-
-                await _client.ExecuteCommandAsync(config, sql, param);
+                return tables.Rows.Count > 0;
             }
             catch (Exception e)
             {
-                var message = $"Could not store data into Container '{containerName}' for Connector {providerDefinitionId}";
+                var message = $"Error checking Container '{name}' exists for Connector {providerDefinitionId}";
                 _logger.LogError(e, message);
-                throw new StoreDataException(message);
+                throw new ConnectionException(message);
             }
         }
 
-        public string BuildStoreDataSql(string containerName, IDictionary<string, object> data, out List<SqlParameter> param)
-        {
-            var builder = new StringBuilder();
-
-            var nameList = data.Select(n => Sanitize(n.Key)).ToList();
-            var fieldList = string.Join(", ", nameList.Select(n => $"[{n}]"));
-            var paramList = string.Join(", ", nameList.Select(n => $"@{n}"));
-            var insertList = string.Join(", ", nameList.Select(n => $"source.[{n}]"));
-            var updateList = string.Join(", ", nameList.Select(n => $"target.[{n}] = source.[{n}]"));
-
-            builder.AppendLine($"MERGE [{Sanitize(containerName)}] AS target");
-            builder.AppendLine($"USING (SELECT {paramList}) AS source ({fieldList})");
-            builder.AppendLine("  ON (target.[OriginEntityCode] = source.[OriginEntityCode])");
-            builder.AppendLine("WHEN MATCHED THEN");
-            builder.AppendLine($"  UPDATE SET {updateList}");
-            builder.AppendLine("WHEN NOT MATCHED THEN");
-            builder.AppendLine($"  INSERT ({fieldList})");
-            builder.AppendLine($"  VALUES ({insertList});");
-
-
-
-            param = (from dataType in data let name = Sanitize(dataType.Key) select new SqlParameter {ParameterName = $"@{name}", Value = dataType.Value ?? ""}).ToList();
-
-            return builder.ToString();
-        }
-
-        public override async Task ArchiveContainer(ExecutionContext executionContext, Guid providerDefinitionId, string id)
-        {
-            try
-            {
-                var config = await base.GetAuthenticationDetails(executionContext, providerDefinitionId);
-
-                var newName = await GetValidContainerName(executionContext, providerDefinitionId, $"{id}{DateTime.Now:yyyyMMddHHmmss}");
-                var sql = BuildRenameContainerSql(id, newName, out var param);
-
-                _logger.LogDebug($"Sql Server Connector - Archive Container - Generated query: {sql}");
-
-                await _client.ExecuteCommandAsync(config, sql, param);
-            }
-            catch (Exception e)
-            {
-                var message = $"Could not archive Container {id}";
-                _logger.LogError(e, message);
-
-                throw new EmptyContainerException(message);
-            }
-        }
-
-        private string BuildRenameContainerSql(string id, string newName, out List<SqlParameter> param)
-        {
-            var result = $"IF EXISTS(SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = '{Sanitize(id)}') EXEC sp_rename @tableName, @newName";
-
-            param = new List<SqlParameter>
-            {
-                new SqlParameter("@tableName", SqlDbType.NVarChar)
-                {
-                    Value = Sanitize(id)
-                },
-                new SqlParameter("@newName", SqlDbType.NVarChar)
-                {
-                    Value = Sanitize(newName)
-                }
-            };
-
-            return result;
-        }
-
-        private string BuildRemoveContainerSql(string id)
-        {
-            var result = $"DROP TABLE [{Sanitize(id)}] IF EXISTS";
-
-            return result;
-        }
-
-        public override async Task RenameContainer(ExecutionContext executionContext, Guid providerDefinitionId, string id, string newName)
-        {
-            try
-            {
-                var config = await base.GetAuthenticationDetails(executionContext, providerDefinitionId);
-
-                var tempName = Sanitize(newName);
-
-                var sql = BuildRenameContainerSql(id, tempName, out var param);
-
-                _logger.LogDebug($"Sql Server Connector - Rename Container - Generated query: {sql}");
-
-                await _client.ExecuteCommandAsync(config, sql, param);
-            }
-            catch (Exception e)
-            {
-                var message = $"Could not rename Container {id}";
-                _logger.LogError(e, message);
-
-                throw new EmptyContainerException(message);
-            }
-        }
-
-        public override async Task RemoveContainer(ExecutionContext executionContext, Guid providerDefinitionId, string id)
-        {
-            try
-            {
-                var config = await base.GetAuthenticationDetails(executionContext, providerDefinitionId);
-
-                var sql = BuildRemoveContainerSql(id);
-
-                _logger.LogDebug($"Sql Server Connector - Remove Container - Generated query: {sql}");
-
-                await _client.ExecuteCommandAsync(config, sql);
-            }
-            catch (Exception e)
-            {
-                var message = $"Could not remove Container {id}";
-                _logger.LogError(e, message);
-
-                throw new EmptyContainerException(message);
-            }
-        }
     }
 }
