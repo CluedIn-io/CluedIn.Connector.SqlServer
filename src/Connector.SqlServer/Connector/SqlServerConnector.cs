@@ -330,7 +330,7 @@ namespace CluedIn.Connector.SqlServer.Connector
 
                     var config = await base.GetAuthenticationDetails(executionContext, providerDefinitionId);
                     await _client.ExecuteCommandAsync(config, sql, param);
-                }                
+                }
             }
             catch (Exception e)
             {
@@ -427,57 +427,61 @@ namespace CluedIn.Connector.SqlServer.Connector
 
         private VocabularyKeyDataType GetVocabType(string rawType)
         {
-            return rawType.ToLower() switch
-            {
-                "bigint" => VocabularyKeyDataType.Integer,
-                "int" => VocabularyKeyDataType.Integer,
-                "smallint" => VocabularyKeyDataType.Integer,
-                "tinyint" => VocabularyKeyDataType.Integer,
-                "bit" => VocabularyKeyDataType.Boolean,
-                "decimal" => VocabularyKeyDataType.Number,
-                "numeric" => VocabularyKeyDataType.Number,
-                "float" => VocabularyKeyDataType.Number,
-                "real" => VocabularyKeyDataType.Number,
-                "money" => VocabularyKeyDataType.Money,
-                "smallmoney" => VocabularyKeyDataType.Money,
-                "datetime" => VocabularyKeyDataType.DateTime,
-                "smalldatetime" => VocabularyKeyDataType.DateTime,
-                "date" => VocabularyKeyDataType.DateTime,
-                "datetimeoffset" => VocabularyKeyDataType.DateTime,
-                "datetime2" => VocabularyKeyDataType.DateTime,
-                "time" => VocabularyKeyDataType.Time,
-                "char" => VocabularyKeyDataType.Text,
-                "varchar" => VocabularyKeyDataType.Text,
-                "text" => VocabularyKeyDataType.Text,
-                "nchar" => VocabularyKeyDataType.Text,
-                "nvarchar" => VocabularyKeyDataType.Text,
-                "ntext" => VocabularyKeyDataType.Text,
-                "binary" => VocabularyKeyDataType.Text,
-                "varbinary" => VocabularyKeyDataType.Text,
-                "image" => VocabularyKeyDataType.Text,
-                "timestamp" => VocabularyKeyDataType.Text,
-                "uniqueidentifier" => VocabularyKeyDataType.Guid,
-                "XML" => VocabularyKeyDataType.Xml,
-                "geometry" => VocabularyKeyDataType.Text,
-                "geography" => VocabularyKeyDataType.GeographyLocation,
-                _ => VocabularyKeyDataType.Text
-            };
+            // return rawType.ToLower() switch //TODO: @LJU: Disabled as it needs reviewing; Breaks streams;
+            // {
+            //     "bigint" => VocabularyKeyDataType.Integer,
+            //     "int" => VocabularyKeyDataType.Integer,
+            //     "smallint" => VocabularyKeyDataType.Integer,
+            //     "tinyint" => VocabularyKeyDataType.Integer,
+            //     "bit" => VocabularyKeyDataType.Boolean,
+            //     "decimal" => VocabularyKeyDataType.Number,
+            //     "numeric" => VocabularyKeyDataType.Number,
+            //     "float" => VocabularyKeyDataType.Number,
+            //     "real" => VocabularyKeyDataType.Number,
+            //     "money" => VocabularyKeyDataType.Money,
+            //     "smallmoney" => VocabularyKeyDataType.Money,
+            //     "datetime" => VocabularyKeyDataType.DateTime,
+            //     "smalldatetime" => VocabularyKeyDataType.DateTime,
+            //     "date" => VocabularyKeyDataType.DateTime,
+            //     "datetimeoffset" => VocabularyKeyDataType.DateTime,
+            //     "datetime2" => VocabularyKeyDataType.DateTime,
+            //     "time" => VocabularyKeyDataType.Time,
+            //     "char" => VocabularyKeyDataType.Text,
+            //     "varchar" => VocabularyKeyDataType.Text,
+            //     "text" => VocabularyKeyDataType.Text,
+            //     "nchar" => VocabularyKeyDataType.Text,
+            //     "nvarchar" => VocabularyKeyDataType.Text,
+            //     "ntext" => VocabularyKeyDataType.Text,
+            //     "binary" => VocabularyKeyDataType.Text,
+            //     "varbinary" => VocabularyKeyDataType.Text,
+            //     "image" => VocabularyKeyDataType.Text,
+            //     "timestamp" => VocabularyKeyDataType.Text,
+            //     "uniqueidentifier" => VocabularyKeyDataType.Guid,
+            //     "XML" => VocabularyKeyDataType.Xml,
+            //     "geometry" => VocabularyKeyDataType.Text,
+            //     "geography" => VocabularyKeyDataType.GeographyLocation,
+            //     _ => VocabularyKeyDataType.Text
+            // };
+
+            return VocabularyKeyDataType.Text;
         }
 
         private string GetDbType(VocabularyKeyDataType type)
         {
-            return type switch
-            {
-                VocabularyKeyDataType.Integer => "bigint",
-                VocabularyKeyDataType.Number => "decimal(18,4)",
-                VocabularyKeyDataType.Money => "money",
-                VocabularyKeyDataType.DateTime => "datetime2",
-                VocabularyKeyDataType.Time => "time",
-                VocabularyKeyDataType.Xml => "XML",
-                VocabularyKeyDataType.Guid => "uniqueidentifier",
-                VocabularyKeyDataType.GeographyLocation => "geography",
-                _ => "nvarchar(max)"
-            };
+            // return type switch //TODO: @LJU: Disabled as it needs reviewing; Breaks streams;
+            // {
+            //     VocabularyKeyDataType.Integer => "bigint",
+            //     VocabularyKeyDataType.Number => "decimal(18,4)",
+            //     VocabularyKeyDataType.Money => "money",
+            //     VocabularyKeyDataType.DateTime => "datetime2",
+            //     VocabularyKeyDataType.Time => "time",
+            //     VocabularyKeyDataType.Xml => "XML",
+            //     VocabularyKeyDataType.Guid => "uniqueidentifier",
+            //     VocabularyKeyDataType.GeographyLocation => "geography",
+            //     _ => "nvarchar(max)"
+            // };
+
+            return "nvarchar(max)";
         }
 
         private async Task<bool> CheckTableExists(ExecutionContext executionContext, Guid providerDefinitionId, string name)
