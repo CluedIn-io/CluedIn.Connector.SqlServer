@@ -7,7 +7,6 @@
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="AutoFixture.Xunit2" />
-    <PackageReference Include="CluedIn.Core" />
     <PackageReference Include="CluedIn.DataStore" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" />

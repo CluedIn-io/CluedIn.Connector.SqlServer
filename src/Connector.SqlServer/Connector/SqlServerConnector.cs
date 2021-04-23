@@ -9,12 +9,12 @@ using CluedIn.Core;
 using CluedIn.Core.Connectors;
 using CluedIn.Core.Data.Vocabularies;
 using CluedIn.Core.DataStore;
+using CluedIn.Core.Streams.Models;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Logging;
 
 namespace CluedIn.Connector.SqlServer.Connector
 {
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Security", "CA2100:Review SQL queries for security vulnerabilities", Justification = "<Pending>")]
     public class SqlServerConnector : ConnectorBase
     {
         private readonly ILogger<SqlServerConnector> _logger;
@@ -29,77 +29,171 @@ namespace CluedIn.Connector.SqlServer.Connector
 
         public override async Task CreateContainer(ExecutionContext executionContext, Guid providerDefinitionId, CreateContainerModel model)
         {
-            try
+            var config = await base.GetAuthenticationDetails(executionContext, providerDefinitionId);
+
+            async Task CreateTable(string name, IEnumerable<ConnectionDataType> columns, string context)
             {
-                var config = await base.GetAuthenticationDetails(executionContext, providerDefinitionId);
+                var sql = BuildCreateContainerSql(name, columns);
+                _logger.LogDebug("Sql Server Connector - Create Container[{Context}] - Generated query: {sql}", context, sql);
 
-                var sql = BuildCreateContainerSql(model);
-
-                _logger.LogDebug($"Sql Server Connector - Create Container - Generated query: {sql}");
-
-                await _client.ExecuteCommandAsync(config, sql);
+                try
+                {
+                    await _client.ExecuteCommandAsync(config, sql);
+                }
+                catch (Exception e)
+                {
+                    var message = $"Could not create Container {name} for Connector {providerDefinitionId}";
+                    _logger.LogError(e, message);
+                    throw new CreateContainerException(message);
+                }
             }
-            catch (Exception e)
-            {
-                var message = $"Could not create Container {model.Name} for Connector {providerDefinitionId}";
-                _logger.LogError(e, message);
-                throw new CreateContainerException(message);
-            }
+
+            var tasks = new List<Task> { CreateTable(model.Name, model.DataTypes, "Data") };
+            if (model.CreateEdgeTable)
+                tasks.Add(CreateTable(EdgeContainerHelper.GetName(model.Name), new List<ConnectionDataType>
+                {
+                    new ConnectionDataType { Name = Sanitize("OriginEntityCode"), Type = VocabularyKeyDataType.Text },
+                    new ConnectionDataType { Name = Sanitize("Code"), Type = VocabularyKeyDataType.Text },
+                }, "Edges"));
+
+            await Task.WhenAll(tasks);
         }
 
-        public string BuildCreateContainerSql(CreateContainerModel model)
+        public override async Task EmptyContainer(ExecutionContext executionContext, Guid providerDefinitionId, string id)
         {
-            var builder = new StringBuilder();
-            builder.AppendLine($"CREATE TABLE [{Sanitize(model.Name)}](");
+            var config = await base.GetAuthenticationDetails(executionContext, providerDefinitionId);
 
-            var index = 0;
-            var count = model.DataTypes.Count;
-            foreach (var type in model.DataTypes)
+            async Task EmptyTable(string name, string context)
             {
-                builder.AppendLine($"[{Sanitize(type.Name)}] {GetDbType(type.Type)} NULL{(index < count - 1 ? "," : "")}");
+                var sql = BuildEmptyContainerSql(name);
+                _logger.LogDebug("Sql Server Connector - Empty Container[{Context}] - Generated query: {sql}", context, sql);
 
-                index++;
+                try
+                {
+                    await _client.ExecuteCommandAsync(config, sql);
+                }
+                catch (Exception e)
+                {
+                    var message = $"Could not empty Container {name}";
+                    _logger.LogError(e, message);
+                    throw new CreateContainerException(message);
+                }
             }
 
+            var tasks = new List<Task> { EmptyTable(id, "Data") };
+            var edgeTableName = EdgeContainerHelper.GetName(id);
+            if (await CheckTableExists(executionContext, providerDefinitionId, edgeTableName))
+                tasks.Add(EmptyTable(edgeTableName, "Edges"));
+
+            await Task.WhenAll(tasks);
+
+        }
+
+        public override async Task ArchiveContainer(ExecutionContext executionContext, Guid providerDefinitionId, string id)
+        {
+            var config = await base.GetAuthenticationDetails(executionContext, providerDefinitionId);
+
+            async Task ArchiveTable(string name, string context)
+            {
+                var newName = await GetValidContainerName(executionContext, providerDefinitionId, $"{name}{DateTime.Now:yyyyMMddHHmmss}");
+                var sql = BuildRenameContainerSql(name, newName, out var param);
+                _logger.LogDebug("Sql Server Connector - Archive Container[{Context}] - Generated query: {sql}", context, sql);
+
+                try
+                {
+                    await _client.ExecuteCommandAsync(config, sql, param);
+                }
+                catch (Exception e)
+                {
+                    var message = $"Could not Archive Container {name} for Connector {providerDefinitionId}";
+                    _logger.LogError(e, message);
+                    throw new CreateContainerException(message);
+                }
+            }
+
+            var tasks = new List<Task> { ArchiveTable(id, "Data") };
+            var edgeTableName = EdgeContainerHelper.GetName(id);
+            if (await CheckTableExists(executionContext, providerDefinitionId, edgeTableName))
+                tasks.Add(ArchiveTable(edgeTableName, "Edges"));
+
+            await Task.WhenAll(tasks);
+        }
+
+        public override async Task RenameContainer(ExecutionContext executionContext, Guid providerDefinitionId, string id, string newName)
+        {
+            var config = await base.GetAuthenticationDetails(executionContext, providerDefinitionId);
+
+            async Task RenameTable(string currentName, string updatedName, string context)
+            {
+                var tempName = Sanitize(updatedName);
+
+                var sql = BuildRenameContainerSql(currentName, tempName, out var param);
+
+                _logger.LogDebug("Sql Server Connector - Rename Container[{Context}] - Generated query: {sql}", context, sql);
+
+                try
+                {
+                    await _client.ExecuteCommandAsync(config, sql, param);
+                }
+                catch (Exception e)
+                {
+                    var message = $"Could not Rename Container {currentName} for Connector {providerDefinitionId}";
+                    _logger.LogError(e, message);
+                    throw new CreateContainerException(message);
+                }
+            }
+
+            var tasks = new List<Task> { RenameTable(id, newName, "Data") };
+            var edgeTableName = EdgeContainerHelper.GetName(id);
+            if (await CheckTableExists(executionContext, providerDefinitionId, edgeTableName))
+                tasks.Add(RenameTable(edgeTableName, EdgeContainerHelper.GetName(newName), "Edges"));
+
+            await Task.WhenAll(tasks);
+
+        }
+
+        public override async Task RemoveContainer(ExecutionContext executionContext, Guid providerDefinitionId, string id)
+        {
+            var config = await base.GetAuthenticationDetails(executionContext, providerDefinitionId);
+
+            async Task RemoveTable(string name, string context)
+            {
+                var sql = BuildRemoveContainerSql(name);
+
+                _logger.LogDebug("Sql Server Connector - Remove Container[{Context}] - Generated query: {sql}", context, sql);
+
+                try
+                {
+                    await _client.ExecuteCommandAsync(config, sql);
+                }
+                catch (Exception e)
+                {
+                    var message = $"Could not Remove Container {name} for Connector {providerDefinitionId}";
+                    _logger.LogError(e, message);
+                    throw new CreateContainerException(message);
+                }
+            }
+
+            var tasks = new List<Task> { RemoveTable(id, "Data") };
+            var edgeTableName = EdgeContainerHelper.GetName(id);
+            if (await CheckTableExists(executionContext, providerDefinitionId, edgeTableName))
+                tasks.Add(RemoveTable(edgeTableName, "Edges"));
+
+            await Task.WhenAll(tasks);
+        }
+
+        public string BuildCreateContainerSql(string name, IEnumerable<ConnectionDataType> columns)
+        {
+            var builder = new StringBuilder();
+            builder.AppendLine($"CREATE TABLE [{Sanitize(name)}](");
+            builder.AppendJoin(", ", columns.Select(c => $"[{Sanitize(c.Name)}] {GetDbType(c.Type)} NULL"));
             builder.AppendLine(") ON[PRIMARY]");
 
             var sql = builder.ToString();
             return sql;
         }
 
-        public override async Task EmptyContainer(ExecutionContext executionContext, Guid providerDefinitionId, string id)
-        {
-            try
-            {
-                var config = await base.GetAuthenticationDetails(executionContext, providerDefinitionId);
-
-                var sql = BuildEmptyContainerSql(id);
-
-                _logger.LogDebug($"Sql Server Connector - Empty Container - Generated query: {sql}");
-
-                await _client.ExecuteCommandAsync(config, sql);
-            }
-            catch (Exception e)
-            {
-                var message = $"Could not empty Container {id}";
-                _logger.LogError(e, message);
-                
-                throw new EmptyContainerException(message);
-            }
-        }
-
-        public string BuildEmptyContainerSql(string id)
-        {
-            var builder = new StringBuilder();
-            builder.AppendLine($"TRUNCATE TABLE [{Sanitize(id)}]");
-            var sql = builder.ToString();
-            return sql;
-        }
-
-        private string Sanitize(string str)
-        {
-            return str.Replace("--", "").Replace(";", "").Replace("'", "");       // Bare-bones sanitization to prevent Sql Injection. Extra info here http://sommarskog.se/dynamic_sql.html
-        }
+        public string BuildEmptyContainerSql(string id) => $"TRUNCATE TABLE [{Sanitize(id)}]";
 
         public override Task<string> GetValidDataTypeName(ExecutionContext executionContext, Guid providerDefinitionId, string name)
         {
@@ -131,23 +225,6 @@ namespace CluedIn.Connector.SqlServer.Connector
 
             // return new name
             return result;
-        }
-
-        private async Task<bool> CheckTableExists(ExecutionContext executionContext, Guid providerDefinitionId, string name)
-        {
-            try
-            {
-                var config = await base.GetAuthenticationDetails(executionContext, providerDefinitionId);
-                var tables = await _client.GetTables(config.Authentication, name);
-
-                return tables.Rows.Count > 0;
-            }
-            catch (Exception e)
-            {
-                var message = $"Error checking Container '{name}' exists for Connector {providerDefinitionId}";
-                _logger.LogError(e, message);
-                throw new ConnectionException(message);
-            }
         }
 
         public override async Task<IEnumerable<IConnectorContainer>> GetContainers(ExecutionContext executionContext, Guid providerDefinitionId)
@@ -199,61 +276,6 @@ namespace CluedIn.Connector.SqlServer.Connector
             }
         }
 
-        private VocabularyKeyDataType GetVocabType(string rawType)
-        {
-            return rawType.ToLower() switch
-            {
-                "bigint" => VocabularyKeyDataType.Integer,
-                "int" => VocabularyKeyDataType.Integer,
-                "smallint" => VocabularyKeyDataType.Integer,
-                "tinyint" => VocabularyKeyDataType.Integer,
-                "bit" => VocabularyKeyDataType.Boolean,
-                "decimal" => VocabularyKeyDataType.Number,
-                "numeric" => VocabularyKeyDataType.Number,
-                "float" => VocabularyKeyDataType.Number,
-                "real" => VocabularyKeyDataType.Number,
-                "money" => VocabularyKeyDataType.Money,
-                "smallmoney" => VocabularyKeyDataType.Money,
-                "datetime" => VocabularyKeyDataType.DateTime,
-                "smalldatetime" => VocabularyKeyDataType.DateTime,
-                "date" => VocabularyKeyDataType.DateTime,
-                "datetimeoffset" => VocabularyKeyDataType.DateTime,
-                "datetime2" => VocabularyKeyDataType.DateTime,
-                "time" => VocabularyKeyDataType.Time,
-                "char" => VocabularyKeyDataType.Text,
-                "varchar" => VocabularyKeyDataType.Text,
-                "text" => VocabularyKeyDataType.Text,
-                "nchar" => VocabularyKeyDataType.Text,
-                "nvarchar" => VocabularyKeyDataType.Text,
-                "ntext" => VocabularyKeyDataType.Text,
-                "binary" => VocabularyKeyDataType.Text,
-                "varbinary" => VocabularyKeyDataType.Text,
-                "image" => VocabularyKeyDataType.Text,
-                "timestamp" => VocabularyKeyDataType.Text,
-                "uniqueidentifier" => VocabularyKeyDataType.Guid,
-                "XML" => VocabularyKeyDataType.Xml,
-                "geometry" => VocabularyKeyDataType.Text,
-                "geography" => VocabularyKeyDataType.GeographyLocation,
-                _ => VocabularyKeyDataType.Text
-            };
-        }
-
-        private string GetDbType(VocabularyKeyDataType type)
-        {
-            return type switch
-            {
-                VocabularyKeyDataType.Integer => "bigint",
-                VocabularyKeyDataType.Number => "decimal(18,4)",
-                VocabularyKeyDataType.Money => "money",
-                VocabularyKeyDataType.DateTime => "datetime2",
-                VocabularyKeyDataType.Time => "time",
-                VocabularyKeyDataType.Xml => "XML",
-                VocabularyKeyDataType.Guid => "uniqueidentifier",
-                VocabularyKeyDataType.GeographyLocation => "geography",
-                _ => "nvarchar(max)"
-            };
-        }
-
         public override async Task<bool> VerifyConnection(ExecutionContext executionContext, Guid providerDefinitionId)
         {
             var config = await base.GetAuthenticationDetails(executionContext, providerDefinitionId);
@@ -295,6 +317,29 @@ namespace CluedIn.Connector.SqlServer.Connector
             }
         }
 
+        public override async Task StoreEdgeData(ExecutionContext executionContext, Guid providerDefinitionId, string containerName, string originEntityCode, IEnumerable<string> edges)
+        {
+            try
+            {
+                var edgeTableName = EdgeContainerHelper.GetName(containerName);
+                if (await CheckTableExists(executionContext, providerDefinitionId, edgeTableName))
+                {
+                    var sql = BuildEdgeStoreDataSql(edgeTableName, originEntityCode,edges, out var param);
+
+                    _logger.LogDebug($"Sql Server Connector - Store Edge Data - Generated query: {sql}");
+
+                    var config = await base.GetAuthenticationDetails(executionContext, providerDefinitionId);
+                    await _client.ExecuteCommandAsync(config, sql, param);
+                }
+            }
+            catch (Exception e)
+            {
+                var message = $"Could not store edge data into Container '{containerName}' for Connector {providerDefinitionId}";
+                _logger.LogError(e, message);
+                throw new StoreDataException(message);
+            }
+        }
+
         public string BuildStoreDataSql(string containerName, IDictionary<string, object> data, out List<SqlParameter> param)
         {
             var builder = new StringBuilder();
@@ -316,31 +361,37 @@ namespace CluedIn.Connector.SqlServer.Connector
 
 
 
-            param = (from dataType in data let name = Sanitize(dataType.Key) select new SqlParameter {ParameterName = $"@{name}", Value = dataType.Value ?? ""}).ToList();
+            param = (from dataType in data let name = Sanitize(dataType.Key) select new SqlParameter { ParameterName = $"@{name}", Value = dataType.Value ?? "" }).ToList();
 
             return builder.ToString();
         }
 
-        public override async Task ArchiveContainer(ExecutionContext executionContext, Guid providerDefinitionId, string id)
+        public string BuildEdgeStoreDataSql(string containerName, string originEntityCode, IEnumerable<string> edges, out List<SqlParameter> param)
         {
-            try
+            var originParam = new SqlParameter { ParameterName = "@OriginEntityCode", Value = originEntityCode };
+            param = new List<SqlParameter> { originParam };
+
+            var builder = new StringBuilder();
+            builder.AppendLine($"DELETE FROM [{Sanitize(containerName)}] where [OriginEntityCode] = {originParam.ParameterName}");
+            var edgeValues = new List<string>();
+            foreach (var edge in edges)
             {
-                var config = await base.GetAuthenticationDetails(executionContext, providerDefinitionId);
-
-                var newName = await GetValidContainerName(executionContext, providerDefinitionId, $"{id}{DateTime.Now:yyyyMMddHHmmss}");
-                var sql = BuildRenameContainerSql(id, newName, out var param);
-
-                _logger.LogDebug($"Sql Server Connector - Archive Container - Generated query: {sql}");
-
-                await _client.ExecuteCommandAsync(config, sql, param);
+                var edgeParam = new SqlParameter
+                {
+                    ParameterName = $"@{edgeValues.Count}",
+                    Value = edge
+                };
+                param.Add(edgeParam);
+                edgeValues.Add($"(@OriginEntityCode, {edgeParam.ParameterName})");
             }
-            catch (Exception e)
+
+            if(edgeValues.Count > 0)
             {
-                var message = $"Could not archive Container {id}";
-                _logger.LogError(e, message);
-
-                throw new EmptyContainerException(message);
+                builder.AppendLine($"INSERT INTO [{Sanitize(containerName)}] ([OriginEntityCode],[Code]) values");
+                builder.AppendJoin(", ", edgeValues);
             }
+
+            return builder.ToString();
         }
 
         private string BuildRenameContainerSql(string id, string newName, out List<SqlParameter> param)
@@ -369,48 +420,86 @@ namespace CluedIn.Connector.SqlServer.Connector
             return result;
         }
 
-        public override async Task RenameContainer(ExecutionContext executionContext, Guid providerDefinitionId, string id, string newName)
+        private string Sanitize(string str)
+        {
+            return str.Replace("--", "").Replace(";", "").Replace("'", "");       // Bare-bones sanitization to prevent Sql Injection. Extra info here http://sommarskog.se/dynamic_sql.html
+        }
+
+        private VocabularyKeyDataType GetVocabType(string rawType)
+        {
+            // return rawType.ToLower() switch //TODO: @LJU: Disabled as it needs reviewing; Breaks streams;
+            // {
+            //     "bigint" => VocabularyKeyDataType.Integer,
+            //     "int" => VocabularyKeyDataType.Integer,
+            //     "smallint" => VocabularyKeyDataType.Integer,
+            //     "tinyint" => VocabularyKeyDataType.Integer,
+            //     "bit" => VocabularyKeyDataType.Boolean,
+            //     "decimal" => VocabularyKeyDataType.Number,
+            //     "numeric" => VocabularyKeyDataType.Number,
+            //     "float" => VocabularyKeyDataType.Number,
+            //     "real" => VocabularyKeyDataType.Number,
+            //     "money" => VocabularyKeyDataType.Money,
+            //     "smallmoney" => VocabularyKeyDataType.Money,
+            //     "datetime" => VocabularyKeyDataType.DateTime,
+            //     "smalldatetime" => VocabularyKeyDataType.DateTime,
+            //     "date" => VocabularyKeyDataType.DateTime,
+            //     "datetimeoffset" => VocabularyKeyDataType.DateTime,
+            //     "datetime2" => VocabularyKeyDataType.DateTime,
+            //     "time" => VocabularyKeyDataType.Time,
+            //     "char" => VocabularyKeyDataType.Text,
+            //     "varchar" => VocabularyKeyDataType.Text,
+            //     "text" => VocabularyKeyDataType.Text,
+            //     "nchar" => VocabularyKeyDataType.Text,
+            //     "nvarchar" => VocabularyKeyDataType.Text,
+            //     "ntext" => VocabularyKeyDataType.Text,
+            //     "binary" => VocabularyKeyDataType.Text,
+            //     "varbinary" => VocabularyKeyDataType.Text,
+            //     "image" => VocabularyKeyDataType.Text,
+            //     "timestamp" => VocabularyKeyDataType.Text,
+            //     "uniqueidentifier" => VocabularyKeyDataType.Guid,
+            //     "XML" => VocabularyKeyDataType.Xml,
+            //     "geometry" => VocabularyKeyDataType.Text,
+            //     "geography" => VocabularyKeyDataType.GeographyLocation,
+            //     _ => VocabularyKeyDataType.Text
+            // };
+
+            return VocabularyKeyDataType.Text;
+        }
+
+        private string GetDbType(VocabularyKeyDataType type)
+        {
+            // return type switch //TODO: @LJU: Disabled as it needs reviewing; Breaks streams;
+            // {
+            //     VocabularyKeyDataType.Integer => "bigint",
+            //     VocabularyKeyDataType.Number => "decimal(18,4)",
+            //     VocabularyKeyDataType.Money => "money",
+            //     VocabularyKeyDataType.DateTime => "datetime2",
+            //     VocabularyKeyDataType.Time => "time",
+            //     VocabularyKeyDataType.Xml => "XML",
+            //     VocabularyKeyDataType.Guid => "uniqueidentifier",
+            //     VocabularyKeyDataType.GeographyLocation => "geography",
+            //     _ => "nvarchar(max)"
+            // };
+
+            return "nvarchar(max)";
+        }
+
+        private async Task<bool> CheckTableExists(ExecutionContext executionContext, Guid providerDefinitionId, string name)
         {
             try
             {
                 var config = await base.GetAuthenticationDetails(executionContext, providerDefinitionId);
+                var tables = await _client.GetTables(config.Authentication, name);
 
-                var tempName = Sanitize(newName);
-
-                var sql = BuildRenameContainerSql(id, tempName, out var param);
-
-                _logger.LogDebug($"Sql Server Connector - Rename Container - Generated query: {sql}");
-
-                await _client.ExecuteCommandAsync(config, sql, param);
+                return tables.Rows.Count > 0;
             }
             catch (Exception e)
             {
-                var message = $"Could not rename Container {id}";
+                var message = $"Error checking Container '{name}' exists for Connector {providerDefinitionId}";
                 _logger.LogError(e, message);
-
-                throw new EmptyContainerException(message);
+                throw new ConnectionException(message);
             }
         }
 
-        public override async Task RemoveContainer(ExecutionContext executionContext, Guid providerDefinitionId, string id)
-        {
-            try
-            {
-                var config = await base.GetAuthenticationDetails(executionContext, providerDefinitionId);
-
-                var sql = BuildRemoveContainerSql(id);
-
-                _logger.LogDebug($"Sql Server Connector - Remove Container - Generated query: {sql}");
-
-                await _client.ExecuteCommandAsync(config, sql);
-            }
-            catch (Exception e)
-            {
-                var message = $"Could not remove Container {id}";
-                _logger.LogError(e, message);
-
-                throw new EmptyContainerException(message);
-            }
-        }
     }
 }
