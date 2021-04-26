@@ -1,4 +1,6 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
+using System.ComponentModel;
 using System.Data;
 using System.Linq;
 using System.Threading.Tasks;
@@ -25,7 +27,7 @@ namespace CluedIn.Connector.SqlServer.Connector
             }
         }
 
-        public async Task<SqlConnection> GetConnection(IDictionary<string, object> config)
+        public string BuildConnectionString(IDictionary<string, object> config)
         {
             var cnxString = new SqlConnectionStringBuilder
             {
@@ -36,7 +38,36 @@ namespace CluedIn.Connector.SqlServer.Connector
                 InitialCatalog = (string)config[SqlServerConstants.KeyName.DatabaseName],
             };
 
-            var result = new SqlConnection(cnxString.ToString());
+            if (config.TryGetValue(SqlServerConstants.KeyName.PortNumber, out var portEntry) && portEntry != null)
+            {
+                int? port = null;
+                if (portEntry is int)
+                {
+                    port = (int)portEntry;
+                }
+                else
+                {
+                    try
+                    {
+                        port = (int)Convert.ChangeType(portEntry, typeof(int));
+                    }
+                    catch { }
+                }
+                
+                if(port.HasValue)
+                {
+                    cnxString.DataSource = $"{cnxString.DataSource},{port.Value}";
+                }
+            };
+
+            return cnxString.ToString();
+
+        }
+
+        public async Task<SqlConnection> GetConnection(IDictionary<string, object> config)
+        {
+            var connectionString = BuildConnectionString(config);
+            var result = new SqlConnection(connectionString);
 
             await result.OpenAsync();
 
