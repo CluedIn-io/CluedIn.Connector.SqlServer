@@ -12,7 +12,7 @@ namespace CluedIn.Connector.SqlServer.Connector
     public class SqlClient : ISqlClient
     {
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Security", "CA2100:Review SQL queries for security vulnerabilities", Justification = "<Pending>")]
-        public async Task ExecuteCommandAsync(IConnectorConnection config, string commandText, IList<SqlParameter> param = null)
+        public async Task ExecuteCommandAsync(IConnectorConnection config, string commandText, IEnumerable<SqlParameter> param = null)
         {
             using (var connection = await GetConnection(config.Authentication))
             {
