@@ -1,6 +1,8 @@
+using System.Diagnostics;
 using System.Reflection;
 using Castle.MicroKernel.Registration;
 using CluedIn.Connector.SqlServer.Connector;
+using CluedIn.Connector.SqlServer.Features;
 using CluedIn.Core;
 using CluedIn.Core.Providers;
 using CluedIn.Core.Server;
@@ -37,6 +39,15 @@ namespace CluedIn.Connector.SqlServer
         public override void Start()
         {
             Container.Install(new InstallComponents());
+
+            if (Debugger.IsAttached)
+                Debugger.Break();
+
+            var asm = Assembly.GetExecutingAssembly();
+            Container.Register(Types.FromAssembly(asm).BasedOn<IProvider>().WithServiceFromInterface().If(t => !t.IsAbstract).LifestyleSingleton());
+            Container.Register(Types.FromAssembly(asm).BasedOn<IEntityActionBuilder>().WithServiceFromInterface().If(t => !t.IsAbstract).LifestyleSingleton());
+            Container.Register(Types.FromAssembly(asm).BasedOn<IFeatureStore>().WithServiceFromInterface().If(t => !t.IsAbstract).LifestyleSingleton());
+            Container.Register(Component.For<ISqlClient>().ImplementedBy<SqlClient>().OnlyNewServices());
 
             this.Log.LogInformation("SqlClient Registered");
             State = ServiceState.Started;

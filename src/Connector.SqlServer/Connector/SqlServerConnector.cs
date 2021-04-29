@@ -312,7 +312,7 @@ namespace CluedIn.Connector.SqlServer.Connector
                 var config = await base.GetAuthenticationDetails(executionContext, providerDefinitionId);
 
                 var commands = _features.GetFeature<IBuildStoreDataFeature>()
-                    .BuildStoreDataSql(executionContext, providerDefinitionId, containerName, data);
+                    .BuildStoreDataSql(executionContext, providerDefinitionId, containerName, data, _logger);
 
                 foreach (var command in commands)
                 {

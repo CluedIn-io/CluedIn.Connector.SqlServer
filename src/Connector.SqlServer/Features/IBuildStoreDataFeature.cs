@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using CluedIn.Connector.SqlServer.Connector;
 using CluedIn.Core;
+using Microsoft.Extensions.Logging;
 
 namespace CluedIn.Connector.SqlServer.Features
 {
@@ -11,6 +12,7 @@ namespace CluedIn.Connector.SqlServer.Features
             ExecutionContext executionContext,
             Guid providerDefinitionId,
             string containerName,
-            IDictionary<string, object> data);
+            IDictionary<string, object> data,
+            ILogger logger);
     }
 }
