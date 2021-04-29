@@ -112,7 +112,7 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests.Features
         }
 
         [Theory, InlineAutoData]
-        public void BuildStoreDataSql_PartialValidData_IsPartSuccessful(
+        public void BuildStoreDataSql_InvalidData_SetsValueAsString(
            string name,
            int field1,
            string field2,
@@ -130,38 +130,20 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests.Features
             var result = _sut.BuildStoreDataSql(execContext, providerDefinitionId, name, data, _logger.Object);
             var command = result.Single();
             Assert.Equal($"MERGE [{name}] AS target" + Environment.NewLine +
-                         "USING (SELECT @Field1, @Field2) AS source ([Field1], [Field2])" + Environment.NewLine +
+                         "USING (SELECT @Field1, @Field2, @InvalidField) AS source ([Field1], [Field2], [InvalidField])" + Environment.NewLine +
                          "  ON (target.[OriginEntityCode] = source.[OriginEntityCode])" + Environment.NewLine +
                          "WHEN MATCHED THEN" + Environment.NewLine +
-                         "  UPDATE SET target.[Field1] = source.[Field1], target.[Field2] = source.[Field2]" + Environment.NewLine +
+                         "  UPDATE SET target.[Field1] = source.[Field1], target.[Field2] = source.[Field2], target.[InvalidField] = source.[InvalidField]" + Environment.NewLine +
                          "WHEN NOT MATCHED THEN" + Environment.NewLine +
-                         "  INSERT ([Field1], [Field2])" + Environment.NewLine +
-                         "  VALUES (source.[Field1], source.[Field2]);", command.Text.Trim());
-            Assert.Equal(2, command.Parameters.Count());
+                         "  INSERT ([Field1], [Field2], [InvalidField])" + Environment.NewLine +
+                         "  VALUES (source.[Field1], source.[Field2], source.[InvalidField]);", command.Text.Trim());
+            Assert.Equal(3, command.Parameters.Count());
             var paramsList = command.Parameters.ToList();
 
             Assert.Equal(paramsList[0].Value, data["Field1"]);
             Assert.Equal(paramsList[1].Value, data["Field2"]);
+            Assert.Equal(paramsList[2].Value, data["InvalidField"].ToString());
         }
 
-        [Theory, InlineAutoData]
-        public void BuildStoreDataSql_InvalidData_Throws(
-          string name,
-          string[] invalidField1,
-          int[] invalidField2,
-          List<Guid> invalidField3,
-          Guid providerDefinitionId)
-        {
-            var data = new Dictionary<string, object>
-                        {
-                             { "InvalidField1", invalidField1  },
-                             { "InvalidField2", invalidField2  },
-                             { "InvalidField3", invalidField3  }
-                        };
-
-            var execContext = _testContext.Context;
-            Assert.Throws<InvalidOperationException>(() => _sut.BuildStoreDataSql(execContext, providerDefinitionId, name, data, _logger.Object));
-            
-        }
     }
 }

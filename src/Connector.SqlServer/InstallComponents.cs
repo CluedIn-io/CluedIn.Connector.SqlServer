@@ -12,7 +12,11 @@ namespace CluedIn.Connector.SqlServer
     {
         public void Install(IWindsorContainer container, IConfigurationStore store)
         {
-            
+            var asm = Assembly.GetExecutingAssembly();
+            container.Register(Types.FromAssembly(asm).BasedOn<IProvider>().WithServiceFromInterface().If(t => !t.IsAbstract).LifestyleSingleton());
+            container.Register(Types.FromAssembly(asm).BasedOn<IEntityActionBuilder>().WithServiceFromInterface().If(t => !t.IsAbstract).LifestyleSingleton());
+            container.Register(Types.FromAssembly(asm).BasedOn<IFeatureStore>().WithServiceFromInterface().If(t => !t.IsAbstract).LifestyleSingleton());
+            container.Register(Component.For<ISqlClient>().ImplementedBy<SqlClient>().OnlyNewServices());
         }
     }
 }

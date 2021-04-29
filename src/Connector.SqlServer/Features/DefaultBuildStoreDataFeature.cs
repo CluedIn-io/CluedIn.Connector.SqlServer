@@ -38,25 +38,25 @@ namespace CluedIn.Connector.SqlServer.Features
             foreach (var entry in data)
             {
                 var name = entry.Key.SqlSanitize();
-                var param = new SqlParameter($"@{name}", entry.Value ?? string.Empty);
+                var param = new SqlParameter($"@{name}", entry.Value);
                 try
                 {
                     var dbType = param.DbType;
-                    logger.LogDebug("Adding [{field}] as a sql type [{sqlType}].", name, dbType);
-                    parameters.Add(param);
-                    fields.Add($"[{name}]");
-                    inserts.Add($"source.[{name}]");
-                    updates.Add($"target.[{name}] = source.[{name}]");
+                    logger.LogDebug("Adding [{field}] as sql type [{sqlType}].", name, dbType);                    
                 }
                 catch (Exception ex)
                 {
-                    logger.LogWarning(ex, "Could not store [{field}] as a sql type could not be mapped.", name);
+                    logger.LogWarning(ex, "[{field}] does not map to a known sql type - will be persisted as a string.", name);
+                    param.Value = entry.Value == null ? string.Empty : entry.Value.ToString();
                 }
+
+                parameters.Add(param);
+                fields.Add($"[{name}]");
+                inserts.Add($"source.[{name}]");
+                updates.Add($"target.[{name}] = source.[{name}]");
             }
 
             var fieldsString = string.Join(", ", fields);
-            if (string.IsNullOrWhiteSpace(fieldsString))
-                throw new InvalidOperationException($"No fields could be mapped to sql types for table [{containerName}]");
             
             builder.AppendLine($"MERGE [{containerName.SqlSanitize()}] AS target");
             builder.AppendLine($"USING (SELECT {string.Join(", ", parameters.Select(x => x.ParameterName))}) AS source ({fieldsString})");

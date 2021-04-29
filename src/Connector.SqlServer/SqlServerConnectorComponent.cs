@@ -40,15 +40,6 @@ namespace CluedIn.Connector.SqlServer
         {
             Container.Install(new InstallComponents());
 
-            if (Debugger.IsAttached)
-                Debugger.Break();
-
-            var asm = Assembly.GetExecutingAssembly();
-            Container.Register(Types.FromAssembly(asm).BasedOn<IProvider>().WithServiceFromInterface().If(t => !t.IsAbstract).LifestyleSingleton());
-            Container.Register(Types.FromAssembly(asm).BasedOn<IEntityActionBuilder>().WithServiceFromInterface().If(t => !t.IsAbstract).LifestyleSingleton());
-            Container.Register(Types.FromAssembly(asm).BasedOn<IFeatureStore>().WithServiceFromInterface().If(t => !t.IsAbstract).LifestyleSingleton());
-            Container.Register(Component.For<ISqlClient>().ImplementedBy<SqlClient>().OnlyNewServices());
-
             this.Log.LogInformation("SqlClient Registered");
             State = ServiceState.Started;
         }
