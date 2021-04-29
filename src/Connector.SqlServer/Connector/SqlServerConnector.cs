@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using CluedIn.Connector.SqlServer.Features;
 using CluedIn.Core;
 using CluedIn.Core.Connectors;
 using CluedIn.Core.Data.Vocabularies;
@@ -19,12 +20,19 @@ namespace CluedIn.Connector.SqlServer.Connector
     {
         private readonly ILogger<SqlServerConnector> _logger;
         private readonly ISqlClient _client;
+        private readonly IFeatureStore _features;
 
-        public SqlServerConnector(IConfigurationRepository repo, ILogger<SqlServerConnector> logger, ISqlClient client) : base(repo)
+        public SqlServerConnector(
+            IConfigurationRepository repo,
+            ILogger<SqlServerConnector> logger,
+            ISqlClient client,
+            IFeatureStore features) : base(repo)
         {
             ProviderId = SqlServerConstants.ProviderId;
+            
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _client = client ?? throw new ArgumentNullException(nameof(client));
+            _features = features ?? throw new ArgumentNullException(nameof(logger));
         }
 
         public override async Task CreateContainer(ExecutionContext executionContext, Guid providerDefinitionId, CreateContainerModel model)
@@ -303,11 +311,15 @@ namespace CluedIn.Connector.SqlServer.Connector
             {
                 var config = await base.GetAuthenticationDetails(executionContext, providerDefinitionId);
 
-                var sql = BuildStoreDataSql(containerName, data, out var param);
+                var commands = _features.GetFeature<IBuildStoreDataFeature>()
+                    .BuildStoreDataSql(executionContext, providerDefinitionId, containerName, data);
 
-                _logger.LogDebug($"Sql Server Connector - Store Data - Generated query: {sql}");
+                foreach (var command in commands)
+                {
+                    _logger.LogDebug("Sql Server Connector - Store Data - Generated query: {command}", command.Text);
 
-                await _client.ExecuteCommandAsync(config, sql, param);
+                    await _client.ExecuteCommandAsync(config, command.Text, command.Parameters);
+                }
             }
             catch (Exception e)
             {
