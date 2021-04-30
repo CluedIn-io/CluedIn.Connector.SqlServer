@@ -1,23 +1,49 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using CluedIn.Connector.SqlServer.Connector;
+using CluedIn.Core;
 using CluedIn.Core.Connectors;
 using CluedIn.Core.Data.Vocabularies;
+using Microsoft.Data.SqlClient;
+using Microsoft.Extensions.Logging;
 
 namespace CluedIn.Connector.SqlServer.Features
 {
     public class DefaultBuildCreateContainerFeature : IBuildCreateContainerFeature
     {
-        public virtual string BuildCreateContainerSql(string name, IEnumerable<ConnectionDataType> columns)
+        public virtual IEnumerable<SqlServerConnectorCommand> BuildCreateContainerSql(
+            ExecutionContext executionContext,
+            Guid providerDefinitionId,
+            string name,
+            IEnumerable<ConnectionDataType> columns,
+            ILogger logger)
         {
+            if (executionContext == null)
+                throw new ArgumentNullException(nameof(executionContext));
+
+            if (string.IsNullOrWhiteSpace(name))
+                throw new InvalidOperationException("The name must be provided.");
+
+            if (columns == null || columns.Count() == 0)
+                throw new InvalidOperationException("The data to specify columns must be provided.");
+
+            if (logger == null)
+                throw new ArgumentNullException(nameof(logger));
+
             var builder = new StringBuilder();
-            builder.AppendLine($"CREATE TABLE [{SqlSanitizer.Sanitize(name)}](");
-            builder.AppendJoin(", ", columns.Select(c => $"[{SqlSanitizer.Sanitize(c.Name)}] {GetDbType(c.Type)} NULL"));
+            builder.AppendLine($"CREATE TABLE [{name.SqlSanitize()}](");
+            builder.AppendJoin(", ", columns.Select(c => $"[{c.Name.SqlSanitize()}] {GetDbType(c.Type)} NULL"));
             builder.AppendLine(") ON[PRIMARY]");
 
-            var sql = builder.ToString();
-            return sql;
+            return new[]
+            {
+                new SqlServerConnectorCommand
+                {
+                    Text = builder.ToString()
+                }
+            };
         }
 
         protected virtual string GetDbType(VocabularyKeyDataType type)

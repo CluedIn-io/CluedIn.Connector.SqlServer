@@ -41,12 +41,16 @@ namespace CluedIn.Connector.SqlServer.Connector
 
             async Task CreateTable(string name, IEnumerable<ConnectionDataType> columns, string context)
             {
-                var sql = _features.GetFeature<IBuildCreateContainerFeature>().BuildCreateContainerSql(name, columns);
-                _logger.LogDebug("Sql Server Connector - Create Container[{Context}] - Generated query: {sql}", context, sql);
-
                 try
                 {
-                    await _client.ExecuteCommandAsync(config, sql);
+                    var commands = _features.GetFeature<IBuildCreateContainerFeature>()
+                        .BuildCreateContainerSql(executionContext, providerDefinitionId, name, columns, _logger);
+                    foreach (var command in commands)
+                    {
+                        _logger.LogDebug("Sql Server Connector - Create Container[{Context}] - Generated query: {sql}", context, command.Text);
+
+                        await _client.ExecuteCommandAsync(config, command.Text, command.Parameters);
+                    }
                 }
                 catch (Exception e)
                 {
@@ -60,8 +64,8 @@ namespace CluedIn.Connector.SqlServer.Connector
             if (model.CreateEdgeTable)
                 tasks.Add(CreateTable(EdgeContainerHelper.GetName(model.Name), new List<ConnectionDataType>
                 {
-                    new ConnectionDataType { Name = SqlSanitizer.Sanitize("OriginEntityCode"), Type = VocabularyKeyDataType.Text },
-                    new ConnectionDataType { Name = SqlSanitizer.Sanitize("Code"), Type = VocabularyKeyDataType.Text },
+                    new ConnectionDataType { Name = "OriginEntityCode".SqlSanitize(), Type = VocabularyKeyDataType.Text },
+                    new ConnectionDataType { Name = "Code".SqlSanitize(), Type = VocabularyKeyDataType.Text },
                 }, "Edges"));
 
             await Task.WhenAll(tasks);
@@ -133,7 +137,7 @@ namespace CluedIn.Connector.SqlServer.Connector
 
             async Task RenameTable(string currentName, string updatedName, string context)
             {
-                var tempName = SqlSanitizer.Sanitize(updatedName);
+                var tempName = updatedName.SqlSanitize();
 
                 var sql = BuildRenameContainerSql(currentName, tempName, out var param);
 
@@ -190,8 +194,7 @@ namespace CluedIn.Connector.SqlServer.Connector
             await Task.WhenAll(tasks);
         }
 
-
-        public string BuildEmptyContainerSql(string id) => $"TRUNCATE TABLE [{SqlSanitizer.Sanitize(id)}]";
+        public string BuildEmptyContainerSql(string id) => $"TRUNCATE TABLE [{id.SqlSanitize()}]";
 
         public override Task<string> GetValidDataTypeName(ExecutionContext executionContext, Guid providerDefinitionId, string name)
         {
@@ -348,7 +351,7 @@ namespace CluedIn.Connector.SqlServer.Connector
             param = new List<SqlParameter> { originParam };
 
             var builder = new StringBuilder();
-            builder.AppendLine($"DELETE FROM [{SqlSanitizer.Sanitize(containerName)}] where [OriginEntityCode] = {originParam.ParameterName}");
+            builder.AppendLine($"DELETE FROM [{containerName.SqlSanitize()}] where [OriginEntityCode] = {originParam.ParameterName}");
             var edgeValues = new List<string>();
             foreach (var edge in edges)
             {
@@ -363,7 +366,7 @@ namespace CluedIn.Connector.SqlServer.Connector
 
             if (edgeValues.Count > 0)
             {
-                builder.AppendLine($"INSERT INTO [{SqlSanitizer.Sanitize(containerName)}] ([OriginEntityCode],[Code]) values");
+                builder.AppendLine($"INSERT INTO [{containerName.SqlSanitize()}] ([OriginEntityCode],[Code]) values");
                 builder.AppendJoin(", ", edgeValues);
             }
 
@@ -372,17 +375,17 @@ namespace CluedIn.Connector.SqlServer.Connector
 
         private string BuildRenameContainerSql(string id, string newName, out List<SqlParameter> param)
         {
-            var result = $"IF EXISTS(SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = '{SqlSanitizer.Sanitize(id)}') EXEC sp_rename @tableName, @newName";
+            var result = $"IF EXISTS(SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = '{id.SqlSanitize()}') EXEC sp_rename @tableName, @newName";
 
             param = new List<SqlParameter>
             {
                 new SqlParameter("@tableName", SqlDbType.NVarChar)
                 {
-                    Value = SqlSanitizer.Sanitize(id)
+                    Value = id.SqlSanitize()
                 },
                 new SqlParameter("@newName", SqlDbType.NVarChar)
                 {
-                    Value = SqlSanitizer.Sanitize(newName)
+                    Value = newName.SqlSanitize()
                 }
             };
 
@@ -391,7 +394,7 @@ namespace CluedIn.Connector.SqlServer.Connector
 
         private string BuildRemoveContainerSql(string id)
         {
-            var result = $"DROP TABLE [{SqlSanitizer.Sanitize(id)}] IF EXISTS";
+            var result = $"DROP TABLE [{id.SqlSanitize()}] IF EXISTS";
 
             return result;
         }
