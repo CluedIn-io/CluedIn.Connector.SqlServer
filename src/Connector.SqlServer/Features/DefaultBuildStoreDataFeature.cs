@@ -42,7 +42,7 @@ namespace CluedIn.Connector.SqlServer.Features
             foreach (var entry in data)
             {
                 var name = entry.Key.SqlSanitize();
-                var param = new SqlParameter($"@{name}", entry.Value);
+                var param = new SqlParameter($"@{name}", entry.Value ?? DBNull.Value);
                 try
                 {
                     var dbType = param.DbType;
