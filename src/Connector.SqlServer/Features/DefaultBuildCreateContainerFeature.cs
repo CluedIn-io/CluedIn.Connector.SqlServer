@@ -1,7 +1,6 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using CluedIn.Connector.SqlServer.Connector;
 using CluedIn.Core.Connectors;
 using CluedIn.Core.Data.Vocabularies;
 
@@ -12,8 +11,8 @@ namespace CluedIn.Connector.SqlServer.Features
         public virtual string BuildCreateContainerSql(string name, IEnumerable<ConnectionDataType> columns)
         {
             var builder = new StringBuilder();
-            builder.AppendLine($"CREATE TABLE [{SqlSanitizer.Sanitize(name)}](");
-            builder.AppendJoin(", ", columns.Select(c => $"[{SqlSanitizer.Sanitize(c.Name)}] {GetDbType(c.Type)} NULL"));
+            builder.AppendLine($"CREATE TABLE [{name.SqlSanitize()}](");
+            builder.AppendJoin(", ", columns.Select(c => $"[{c.Name.SqlSanitize()}] {GetDbType(c.Type)} NULL"));
             builder.AppendLine(") ON[PRIMARY]");
 
             var sql = builder.ToString();
