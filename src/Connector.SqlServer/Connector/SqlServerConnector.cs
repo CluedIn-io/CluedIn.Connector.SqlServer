@@ -41,12 +41,16 @@ namespace CluedIn.Connector.SqlServer.Connector
 
             async Task CreateTable(string name, IEnumerable<ConnectionDataType> columns, string context)
             {
-                var sql = _features.GetFeature<IBuildCreateContainerFeature>().BuildCreateContainerSql(name, columns);
-                _logger.LogDebug("Sql Server Connector - Create Container[{Context}] - Generated query: {sql}", context, sql);
-
                 try
                 {
-                    await _client.ExecuteCommandAsync(config, sql);
+                    var commands = _features.GetFeature<IBuildCreateContainerFeature>()
+                        .BuildCreateContainerSql(executionContext, providerDefinitionId, name, columns, _logger);
+                    foreach (var command in commands)
+                    {
+                        _logger.LogDebug("Sql Server Connector - Create Container[{Context}] - Generated query: {sql}", context, command.Text);
+
+                        await _client.ExecuteCommandAsync(config, command.Text, command.Parameters);
+                    }
                 }
                 catch (Exception e)
                 {
@@ -189,7 +193,6 @@ namespace CluedIn.Connector.SqlServer.Connector
 
             await Task.WhenAll(tasks);
         }
-
 
         public string BuildEmptyContainerSql(string id) => $"TRUNCATE TABLE [{id.SqlSanitize()}]";
 
