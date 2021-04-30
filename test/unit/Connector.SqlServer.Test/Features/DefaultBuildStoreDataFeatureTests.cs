@@ -16,6 +16,7 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests.Features
         private readonly TestContext _testContext;
         private readonly Mock<ILogger> _logger;
         private readonly DefaultBuildStoreDataFeature _sut;
+        private readonly IList<string> _defaultKeyFields = new List<string> { "OriginEntityCode" };
 
         public DefaultBuildStoreDataFeatureTests()
         {
@@ -30,7 +31,7 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests.Features
             string containerName,
             IDictionary<string, object> data)
         {
-            Assert.Throws<ArgumentNullException>("executionContext", () => _sut.BuildStoreDataSql(null, providerDefinitionId, containerName, data, _logger.Object));
+            Assert.Throws<ArgumentNullException>("executionContext", () => _sut.BuildStoreDataSql(null, providerDefinitionId, containerName, data, _defaultKeyFields, _logger.Object));
         }
 
         [Theory]
@@ -42,7 +43,7 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests.Features
             Guid providerDefinitionId,
             IDictionary<string, object> data)
         {
-            Assert.Throws<InvalidOperationException>(() => _sut.BuildStoreDataSql(_testContext.Context, providerDefinitionId, containerName, data, _logger.Object));
+            Assert.Throws<InvalidOperationException>(() => _sut.BuildStoreDataSql(_testContext.Context, providerDefinitionId, containerName, data, _defaultKeyFields, _logger.Object));
         }
 
         [Theory, InlineAutoData]
@@ -50,7 +51,7 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests.Features
             Guid providerDefinitionId,
             string containerName)
         {
-            Assert.Throws<InvalidOperationException>(() => _sut.BuildStoreDataSql(_testContext.Context, providerDefinitionId, containerName, null, _logger.Object));
+            Assert.Throws<InvalidOperationException>(() => _sut.BuildStoreDataSql(_testContext.Context, providerDefinitionId, containerName, null, _defaultKeyFields, _logger.Object));
         }
 
         [Theory, InlineAutoData]
@@ -58,7 +59,7 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests.Features
             Guid providerDefinitionId,
             string containerName)
         {
-            Assert.Throws<InvalidOperationException>(() => _sut.BuildStoreDataSql(_testContext.Context, providerDefinitionId, containerName, new Dictionary<string, object>(), _logger.Object));
+            Assert.Throws<InvalidOperationException>(() => _sut.BuildStoreDataSql(_testContext.Context, providerDefinitionId, containerName, new Dictionary<string, object>(), _defaultKeyFields, _logger.Object));
         }
 
         [Theory, InlineAutoData]
@@ -67,7 +68,7 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests.Features
             string containerName,
             IDictionary<string, object> data)
         {
-            Assert.Throws<ArgumentNullException>("logger", () => _sut.BuildStoreDataSql(_testContext.Context, providerDefinitionId, containerName, data, null));
+            Assert.Throws<ArgumentNullException>("logger", () => _sut.BuildStoreDataSql(_testContext.Context, providerDefinitionId, containerName, data, _defaultKeyFields, null));
         }
 
         [Theory, InlineAutoData]
@@ -90,7 +91,7 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests.Features
                         };
 
             var execContext = _testContext.Context;
-            var result = _sut.BuildStoreDataSql(execContext, providerDefinitionId, name, data, _logger.Object);
+            var result = _sut.BuildStoreDataSql(execContext, providerDefinitionId, name, data, _defaultKeyFields, _logger.Object);
             var command = result.Single();
             Assert.Equal($"MERGE [{name}] AS target" + Environment.NewLine +
                          "USING (SELECT @Field1, @Field2, @Field3, @Field4, @Field5) AS source ([Field1], [Field2], [Field3], [Field4], [Field5])" + Environment.NewLine +
@@ -127,7 +128,7 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests.Features
                         };
             
             var execContext = _testContext.Context;
-            var result = _sut.BuildStoreDataSql(execContext, providerDefinitionId, name, data, _logger.Object);
+            var result = _sut.BuildStoreDataSql(execContext, providerDefinitionId, name, data, _defaultKeyFields, _logger.Object);
             var command = result.Single();
             Assert.Equal($"MERGE [{name}] AS target" + Environment.NewLine +
                          "USING (SELECT @Field1, @Field2, @InvalidField) AS source ([Field1], [Field2], [InvalidField])" + Environment.NewLine +

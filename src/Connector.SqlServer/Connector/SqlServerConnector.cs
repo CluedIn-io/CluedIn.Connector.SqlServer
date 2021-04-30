@@ -10,7 +10,6 @@ using CluedIn.Core;
 using CluedIn.Core.Connectors;
 using CluedIn.Core.Data.Vocabularies;
 using CluedIn.Core.DataStore;
-using CluedIn.Core.Streams.Models;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Logging;
 
@@ -21,15 +20,16 @@ namespace CluedIn.Connector.SqlServer.Connector
         private readonly ILogger<SqlServerConnector> _logger;
         private readonly ISqlClient _client;
         private readonly IFeatureStore _features;
+        private readonly IList<string> _defaultKeyFields = new List<string> { "OriginEntityCode" };
 
         public SqlServerConnector(
-            IConfigurationRepository repo,
-            ILogger<SqlServerConnector> logger,
-            ISqlClient client,
-            IFeatureStore features) : base(repo)
+                IConfigurationRepository repo,
+                ILogger<SqlServerConnector> logger,
+                ISqlClient client,
+                IFeatureStore features) : base(repo)
         {
             ProviderId = SqlServerConstants.ProviderId;
-            
+
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _client = client ?? throw new ArgumentNullException(nameof(client));
             _features = features ?? throw new ArgumentNullException(nameof(logger));
@@ -41,7 +41,7 @@ namespace CluedIn.Connector.SqlServer.Connector
 
             async Task CreateTable(string name, IEnumerable<ConnectionDataType> columns, string context)
             {
-                var sql = BuildCreateContainerSql(name, columns);
+                var sql = _features.GetFeature<IBuildCreateContainerFeature>().BuildCreateContainerSql(name, columns);
                 _logger.LogDebug("Sql Server Connector - Create Container[{Context}] - Generated query: {sql}", context, sql);
 
                 try
@@ -60,8 +60,8 @@ namespace CluedIn.Connector.SqlServer.Connector
             if (model.CreateEdgeTable)
                 tasks.Add(CreateTable(EdgeContainerHelper.GetName(model.Name), new List<ConnectionDataType>
                 {
-                    new ConnectionDataType { Name = Sanitize("OriginEntityCode"), Type = VocabularyKeyDataType.Text },
-                    new ConnectionDataType { Name = Sanitize("Code"), Type = VocabularyKeyDataType.Text },
+                    new ConnectionDataType { Name = SqlSanitizer.Sanitize("OriginEntityCode"), Type = VocabularyKeyDataType.Text },
+                    new ConnectionDataType { Name = SqlSanitizer.Sanitize("Code"), Type = VocabularyKeyDataType.Text },
                 }, "Edges"));
 
             await Task.WhenAll(tasks);
@@ -133,7 +133,7 @@ namespace CluedIn.Connector.SqlServer.Connector
 
             async Task RenameTable(string currentName, string updatedName, string context)
             {
-                var tempName = Sanitize(updatedName);
+                var tempName = SqlSanitizer.Sanitize(updatedName);
 
                 var sql = BuildRenameContainerSql(currentName, tempName, out var param);
 
@@ -190,18 +190,8 @@ namespace CluedIn.Connector.SqlServer.Connector
             await Task.WhenAll(tasks);
         }
 
-        public string BuildCreateContainerSql(string name, IEnumerable<ConnectionDataType> columns)
-        {
-            var builder = new StringBuilder();
-            builder.AppendLine($"CREATE TABLE [{Sanitize(name)}](");
-            builder.AppendJoin(", ", columns.Select(c => $"[{Sanitize(c.Name)}] {GetDbType(c.Type)} NULL"));
-            builder.AppendLine(") ON[PRIMARY]");
 
-            var sql = builder.ToString();
-            return sql;
-        }
-
-        public string BuildEmptyContainerSql(string id) => $"TRUNCATE TABLE [{Sanitize(id)}]";
+        public string BuildEmptyContainerSql(string id) => $"TRUNCATE TABLE [{SqlSanitizer.Sanitize(id)}]";
 
         public override Task<string> GetValidDataTypeName(ExecutionContext executionContext, Guid providerDefinitionId, string name)
         {
@@ -312,7 +302,7 @@ namespace CluedIn.Connector.SqlServer.Connector
                 var config = await base.GetAuthenticationDetails(executionContext, providerDefinitionId);
 
                 var commands = _features.GetFeature<IBuildStoreDataFeature>()
-                    .BuildStoreDataSql(executionContext, providerDefinitionId, containerName, data, _logger);
+                    .BuildStoreDataSql(executionContext, providerDefinitionId, containerName, data, _defaultKeyFields, _logger);
 
                 foreach (var command in commands)
                 {
@@ -336,7 +326,7 @@ namespace CluedIn.Connector.SqlServer.Connector
                 var edgeTableName = EdgeContainerHelper.GetName(containerName);
                 if (await CheckTableExists(executionContext, providerDefinitionId, edgeTableName))
                 {
-                    var sql = BuildEdgeStoreDataSql(edgeTableName, originEntityCode,edges, out var param);
+                    var sql = BuildEdgeStoreDataSql(edgeTableName, originEntityCode, edges, out var param);
 
                     _logger.LogDebug($"Sql Server Connector - Store Edge Data - Generated query: {sql}");
 
@@ -352,39 +342,13 @@ namespace CluedIn.Connector.SqlServer.Connector
             }
         }
 
-        public string BuildStoreDataSql(string containerName, IDictionary<string, object> data, out List<SqlParameter> param)
-        {
-            var builder = new StringBuilder();
-
-            var nameList = data.Select(n => Sanitize(n.Key)).ToList();
-            var fieldList = string.Join(", ", nameList.Select(n => $"[{n}]"));
-            var paramList = string.Join(", ", nameList.Select(n => $"@{n}"));
-            var insertList = string.Join(", ", nameList.Select(n => $"source.[{n}]"));
-            var updateList = string.Join(", ", nameList.Select(n => $"target.[{n}] = source.[{n}]"));
-
-            builder.AppendLine($"MERGE [{Sanitize(containerName)}] AS target");
-            builder.AppendLine($"USING (SELECT {paramList}) AS source ({fieldList})");
-            builder.AppendLine("  ON (target.[OriginEntityCode] = source.[OriginEntityCode])");
-            builder.AppendLine("WHEN MATCHED THEN");
-            builder.AppendLine($"  UPDATE SET {updateList}");
-            builder.AppendLine("WHEN NOT MATCHED THEN");
-            builder.AppendLine($"  INSERT ({fieldList})");
-            builder.AppendLine($"  VALUES ({insertList});");
-
-
-
-            param = (from dataType in data let name = Sanitize(dataType.Key) select new SqlParameter { ParameterName = $"@{name}", Value = dataType.Value ?? "" }).ToList();
-
-            return builder.ToString();
-        }
-
         public string BuildEdgeStoreDataSql(string containerName, string originEntityCode, IEnumerable<string> edges, out List<SqlParameter> param)
         {
             var originParam = new SqlParameter { ParameterName = "@OriginEntityCode", Value = originEntityCode };
             param = new List<SqlParameter> { originParam };
 
             var builder = new StringBuilder();
-            builder.AppendLine($"DELETE FROM [{Sanitize(containerName)}] where [OriginEntityCode] = {originParam.ParameterName}");
+            builder.AppendLine($"DELETE FROM [{SqlSanitizer.Sanitize(containerName)}] where [OriginEntityCode] = {originParam.ParameterName}");
             var edgeValues = new List<string>();
             foreach (var edge in edges)
             {
@@ -397,9 +361,9 @@ namespace CluedIn.Connector.SqlServer.Connector
                 edgeValues.Add($"(@OriginEntityCode, {edgeParam.ParameterName})");
             }
 
-            if(edgeValues.Count > 0)
+            if (edgeValues.Count > 0)
             {
-                builder.AppendLine($"INSERT INTO [{Sanitize(containerName)}] ([OriginEntityCode],[Code]) values");
+                builder.AppendLine($"INSERT INTO [{SqlSanitizer.Sanitize(containerName)}] ([OriginEntityCode],[Code]) values");
                 builder.AppendJoin(", ", edgeValues);
             }
 
@@ -408,17 +372,17 @@ namespace CluedIn.Connector.SqlServer.Connector
 
         private string BuildRenameContainerSql(string id, string newName, out List<SqlParameter> param)
         {
-            var result = $"IF EXISTS(SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = '{Sanitize(id)}') EXEC sp_rename @tableName, @newName";
+            var result = $"IF EXISTS(SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = '{SqlSanitizer.Sanitize(id)}') EXEC sp_rename @tableName, @newName";
 
             param = new List<SqlParameter>
             {
                 new SqlParameter("@tableName", SqlDbType.NVarChar)
                 {
-                    Value = Sanitize(id)
+                    Value = SqlSanitizer.Sanitize(id)
                 },
                 new SqlParameter("@newName", SqlDbType.NVarChar)
                 {
-                    Value = Sanitize(newName)
+                    Value = SqlSanitizer.Sanitize(newName)
                 }
             };
 
@@ -427,14 +391,9 @@ namespace CluedIn.Connector.SqlServer.Connector
 
         private string BuildRemoveContainerSql(string id)
         {
-            var result = $"DROP TABLE [{Sanitize(id)}] IF EXISTS";
+            var result = $"DROP TABLE [{SqlSanitizer.Sanitize(id)}] IF EXISTS";
 
             return result;
-        }
-
-        private string Sanitize(string str)
-        {
-            return str.Replace("--", "").Replace(";", "").Replace("'", "");       // Bare-bones sanitization to prevent Sql Injection. Extra info here http://sommarskog.se/dynamic_sql.html
         }
 
         private VocabularyKeyDataType GetVocabType(string rawType)
@@ -476,24 +435,6 @@ namespace CluedIn.Connector.SqlServer.Connector
             // };
 
             return VocabularyKeyDataType.Text;
-        }
-
-        private string GetDbType(VocabularyKeyDataType type)
-        {
-            // return type switch //TODO: @LJU: Disabled as it needs reviewing; Breaks streams;
-            // {
-            //     VocabularyKeyDataType.Integer => "bigint",
-            //     VocabularyKeyDataType.Number => "decimal(18,4)",
-            //     VocabularyKeyDataType.Money => "money",
-            //     VocabularyKeyDataType.DateTime => "datetime2",
-            //     VocabularyKeyDataType.Time => "time",
-            //     VocabularyKeyDataType.Xml => "XML",
-            //     VocabularyKeyDataType.Guid => "uniqueidentifier",
-            //     VocabularyKeyDataType.GeographyLocation => "geography",
-            //     _ => "nvarchar(max)"
-            // };
-
-            return "nvarchar(max)";
         }
 
         private async Task<bool> CheckTableExists(ExecutionContext executionContext, Guid providerDefinitionId, string name)

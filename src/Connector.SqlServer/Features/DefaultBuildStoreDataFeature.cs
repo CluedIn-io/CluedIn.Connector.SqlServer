@@ -16,6 +16,7 @@ namespace CluedIn.Connector.SqlServer.Features
             Guid providerDefinitionId,
             string containerName,
             IDictionary<string, object> data,
+            IList<string> keyFields,
             ILogger logger)
         {
             if (executionContext == null)
@@ -26,6 +27,9 @@ namespace CluedIn.Connector.SqlServer.Features
 
             if (data == null || data.Count == 0)
                 throw new InvalidOperationException("The data to specify columns must be provided.");
+
+            if (keyFields == null || ! keyFields.Any())
+                throw new InvalidOperationException("No Key Fields have been specified");
 
             if (logger == null)
                 throw new ArgumentNullException(nameof(logger));
@@ -57,10 +61,12 @@ namespace CluedIn.Connector.SqlServer.Features
             }
 
             var fieldsString = string.Join(", ", fields);
-            
+            var mergeOnList = keyFields.Select(n => $"target.[{n}] = source.[{n}]");
+            var mergeOn = string.Join(" AND ", mergeOnList);
+
             builder.AppendLine($"MERGE [{containerName.SqlSanitize()}] AS target");
             builder.AppendLine($"USING (SELECT {string.Join(", ", parameters.Select(x => x.ParameterName))}) AS source ({fieldsString})");
-            builder.AppendLine("  ON (target.[OriginEntityCode] = source.[OriginEntityCode])");
+            builder.AppendLine($"  ON ({mergeOn})");
             builder.AppendLine("WHEN MATCHED THEN");
             builder.AppendLine($"  UPDATE SET {string.Join(", ", updates)}");
             builder.AppendLine("WHEN NOT MATCHED THEN");

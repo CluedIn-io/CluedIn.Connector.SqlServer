@@ -8,11 +8,11 @@ namespace CluedIn.Connector.SqlServer.Features
 {
     public interface IBuildStoreDataFeature
     {
-        IEnumerable<SqlServerConnectorCommand> BuildStoreDataSql(
-            ExecutionContext executionContext,
+        IEnumerable<SqlServerConnectorCommand> BuildStoreDataSql(ExecutionContext executionContext,
             Guid providerDefinitionId,
             string containerName,
             IDictionary<string, object> data,
+            IList<string> keyFields,
             ILogger logger);
     }
 }
