@@ -9,11 +9,11 @@ namespace CluedIn.Connector.SqlServer.Features
 {
     public interface IBuildCreateContainerFeature
     {
-        IEnumerable<SqlServerConnectorCommand> BuildCreateContainerSql(
-            ExecutionContext executionContext,
+        IEnumerable<SqlServerConnectorCommand> BuildCreateContainerSql(ExecutionContext executionContext,
             Guid providerDefinitionId,
             string name,
             IEnumerable<ConnectionDataType> columns,
+            IList<string> keys,
             ILogger logger);
     }
 }

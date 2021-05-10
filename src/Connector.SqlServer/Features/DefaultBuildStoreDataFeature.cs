@@ -16,7 +16,7 @@ namespace CluedIn.Connector.SqlServer.Features
             Guid providerDefinitionId,
             string containerName,
             IDictionary<string, object> data,
-            IList<string> keyFields,
+            IList<string> keys,
             ILogger logger)
         {
             if (executionContext == null)
@@ -28,7 +28,7 @@ namespace CluedIn.Connector.SqlServer.Features
             if (data == null || data.Count == 0)
                 throw new InvalidOperationException("The data to specify columns must be provided.");
 
-            if (keyFields == null || ! keyFields.Any())
+            if (keys == null || ! keys.Any())
                 throw new InvalidOperationException("No Key Fields have been specified");
 
             if (logger == null)
@@ -61,7 +61,7 @@ namespace CluedIn.Connector.SqlServer.Features
             }
 
             var fieldsString = string.Join(", ", fields);
-            var mergeOnList = keyFields.Select(n => $"target.[{n}] = source.[{n}]");
+            var mergeOnList = keys.Select(n => $"target.[{n}] = source.[{n}]");
             var mergeOn = string.Join(" AND ", mergeOnList);
 
             builder.AppendLine($"MERGE [{containerName.SqlSanitize()}] AS target");

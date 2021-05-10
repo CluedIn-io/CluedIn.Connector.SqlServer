@@ -12,7 +12,7 @@ namespace CluedIn.Connector.SqlServer.Features
             Guid providerDefinitionId,
             string containerName,
             IDictionary<string, object> data,
-            IList<string> keyFields,
+            IList<string> keys,
             ILogger logger);
     }
 }

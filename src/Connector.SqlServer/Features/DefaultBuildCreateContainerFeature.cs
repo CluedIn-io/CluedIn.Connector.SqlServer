@@ -6,7 +6,6 @@ using CluedIn.Connector.SqlServer.Connector;
 using CluedIn.Core;
 using CluedIn.Core.Connectors;
 using CluedIn.Core.Data.Vocabularies;
-using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Logging;
 
 namespace CluedIn.Connector.SqlServer.Features
@@ -18,6 +17,7 @@ namespace CluedIn.Connector.SqlServer.Features
             Guid providerDefinitionId,
             string name,
             IEnumerable<ConnectionDataType> columns,
+            IList<string> keys,
             ILogger logger)
         {
             if (executionContext == null)
@@ -26,16 +26,20 @@ namespace CluedIn.Connector.SqlServer.Features
             if (string.IsNullOrWhiteSpace(name))
                 throw new InvalidOperationException("The name must be provided.");
 
-            if (columns == null || columns.Count() == 0)
+            if (columns == null || !columns.Any())
                 throw new InvalidOperationException("The data to specify columns must be provided.");
 
             if (logger == null)
                 throw new ArgumentNullException(nameof(logger));
 
             var builder = new StringBuilder();
-            builder.AppendLine($"CREATE TABLE [{name.SqlSanitize()}](");
+            var sanitizedName = name.SqlSanitize();
+            builder.AppendLine($"CREATE TABLE [{sanitizedName}](");
             builder.AppendJoin(", ", columns.Select(c => $"[{c.Name.SqlSanitize()}] {GetDbType(c.Type)} NULL"));
             builder.AppendLine(") ON[PRIMARY]");
+
+            var indexName = $"idx_{sanitizedName}".SqlSanitize();
+            builder.AppendLine($"CREATE INDEX [{indexName}] ON [{sanitizedName}]({string.Join(", ", keys)}); ");
 
             return new[]
             {
@@ -61,7 +65,7 @@ namespace CluedIn.Connector.SqlServer.Features
             //     _ => "nvarchar(max)"
             // };
 
-            return "nvarchar(max)";
+            return "nvarchar(1024)";
         }
     }
 }
