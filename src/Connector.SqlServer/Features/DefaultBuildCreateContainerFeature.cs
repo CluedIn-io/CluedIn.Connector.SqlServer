@@ -12,6 +12,12 @@ namespace CluedIn.Connector.SqlServer.Features
 {
     public class DefaultBuildCreateContainerFeature : IBuildCreateContainerFeature
     {
+        private static readonly IDictionary<string, string> _knownColumnTypes = new Dictionary<string, string>
+        {
+            {"originentitycode", "nvarchar(1024)"},
+            {"code", "nvarchar(1024)"},
+        };
+            
         public virtual IEnumerable<SqlServerConnectorCommand> BuildCreateContainerSql(
             ExecutionContext executionContext,
             Guid providerDefinitionId,
@@ -35,23 +41,17 @@ namespace CluedIn.Connector.SqlServer.Features
             var builder = new StringBuilder();
             var sanitizedName = name.SqlSanitize();
             builder.AppendLine($"CREATE TABLE [{sanitizedName}](");
-            builder.AppendJoin(", ", columns.Select(c => $"[{c.Name.SqlSanitize()}] {GetDbType(c.Type)} NULL"));
+            builder.AppendJoin(", ", columns.Select(c => $"[{c.Name.SqlSanitize()}] {GetDbType(c.Type, c.Name)} NULL"));
             builder.AppendLine(") ON[PRIMARY]");
 
-            var indexName = $"idx_{sanitizedName}".SqlSanitize();
-            builder.AppendLine($"CREATE INDEX [{indexName}] ON [{sanitizedName}]({string.Join(", ", keys)}); ");
-
-            return new[]
-            {
-                new SqlServerConnectorCommand
-                {
-                    Text = builder.ToString()
-                }
-            };
+            return new[] { new SqlServerConnectorCommand { Text = builder.ToString() } };
         }
 
-        protected virtual string GetDbType(VocabularyKeyDataType type)
+        protected virtual string GetDbType(VocabularyKeyDataType type, string columnName)
         {
+            var column = columnName.ToLower();
+            if (_knownColumnTypes.ContainsKey(column)) return _knownColumnTypes[column];
+
             // return type switch //TODO: @LJU: Disabled as it needs reviewing; Breaks streams;
             // {
             //     VocabularyKeyDataType.Integer => "bigint",
@@ -65,7 +65,7 @@ namespace CluedIn.Connector.SqlServer.Features
             //     _ => "nvarchar(max)"
             // };
 
-            return "nvarchar(1024)";
+            return "nvarchar(max)";
         }
     }
 }

@@ -43,8 +43,11 @@ namespace CluedIn.Connector.SqlServer.Connector
             {
                 try
                 {
-                    var commands = _features.GetFeature<IBuildCreateContainerFeature>()
-                        .BuildCreateContainerSql(executionContext, providerDefinitionId, name, columns, keys, _logger);
+                    IEnumerable<SqlServerConnectorCommand> commands = _features.GetFeature<IBuildCreateContainerFeature>()
+                        .BuildCreateContainerSql(executionContext, providerDefinitionId, name, columns, keys, _logger).ToList();
+                    var indexCommands = _features.GetFeature<IBuildCreateIndexFeature>().BuildCreateIndexSql(executionContext, providerDefinitionId, name, keys, _logger);
+                    commands = commands.Union(indexCommands);
+
                     foreach (var command in commands)
                     {
                         _logger.LogDebug("Sql Server Connector - Create Container[{Context}] - Generated query: {sql}", context, command.Text);
@@ -70,6 +73,8 @@ namespace CluedIn.Connector.SqlServer.Connector
                     new ConnectionDataType { Name = originEntityCodeColumn, Type = VocabularyKeyDataType.Text },
                     new ConnectionDataType { Name = codeColumn, Type = VocabularyKeyDataType.Text },
                 }, new List<string> { originEntityCodeColumn , codeColumn }, "Edges"));
+
+
             }
 
             await Task.WhenAll(tasks);
