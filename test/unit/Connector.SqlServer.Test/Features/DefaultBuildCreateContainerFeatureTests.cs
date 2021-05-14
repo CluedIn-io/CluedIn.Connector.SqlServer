@@ -42,7 +42,7 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests.Features
             string name,
             List<ConnectionDataType> columns)
         {
-            Assert.Throws<ArgumentNullException>("executionContext", () => _sut.BuildCreateContainerSql(null, providerDefinitionId, name, columns, _logger.Object));
+            Assert.Throws<ArgumentNullException>("executionContext", () => _sut.BuildCreateContainerSql(null, providerDefinitionId, name, columns, _defaultKeyFields, _logger.Object));
         }
 
         [Theory]
@@ -54,7 +54,7 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests.Features
             Guid providerDefinitionId,
             List<ConnectionDataType> columns)
         {
-            Assert.Throws<InvalidOperationException>(() => _sut.BuildCreateContainerSql(_testContext.Context, providerDefinitionId, name, columns, _logger.Object));
+            Assert.Throws<InvalidOperationException>(() => _sut.BuildCreateContainerSql(_testContext.Context, providerDefinitionId, name, columns, _defaultKeyFields, _logger.Object));
         }
 
         [Theory, InlineAutoData]
@@ -62,7 +62,7 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests.Features
             Guid providerDefinitionId,
             string name)
         {
-            Assert.Throws<InvalidOperationException>(() => _sut.BuildCreateContainerSql(_testContext.Context, providerDefinitionId, name, null, _logger.Object));
+            Assert.Throws<InvalidOperationException>(() => _sut.BuildCreateContainerSql(_testContext.Context, providerDefinitionId, name, null, _defaultKeyFields, _logger.Object));
         }
 
         [Theory, InlineAutoData]
@@ -70,7 +70,7 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests.Features
             Guid providerDefinitionId,
             string name)
         {
-            Assert.Throws<InvalidOperationException>(() => _sut.BuildCreateContainerSql(_testContext.Context, providerDefinitionId, name, new List<ConnectionDataType>(), _logger.Object));
+            Assert.Throws<InvalidOperationException>(() => _sut.BuildCreateContainerSql(_testContext.Context, providerDefinitionId, name, new List<ConnectionDataType>(), _defaultKeyFields, _logger.Object));
         }
 
         [Theory, InlineAutoData]
@@ -79,7 +79,7 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests.Features
             string name,
             List<ConnectionDataType> columns)
         {
-            Assert.Throws<ArgumentNullException>("logger", () => _sut.BuildCreateContainerSql(_testContext.Context, providerDefinitionId, name, columns, null));
+            Assert.Throws<ArgumentNullException>("logger", () => _sut.BuildCreateContainerSql(_testContext.Context, providerDefinitionId, name, columns, _defaultKeyFields, null));
         }
 
         [Theory, InlineAutoData]
@@ -94,7 +94,7 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests.Features
             expected.AppendLine(") ON[PRIMARY]");
 
             var execContext = _testContext.Context;
-            var result = _sut.BuildCreateContainerSql(execContext, providerDefinitionId, name, columns, _logger.Object);
+            var result = _sut.BuildCreateContainerSql(execContext, providerDefinitionId, name, columns, _defaultKeyFields, _logger.Object);
             var command = result.Single();
             Assert.Equal(expected.ToString(), command.Text);
             Assert.Null(command.Parameters);

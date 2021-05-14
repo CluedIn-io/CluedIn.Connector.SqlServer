@@ -8,7 +8,8 @@ namespace CluedIn.Connector.SqlServer.Features
         private readonly ConcurrentDictionary<Type, object> _store = new ConcurrentDictionary<Type, object>
         {
             [typeof(IBuildStoreDataFeature)] = new DefaultBuildStoreDataFeature(),
-            [typeof(IBuildCreateContainerFeature)] = new DefaultBuildCreateContainerFeature()
+            [typeof(IBuildCreateContainerFeature)] = new DefaultBuildCreateContainerFeature(),
+            [typeof(IBuildCreateIndexFeature)] = new DefaultBuildCreateIndexFeature()
         };
 
         public T GetFeature<T>() => _store.TryGetValue(typeof(T), out var result) ? (T)result : default;        

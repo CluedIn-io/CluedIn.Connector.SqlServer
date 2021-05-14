@@ -6,18 +6,24 @@ using CluedIn.Connector.SqlServer.Connector;
 using CluedIn.Core;
 using CluedIn.Core.Connectors;
 using CluedIn.Core.Data.Vocabularies;
-using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Logging;
 
 namespace CluedIn.Connector.SqlServer.Features
 {
     public class DefaultBuildCreateContainerFeature : IBuildCreateContainerFeature
     {
+        private static readonly IDictionary<string, string> _knownColumnTypes = new Dictionary<string, string>
+        {
+            {"originentitycode", "nvarchar(1024)"},
+            {"code", "nvarchar(1024)"},
+        };
+            
         public virtual IEnumerable<SqlServerConnectorCommand> BuildCreateContainerSql(
             ExecutionContext executionContext,
             Guid providerDefinitionId,
             string name,
             IEnumerable<ConnectionDataType> columns,
+            IList<string> keys,
             ILogger logger)
         {
             if (executionContext == null)
@@ -26,28 +32,26 @@ namespace CluedIn.Connector.SqlServer.Features
             if (string.IsNullOrWhiteSpace(name))
                 throw new InvalidOperationException("The name must be provided.");
 
-            if (columns == null || columns.Count() == 0)
+            if (columns == null || !columns.Any())
                 throw new InvalidOperationException("The data to specify columns must be provided.");
 
             if (logger == null)
                 throw new ArgumentNullException(nameof(logger));
 
             var builder = new StringBuilder();
-            builder.AppendLine($"CREATE TABLE [{name.SqlSanitize()}](");
-            builder.AppendJoin(", ", columns.Select(c => $"[{c.Name.SqlSanitize()}] {GetDbType(c.Type)} NULL"));
+            var sanitizedName = name.SqlSanitize();
+            builder.AppendLine($"CREATE TABLE [{sanitizedName}](");
+            builder.AppendJoin(", ", columns.Select(c => $"[{c.Name.SqlSanitize()}] {GetDbType(c.Type, c.Name)} NULL"));
             builder.AppendLine(") ON[PRIMARY]");
 
-            return new[]
-            {
-                new SqlServerConnectorCommand
-                {
-                    Text = builder.ToString()
-                }
-            };
+            return new[] { new SqlServerConnectorCommand { Text = builder.ToString() } };
         }
 
-        protected virtual string GetDbType(VocabularyKeyDataType type)
+        protected virtual string GetDbType(VocabularyKeyDataType type, string columnName)
         {
+            var column = columnName.ToLower();
+            if (_knownColumnTypes.ContainsKey(column)) return _knownColumnTypes[column];
+
             // return type switch //TODO: @LJU: Disabled as it needs reviewing; Breaks streams;
             // {
             //     VocabularyKeyDataType.Integer => "bigint",

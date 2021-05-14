@@ -39,12 +39,15 @@ namespace CluedIn.Connector.SqlServer.Connector
         {
             var config = await base.GetAuthenticationDetails(executionContext, providerDefinitionId);
 
-            async Task CreateTable(string name, IEnumerable<ConnectionDataType> columns, string context)
+            async Task CreateTable(string name, IEnumerable<ConnectionDataType> columns, IList<string> keys, string context)
             {
                 try
                 {
-                    var commands = _features.GetFeature<IBuildCreateContainerFeature>()
-                        .BuildCreateContainerSql(executionContext, providerDefinitionId, name, columns, _logger);
+                    IEnumerable<SqlServerConnectorCommand> commands = _features.GetFeature<IBuildCreateContainerFeature>()
+                        .BuildCreateContainerSql(executionContext, providerDefinitionId, name, columns, keys, _logger).ToList();
+                    var indexCommands = _features.GetFeature<IBuildCreateIndexFeature>().BuildCreateIndexSql(executionContext, providerDefinitionId, name, keys, _logger);
+                    commands = commands.Union(indexCommands);
+
                     foreach (var command in commands)
                     {
                         _logger.LogDebug("Sql Server Connector - Create Container[{Context}] - Generated query: {sql}", context, command.Text);
@@ -60,13 +63,19 @@ namespace CluedIn.Connector.SqlServer.Connector
                 }
             }
 
-            var tasks = new List<Task> { CreateTable(model.Name, model.DataTypes, "Data") };
+            var tasks = new List<Task> { CreateTable(model.Name, model.DataTypes, _defaultKeyFields, "Data") };
             if (model.CreateEdgeTable)
+            {
+                var originEntityCodeColumn = "OriginEntityCode".SqlSanitize();
+                var codeColumn = "Code".SqlSanitize();
                 tasks.Add(CreateTable(EdgeContainerHelper.GetName(model.Name), new List<ConnectionDataType>
                 {
-                    new ConnectionDataType { Name = "OriginEntityCode".SqlSanitize(), Type = VocabularyKeyDataType.Text },
-                    new ConnectionDataType { Name = "Code".SqlSanitize(), Type = VocabularyKeyDataType.Text },
-                }, "Edges"));
+                    new ConnectionDataType { Name = originEntityCodeColumn, Type = VocabularyKeyDataType.Text },
+                    new ConnectionDataType { Name = codeColumn, Type = VocabularyKeyDataType.Text },
+                }, new List<string> { originEntityCodeColumn , codeColumn }, "Edges"));
+
+
+            }
 
             await Task.WhenAll(tasks);
         }

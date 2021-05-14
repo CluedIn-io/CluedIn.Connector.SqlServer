@@ -6,12 +6,11 @@ using Microsoft.Extensions.Logging;
 
 namespace CluedIn.Connector.SqlServer.Features
 {
-    public interface IBuildStoreDataFeature
+    public interface IBuildCreateIndexFeature
     {
-        IEnumerable<SqlServerConnectorCommand> BuildStoreDataSql(ExecutionContext executionContext,
+        IEnumerable<SqlServerConnectorCommand> BuildCreateIndexSql(ExecutionContext executionContext,
             Guid providerDefinitionId,
             string containerName,
-            IDictionary<string, object> data,
             IList<string> keys,
             ILogger logger);
     }
