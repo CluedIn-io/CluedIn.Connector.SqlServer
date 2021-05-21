@@ -55,8 +55,8 @@ namespace CluedIn.Connector.SqlServer.Features
                 }
 
                 parameters.Add(param);
-                fields.Add($"[{name}]");
-                inserts.Add($"source.[{name}]");
+                fields.Add($"{name}");
+                inserts.Add($"@{name}");
                 updates.Add($"target.[{name}] = source.[{name}]");
             }
 
@@ -64,13 +64,13 @@ namespace CluedIn.Connector.SqlServer.Features
             var mergeOnList = keys.Select(n => $"target.[{n}] = source.[{n}]");
             var mergeOn = string.Join(" AND ", mergeOnList);
 
-            builder.AppendLine($"MERGE [{containerName.SqlSanitize()}] AS target");
-            builder.AppendLine($"USING (SELECT {string.Join(", ", parameters.Select(x => x.ParameterName))}) AS source ({fieldsString})");
-            builder.AppendLine($"  ON ({mergeOn})");
-            builder.AppendLine("WHEN MATCHED THEN");
-            builder.AppendLine($"  UPDATE SET {string.Join(", ", updates)}");
-            builder.AppendLine("WHEN NOT MATCHED THEN");
-            builder.AppendLine($"  INSERT ({fieldsString})");
+            //builder.AppendLine($"MERGE [{containerName.SqlSanitize()}] AS target");
+            //builder.AppendLine($"USING (SELECT {string.Join(", ", parameters.Select(x => x.ParameterName))}) AS source ({fieldsString})");
+            //builder.AppendLine($"  ON ({mergeOn})");
+            //builder.AppendLine("WHEN MATCHED THEN");
+            //builder.AppendLine($"  UPDATE SET {string.Join(", ", updates)}");
+            //builder.AppendLine("WHEN NOT MATCHED THEN");
+            builder.AppendLine($"  INSERT INTO {containerName.SqlSanitize()} ({string.Join(", ", fields)})");
             builder.AppendLine($"  VALUES ({string.Join(", ", inserts)});");
 
             return new[]
