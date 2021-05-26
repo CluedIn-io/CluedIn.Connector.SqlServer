@@ -72,7 +72,7 @@ namespace CluedIn.Connector.SqlServer.Connector
                 {
                     new ConnectionDataType { Name = originEntityCodeColumn, Type = VocabularyKeyDataType.Text },
                     new ConnectionDataType { Name = codeColumn, Type = VocabularyKeyDataType.Text },
-                }, new List<string> { originEntityCodeColumn , codeColumn }, "Edges"));
+                }, new List<string> { originEntityCodeColumn, codeColumn }, "Edges"));
 
 
             }
@@ -312,15 +312,47 @@ namespace CluedIn.Connector.SqlServer.Connector
             try
             {
                 var config = await base.GetAuthenticationDetails(executionContext, providerDefinitionId);
-
-                var commands = _features.GetFeature<IBuildStoreDataFeature>()
-                    .BuildStoreDataSql(executionContext, providerDefinitionId, containerName, data, _defaultKeyFields, _logger);
-
-                foreach (var command in commands)
+                var commands = new List<SqlServerConnectorCommand>();
+                if (data.ContainsKey("Tags"))
                 {
-                    _logger.LogDebug("Sql Server Connector - Store Data - Generated query: {command}", command.Text);
+                    var codes = data["Tags"];
+                    if (codes is IList<object> codeStrings)
+                    {
+                        var wantedCode = codeStrings; //.Where(d => d.Contains("CustId"));
+                        foreach (var code in wantedCode)
+                        {
+                            var hack = data["Tags"] = code;
 
-                    await _client.ExecuteCommandAsync(config, command.Text, command.Parameters);
+
+                            commands.AddRange(_features.GetFeature<IBuildStoreDataFeature>()
+                            .BuildStoreDataSql(executionContext, providerDefinitionId, containerName, data, _defaultKeyFields, _logger));
+
+                            //var sql = BuildStoreDataSql(containerName, data, out var param);
+
+                            //_logger.LogDebug($"Sql Server Connector - Store Data - Generated query: {sql}");
+
+                            //await _client.ExecuteCommandAsync(config, sql, param);
+                        }
+
+                        foreach (var command in commands)
+                        {
+                            _logger.LogDebug("Sql Server Connector - Store Data - Generated query: {command}", command.Text);
+
+                            await _client.ExecuteCommandAsync(config, command.Text, command.Parameters);
+                        }
+                    }
+                }
+                else
+                {
+                    commands = _features.GetFeature<IBuildStoreDataFeature>()
+                        .BuildStoreDataSql(executionContext, providerDefinitionId, containerName, data, _defaultKeyFields, _logger).ToList();
+
+                    foreach (var command in commands)
+                    {
+                        _logger.LogDebug("Sql Server Connector - Store Data - Generated query: {command}", command.Text);
+
+                        await _client.ExecuteCommandAsync(config, command.Text, command.Parameters);
+                    }
                 }
             }
             catch (Exception e)
