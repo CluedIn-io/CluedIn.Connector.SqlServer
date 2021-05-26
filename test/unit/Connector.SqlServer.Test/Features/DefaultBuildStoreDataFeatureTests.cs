@@ -112,39 +112,39 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests.Features
         //    }
         //}
 
-        //[Theory, InlineAutoData]
-        //public void BuildStoreDataSql_InvalidData_SetsValueAsString(
-        //   string name,
-        //   int field1,
-        //   string field2,
-        //   string[] invalidField,
-        //   Guid providerDefinitionId)
-        //{
-        //    var data = new Dictionary<string, object>
-        //                {
-        //                     { "Field1", field1   },
-        //                     { "Field2", field2   },
-        //                     { "InvalidField", invalidField  }
-        //                };
+        [Theory, InlineAutoData]
+        public void BuildStoreDataSql_InvalidData_SetsValueAsString(
+           string name,
+           int field1,
+           string field2,
+           string[] invalidField,
+           Guid providerDefinitionId)
+        {
+            var data = new Dictionary<string, object>
+                        {
+                             { "Field1", field1   },
+                             { "Field2", field2   },
+                             { "InvalidField", invalidField  }
+                        };
             
-        //    var execContext = _testContext.Context;
-        //    var result = _sut.BuildStoreDataSql(execContext, providerDefinitionId, name, data, _defaultKeyFields, _logger.Object);
-        //    var command = result.Single();
-        //    Assert.Equal($"MERGE [{name}] AS target" + Environment.NewLine +
-        //                 "USING (SELECT @Field1, @Field2, @InvalidField) AS source ([Field1], [Field2], [InvalidField])" + Environment.NewLine +
-        //                 "  ON (target.[OriginEntityCode] = source.[OriginEntityCode])" + Environment.NewLine +
-        //                 "WHEN MATCHED THEN" + Environment.NewLine +
-        //                 "  UPDATE SET target.[Field1] = source.[Field1], target.[Field2] = source.[Field2], target.[InvalidField] = source.[InvalidField]" + Environment.NewLine +
-        //                 "WHEN NOT MATCHED THEN" + Environment.NewLine +
-        //                 "  INSERT ([Field1], [Field2], [InvalidField])" + Environment.NewLine +
-        //                 "  VALUES (source.[Field1], source.[Field2], source.[InvalidField]);", command.Text.Trim());
-        //    Assert.Equal(3, command.Parameters.Count());
-        //    var paramsList = command.Parameters.ToList();
+            var execContext = _testContext.Context;
+            var result = _sut.BuildStoreDataSql(execContext, providerDefinitionId, name, data, _defaultKeyFields, _logger.Object);
+            var command = result.Single();
+            Assert.Equal($"MERGE [{name}] AS target" + Environment.NewLine +
+                         "USING (SELECT @Field1, @Field2, @InvalidField) AS source ([Field1], [Field2], [InvalidField])" + Environment.NewLine +
+                         "  ON (target.[OriginEntityCode] = source.[OriginEntityCode])" + Environment.NewLine +
+                         "WHEN MATCHED THEN" + Environment.NewLine +
+                         "  UPDATE SET target.[Field1] = source.[Field1], target.[Field2] = source.[Field2], target.[InvalidField] = source.[InvalidField]" + Environment.NewLine +
+                         "WHEN NOT MATCHED THEN" + Environment.NewLine +
+                         "  INSERT ([Field1], [Field2], [InvalidField])" + Environment.NewLine +
+                         "  VALUES (source.[Field1], source.[Field2], source.[InvalidField]);", command.Text.Trim());
+            Assert.Equal(3, command.Parameters.Count());
+            var paramsList = command.Parameters.ToList();
 
-        //    Assert.Equal(paramsList[0].Value, data["Field1"]);
-        //    Assert.Equal(paramsList[1].Value, data["Field2"]);
-        //    Assert.Equal(paramsList[2].Value, data["InvalidField"].ToString());
-        //}
+            Assert.Equal(paramsList[0].Value, data["Field1"]);
+            Assert.Equal(paramsList[1].Value, data["Field2"]);
+            Assert.Equal(paramsList[2].Value, data["InvalidField"].ToString());
+        }
 
     }
 }
