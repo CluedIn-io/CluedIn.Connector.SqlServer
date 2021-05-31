@@ -17,6 +17,7 @@ namespace CluedIn.Connector.SqlServer.Connector
 {
     public class SqlServerConnector : ConnectorBase
     {
+        public static int count = 0;
         private readonly ILogger<SqlServerConnector> _logger;
         private readonly ISqlClient _client;
 
@@ -306,8 +307,9 @@ namespace CluedIn.Connector.SqlServer.Connector
                 var sql = BuildStoreDataSql(containerName, data, out var param);
 
                 _logger.LogDebug($"Sql Server Connector - Store Data - Generated query: {sql}");
-
-                await _client.ExecuteCommandAsync(config, sql, param);
+                await Task.Delay(0); // just do nothing
+                _logger.LogInformation($"Fake SQL Connector just processed: {count++} records.");
+                // await _client.ExecuteCommandAsync(config, sql, param);
             }
             catch (Exception e)
             {
