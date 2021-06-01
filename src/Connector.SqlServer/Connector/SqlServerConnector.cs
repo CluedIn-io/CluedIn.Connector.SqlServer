@@ -8,6 +8,7 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using CluedIn.Connector.SqlServer.Features;
 using CluedIn.Core;
+using CluedIn.Core.Configuration;
 using CluedIn.Core.Connectors;
 using CluedIn.Core.Data.Vocabularies;
 using CluedIn.Core.DataStore;
@@ -310,29 +311,45 @@ namespace CluedIn.Connector.SqlServer.Connector
 
         public override async Task StoreData(ExecutionContext executionContext, Guid providerDefinitionId, string containerName, IDictionary<string, object> data)
         {
-            var sw = new Stopwatch();
             try
             {
-                sw.Start();
-                var config = await base.GetAuthenticationDetails(executionContext, providerDefinitionId);
-
-                _logger.LogDebug($"Stream StoreData GetAuth - {sw.ElapsedMilliseconds}ms");
-
-                var start = sw.ElapsedMilliseconds;
-                var commands = _features.GetFeature<IBuildStoreDataFeature>()
-                    .BuildStoreDataSql(executionContext, providerDefinitionId, containerName, data, _defaultKeyFields, _logger);
-                var end = sw.ElapsedMilliseconds;
-
-                _logger.LogDebug($"Stream StoreData Build Sql - {sw.ElapsedMilliseconds}ms ({end - start})");
-
-                foreach (var command in commands)
+                var bulkThreshold = ConfigurationManagerEx.AppSettings.GetValue("Streams.SqlConnector.BulkInsertRecordCount", 0);
+                if (bulkThreshold > 0)
                 {
-                    _logger.LogDebug("Sql Server Connector - Store Data - Generated query: {command}", command.Text);
+                    var table = await GetDataTable(executionContext, containerName, data);
+                    if (table.Rows.Count < bulkThreshold)
+                    {
+                        CacheDataTableRow(data, table);
+                    }
+                    else
+                    {
+                        await FlushCachedDataTable(executionContext, providerDefinitionId, containerName, table);
+                    }
+                }
+                else
+                {
+                    var sw = new Stopwatch();
+                    sw.Start();
+                    var config = await base.GetAuthenticationDetails(executionContext, providerDefinitionId);
 
-                    start = sw.ElapsedMilliseconds;
-                    await _client.ExecuteCommandAsync(config, command.Text, command.Parameters);
-                    end = sw.ElapsedMilliseconds;
-                    _logger.LogDebug($"Stream StoreData Execute Sql - {sw.ElapsedMilliseconds}ms ({end - start})");
+                    _logger.LogDebug($"Stream StoreData GetAuth - {sw.ElapsedMilliseconds}ms");
+
+                    var start = sw.ElapsedMilliseconds;
+                    var commands = _features.GetFeature<IBuildStoreDataFeature>()
+                        .BuildStoreDataSql(executionContext, providerDefinitionId, containerName, data, _defaultKeyFields, _logger);
+                    var end = sw.ElapsedMilliseconds;
+
+                    _logger.LogDebug($"Stream StoreData Build Sql - {sw.ElapsedMilliseconds}ms ({end - start})");
+
+                    foreach (var command in commands)
+                    {
+                        _logger.LogDebug("Sql Server Connector - Store Data - Generated query: {command}", command.Text);
+
+                        start = sw.ElapsedMilliseconds;
+                        await _client.ExecuteCommandAsync(config, command.Text, command.Parameters);
+                        end = sw.ElapsedMilliseconds;
+                        _logger.LogDebug($"Stream StoreData Execute Sql - {sw.ElapsedMilliseconds}ms ({end - start})");
+                    }
                 }
             }
             catch (Exception e)
@@ -341,6 +358,53 @@ namespace CluedIn.Connector.SqlServer.Connector
                 _logger.LogError(e, message);
                 throw new StoreDataException(message);
             }
+        }
+
+        private static void CacheDataTableRow(IDictionary<string, object> data, DataTable table)
+        {
+            var row = table.NewRow();
+            foreach (var item in data)
+            {
+                row[item.Key.SqlSanitize()] = item.Value;
+            }
+
+            table.Rows.Add(row);
+        }
+
+        private async Task FlushCachedDataTable(ExecutionContext executionContext, Guid providerDefinitionId, string containerName, DataTable table)
+        {
+            var dataTableCacheName = GetDataTableCacheName(containerName);
+            executionContext.ApplicationContext.System.Cache.RemoveItem(dataTableCacheName);
+
+            var config = await base.GetAuthenticationDetails(executionContext, providerDefinitionId);
+
+            var sw = new Stopwatch();
+            sw.Start();
+            await _client.ExecuteBulkAsync(config, table, containerName);
+            _logger.LogDebug($"Stream StoreData BulkInsert {table.Rows.Count} rows - {sw.ElapsedMilliseconds}ms");
+        }
+
+        private async Task<DataTable> GetDataTable(ExecutionContext executionContext, string containerName, IDictionary<string, object> data)
+        {
+            var dataTableCacheName = GetDataTableCacheName(containerName);
+
+            var result = await executionContext.ApplicationContext.System.Cache.GetItemAsync(dataTableCacheName, () =>
+            {
+                var table = new DataTable(containerName);
+                foreach (var col in data)
+                {
+                    table.Columns.Add(col.Key.SqlSanitize(), typeof(string));
+                }
+
+                return Task.FromResult(table);
+            });
+
+            return result;
+        }
+
+        private static string GetDataTableCacheName(string containerName)
+        {
+            return $"Stream_cache_{containerName.SqlSanitize()}";
         }
 
         public override async Task StoreEdgeData(ExecutionContext executionContext, Guid providerDefinitionId, string containerName, string originEntityCode, IEnumerable<string> edges)

@@ -14,17 +14,15 @@ namespace CluedIn.Connector.SqlServer.Connector
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Security", "CA2100:Review SQL queries for security vulnerabilities", Justification = "<Pending>")]
         public async Task ExecuteCommandAsync(IConnectorConnection config, string commandText, IEnumerable<SqlParameter> param = null)
         {
-            using (var connection = await GetConnection(config.Authentication))
-            {
-                var cmd = connection.CreateCommand();
+            using var connection = await GetConnection(config.Authentication);
+            var cmd = connection.CreateCommand();
 
-                cmd.CommandText = commandText;
+            cmd.CommandText = commandText;
 
-                if (param != null)
-                    cmd.Parameters.AddRange(param.ToArray());
+            if (param != null)
+                cmd.Parameters.AddRange(param.ToArray());
 
-                await cmd.ExecuteNonQueryAsync();
-            }
+            await cmd.ExecuteNonQueryAsync();
         }
 
         public string BuildConnectionString(IDictionary<string, object> config)
@@ -77,37 +75,39 @@ namespace CluedIn.Connector.SqlServer.Connector
 
         public async Task<DataTable> GetTables(IDictionary<string, object> config, string name = null)
         {
-            using (var connection = await GetConnection(config))
+            using var connection = await GetConnection(config);
+            DataTable result;
+            if (!string.IsNullOrEmpty(name))
             {
-                DataTable result;
-                if (!string.IsNullOrEmpty(name))
-                {
-                    var restrictions = new string[4];
-                    restrictions[2] = name;
+                var restrictions = new string[4];
+                restrictions[2] = name;
 
-                    result = connection.GetSchema("Tables", restrictions);
-                }
-                else
-                {
-                    result = connection.GetSchema("Tables");
-                }
-
-                return result;
+                result = connection.GetSchema("Tables", restrictions);
             }
+            else
+            {
+                result = connection.GetSchema("Tables");
+            }
+
+            return result;
         }
 
         public async Task<DataTable> GetTableColumns(IDictionary<string, object> config, string tableName)
         {
-            using (var connection = await GetConnection(config))
-            {
+            using var connection = await GetConnection(config);
+            var restrictions = new string[4];
+            restrictions[2] = tableName;
 
-                var restrictions = new string[4];
-                restrictions[2] = tableName;
+            var result = connection.GetSchema("Columns", restrictions);
 
-                var result = connection.GetSchema("Columns", restrictions);
+            return result;
+        }
 
-                return result;
-            }
+        public async Task ExecuteBulkAsync(IConnectorConnection config, DataTable table, string containerName)
+        {
+            await using var connection = await GetConnection(config.Authentication);
+            using var bulk = new SqlBulkCopy(connection) {DestinationTableName = containerName.SqlSanitize()};
+            await bulk.WriteToServerAsync(table);
         }
     }
 }
