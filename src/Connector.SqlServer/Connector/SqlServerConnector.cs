@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -309,18 +310,29 @@ namespace CluedIn.Connector.SqlServer.Connector
 
         public override async Task StoreData(ExecutionContext executionContext, Guid providerDefinitionId, string containerName, IDictionary<string, object> data)
         {
+            var sw = new Stopwatch();
             try
             {
+                sw.Start();
                 var config = await base.GetAuthenticationDetails(executionContext, providerDefinitionId);
 
+                _logger.LogDebug($"Stream StoreData GetAuth - {sw.ElapsedMilliseconds}ms");
+
+                var start = sw.ElapsedMilliseconds;
                 var commands = _features.GetFeature<IBuildStoreDataFeature>()
                     .BuildStoreDataSql(executionContext, providerDefinitionId, containerName, data, _defaultKeyFields, _logger);
+                var end = sw.ElapsedMilliseconds;
+
+                _logger.LogDebug($"Stream StoreData Build Sql - {sw.ElapsedMilliseconds}ms ({end - start})");
 
                 foreach (var command in commands)
                 {
                     _logger.LogDebug("Sql Server Connector - Store Data - Generated query: {command}", command.Text);
 
+                    start = sw.ElapsedMilliseconds;
                     await _client.ExecuteCommandAsync(config, command.Text, command.Parameters);
+                    end = sw.ElapsedMilliseconds;
+                    _logger.LogDebug($"Stream StoreData Execute Sql - {sw.ElapsedMilliseconds}ms ({end - start})");
                 }
             }
             catch (Exception e)
