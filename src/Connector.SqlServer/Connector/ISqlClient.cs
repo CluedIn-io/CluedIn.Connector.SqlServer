@@ -12,6 +12,6 @@ namespace CluedIn.Connector.SqlServer.Connector
         Task<SqlConnection> GetConnection(IDictionary<string, object> config);
         Task<DataTable> GetTables(IDictionary<string, object> config, string name = null);
         Task<DataTable> GetTableColumns(IDictionary<string, object> config, string tableName);
-        Task ExecuteBulkAsync(IConnectorConnection config, DataTable table, string containerName);
+        
     }
 }
