@@ -22,6 +22,9 @@ namespace CluedIn.Connector.SqlServer.Connector
         private readonly ILogger<SqlServerConnector> _logger;
         private readonly ISqlClient _client;
         private readonly IFeatureStore _features;
+        private readonly int _bulkThreshold;
+        private readonly IBulkSqlClient _bulkClient;
+        private readonly bool _bulkSupported;
         private readonly IList<string> _defaultKeyFields = new List<string> { "OriginEntityCode" };
 
         public SqlServerConnector(
@@ -35,6 +38,11 @@ namespace CluedIn.Connector.SqlServer.Connector
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _client = client ?? throw new ArgumentNullException(nameof(client));
             _features = features ?? throw new ArgumentNullException(nameof(logger));
+
+            _bulkThreshold = ConfigurationManagerEx.AppSettings.GetValue("Streams.SqlConnector.BulkInsertRecordCount", 0);
+            _bulkClient = _client as IBulkSqlClient;
+            _bulkSupported = _bulkThreshold > 0 && _bulkClient != null;
+            _logger.LogInformation($"{nameof(SqlServerConnector)} - bulk insert support enabled {{enabled}}", _bulkSupported);
         }
 
         public override async Task CreateContainer(ExecutionContext executionContext, Guid providerDefinitionId, CreateContainerModel model)
@@ -313,18 +321,18 @@ namespace CluedIn.Connector.SqlServer.Connector
         {
             try
             {
-                var bulkThreshold = ConfigurationManagerEx.AppSettings.GetValue("Streams.SqlConnector.BulkInsertRecordCount", 0);
-                if (bulkThreshold > 0)
+                if (_bulkSupported)
                 {
-                    var table = await GetDataTable(executionContext, containerName, data);
-                    if (table.Rows.Count < bulkThreshold)
-                    {
-                        CacheDataTableRow(data, table);
-                    }
-                    else
-                    {
-                        await FlushCachedDataTable(executionContext, providerDefinitionId, containerName, table);
-                    }
+                    var bulkFeature = _features.GetFeature<IBulkStoreDataFeature>();
+                    await bulkFeature.BulkTableUpdate(
+                        executionContext,
+                        providerDefinitionId,
+                        containerName,
+                        data,
+                        _bulkThreshold,
+                        _bulkClient,
+                        () => base.GetAuthenticationDetails(executionContext, providerDefinitionId),
+                        _logger);                    
                 }
                 else
                 {
@@ -345,53 +353,6 @@ namespace CluedIn.Connector.SqlServer.Connector
                 _logger.LogError(e, message);
                 throw new StoreDataException(message);
             }
-        }
-
-        private static void CacheDataTableRow(IDictionary<string, object> data, DataTable table)
-        {
-            var row = table.NewRow();
-            foreach (var item in data)
-            {
-                row[item.Key.SqlSanitize()] = item.Value;
-            }
-
-            table.Rows.Add(row);
-        }
-
-        private async Task FlushCachedDataTable(ExecutionContext executionContext, Guid providerDefinitionId, string containerName, DataTable table)
-        {
-            var dataTableCacheName = GetDataTableCacheName(containerName);
-            executionContext.ApplicationContext.System.Cache.RemoveItem(dataTableCacheName);
-
-            var config = await base.GetAuthenticationDetails(executionContext, providerDefinitionId);
-
-            var sw = new Stopwatch();
-            sw.Start();
-            await _client.ExecuteBulkAsync(config, table, containerName);
-            _logger.LogDebug($"Stream StoreData BulkInsert {table.Rows.Count} rows - {sw.ElapsedMilliseconds}ms");
-        }
-
-        private async Task<DataTable> GetDataTable(ExecutionContext executionContext, string containerName, IDictionary<string, object> data)
-        {
-            var dataTableCacheName = GetDataTableCacheName(containerName);
-
-            var result = await executionContext.ApplicationContext.System.Cache.GetItemAsync(dataTableCacheName, () =>
-            {
-                var table = new DataTable(containerName);
-                foreach (var col in data)
-                {
-                    table.Columns.Add(col.Key.SqlSanitize(), typeof(string));
-                }
-
-                return Task.FromResult(table);
-            });
-
-            return result;
-        }
-
-        private static string GetDataTableCacheName(string containerName)
-        {
-            return $"Stream_cache_{containerName.SqlSanitize()}";
         }
 
         public override async Task StoreEdgeData(ExecutionContext executionContext, Guid providerDefinitionId, string containerName, string originEntityCode, IEnumerable<string> edges)
