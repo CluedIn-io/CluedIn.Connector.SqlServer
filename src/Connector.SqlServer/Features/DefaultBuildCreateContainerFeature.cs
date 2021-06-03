@@ -15,7 +15,7 @@ namespace CluedIn.Connector.SqlServer.Features
         private static readonly IDictionary<string, string> _knownColumnTypes = new Dictionary<string, string>
         {
             {"originentitycode", "nvarchar(1024)"},
-            {"code", "nvarchar(1024)"},
+            {"codes", "nvarchar(1024)"},
         };
             
         public virtual IEnumerable<SqlServerConnectorCommand> BuildCreateContainerSql(
