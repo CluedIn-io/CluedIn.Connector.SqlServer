@@ -22,13 +22,13 @@ namespace CluedIn.Connector.SqlServer.Features
             if (string.IsNullOrWhiteSpace(containerName))
                 throw new InvalidOperationException("The Container Name must be provided.");
 
-
             if (logger == null)
                 throw new ArgumentNullException(nameof(logger));
 
             var builder = new StringBuilder();
             var sanitizedName = containerName.SqlSanitize();
             var indexName = $"idx_{sanitizedName}".SqlSanitize();
+
             builder.AppendLine($"CREATE INDEX [{indexName}] ON [{sanitizedName}]({string.Join(", ", keys)}); ");
 
             return new[]

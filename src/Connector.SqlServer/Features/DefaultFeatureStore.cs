@@ -9,7 +9,8 @@ namespace CluedIn.Connector.SqlServer.Features
         {
             [typeof(IBuildStoreDataFeature)] = new DefaultBuildStoreDataFeature(),
             [typeof(IBuildCreateContainerFeature)] = new DefaultBuildCreateContainerFeature(),
-            [typeof(IBuildCreateIndexFeature)] = new DefaultBuildCreateIndexFeature()
+            [typeof(IBuildCreateIndexFeature)] = new DefaultBuildCreateIndexFeature(),
+            [typeof(IBulkStoreDataFeature)] = new DefaultBulkStoreDataFeature()
         };
 
         public T GetFeature<T>() => _store.TryGetValue(typeof(T), out var result) ? (T)result : default;        

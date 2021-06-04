@@ -46,7 +46,7 @@ namespace CluedIn.Connector.SqlServer.Features
                 try
                 {
                     var dbType = param.DbType;
-                    logger.LogDebug("Adding [{field}] as sql type [{sqlType}].", name, dbType);                    
+                    //logger.LogDebug("Adding [{field}] as sql type [{sqlType}].", name, dbType);                    
                 }
                 catch (Exception ex)
                 {

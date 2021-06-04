@@ -1,12 +1,14 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using CluedIn.Connector.SqlServer.Features;
 using CluedIn.Core;
+using CluedIn.Core.Configuration;
 using CluedIn.Core.Connectors;
 using CluedIn.Core.Data.Vocabularies;
 using CluedIn.Core.DataStore;
@@ -20,6 +22,9 @@ namespace CluedIn.Connector.SqlServer.Connector
         private readonly ILogger<SqlServerConnector> _logger;
         private readonly ISqlClient _client;
         private readonly IFeatureStore _features;
+        private readonly int _bulkThreshold;
+        private readonly IBulkSqlClient _bulkClient;
+        private readonly bool _bulkSupported;
         private readonly IList<string> _defaultKeyFields = new List<string> { "OriginEntityCode" };
 
         public SqlServerConnector(
@@ -33,6 +38,11 @@ namespace CluedIn.Connector.SqlServer.Connector
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _client = client ?? throw new ArgumentNullException(nameof(client));
             _features = features ?? throw new ArgumentNullException(nameof(logger));
+
+            _bulkThreshold = ConfigurationManagerEx.AppSettings.GetValue("Streams.SqlConnector.BulkInsertRecordCount", 0);
+            _bulkClient = _client as IBulkSqlClient;
+            _bulkSupported = _bulkThreshold > 0 && _bulkClient != null;
+            _logger.LogInformation($"{nameof(SqlServerConnector)} - bulk insert support enabled {{enabled}}", _bulkSupported);
         }
 
         public override async Task CreateContainer(ExecutionContext executionContext, Guid providerDefinitionId, CreateContainerModel model)
@@ -311,16 +321,30 @@ namespace CluedIn.Connector.SqlServer.Connector
         {
             try
             {
-                var config = await base.GetAuthenticationDetails(executionContext, providerDefinitionId);
-
-                var commands = _features.GetFeature<IBuildStoreDataFeature>()
-                    .BuildStoreDataSql(executionContext, providerDefinitionId, containerName, data, _defaultKeyFields, _logger);
-
-                foreach (var command in commands)
+                if (_bulkSupported)
                 {
-                    _logger.LogDebug("Sql Server Connector - Store Data - Generated query: {command}", command.Text);
+                    var bulkFeature = _features.GetFeature<IBulkStoreDataFeature>();
+                    await bulkFeature.BulkTableUpdate(
+                        executionContext,
+                        providerDefinitionId,
+                        containerName,
+                        data,
+                        _bulkThreshold,
+                        _bulkClient,
+                        () => base.GetAuthenticationDetails(executionContext, providerDefinitionId),
+                        _logger);                    
+                }
+                else
+                {
+                    var config = await base.GetAuthenticationDetails(executionContext, providerDefinitionId);
 
-                    await _client.ExecuteCommandAsync(config, command.Text, command.Parameters);
+                    var commands = _features.GetFeature<IBuildStoreDataFeature>()
+                        .BuildStoreDataSql(executionContext, providerDefinitionId, containerName, data, _defaultKeyFields, _logger);
+
+                    foreach (var command in commands)
+                    {
+                        await _client.ExecuteCommandAsync(config, command.Text, command.Parameters);
+                    }
                 }
             }
             catch (Exception e)
