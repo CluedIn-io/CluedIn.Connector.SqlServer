@@ -22,7 +22,8 @@ namespace CluedIn.Connector.SqlServer.Connector
         private readonly ILogger<SqlServerConnector> _logger;
         private readonly ISqlClient _client;
         private readonly IFeatureStore _features;
-        private readonly int _bulkThreshold;
+        private readonly int _bulkInsertThreshold;
+        private readonly int _bulkDeleteThreshold;
         private readonly IBulkSqlClient _bulkClient;
         private readonly bool _bulkSupported;
         private readonly IList<string> _defaultKeyFields = new List<string> { "OriginEntityCode" };
@@ -39,9 +40,10 @@ namespace CluedIn.Connector.SqlServer.Connector
             _client = client ?? throw new ArgumentNullException(nameof(client));
             _features = features ?? throw new ArgumentNullException(nameof(logger));
 
-            _bulkThreshold = ConfigurationManagerEx.AppSettings.GetValue("Streams.SqlConnector.BulkInsertRecordCount", 0);
+            _bulkInsertThreshold = ConfigurationManagerEx.AppSettings.GetValue("Streams.SqlConnector.BulkInsertRecordCount", 0);
+            _bulkDeleteThreshold = ConfigurationManagerEx.AppSettings.GetValue("Streams.SqlConnector.BulkDeleteRecordCount", 0);
             _bulkClient = _client as IBulkSqlClient;
-            _bulkSupported = _bulkThreshold > 0 && _bulkClient != null;
+            _bulkSupported = _bulkInsertThreshold > 0 && _bulkClient != null;
             _logger.LogInformation($"{nameof(SqlServerConnector)} - bulk insert support enabled {{enabled}}", _bulkSupported);
         }
 
@@ -329,7 +331,7 @@ namespace CluedIn.Connector.SqlServer.Connector
                         providerDefinitionId,
                         containerName,
                         data,
-                        _bulkThreshold,
+                        _bulkInsertThreshold,
                         _bulkClient,
                         () => base.GetAuthenticationDetails(executionContext, providerDefinitionId),
                         _logger);                    
@@ -340,6 +342,44 @@ namespace CluedIn.Connector.SqlServer.Connector
 
                     var commands = _features.GetFeature<IBuildStoreDataFeature>()
                         .BuildStoreDataSql(executionContext, providerDefinitionId, containerName, data, _defaultKeyFields, _logger);
+
+                    foreach (var command in commands)
+                    {
+                        await _client.ExecuteCommandAsync(config, command.Text, command.Parameters);
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                var message = $"Could not store data into Container '{containerName}' for Connector {providerDefinitionId}";
+                _logger.LogError(e, message);
+                throw new StoreDataException(message);
+            }
+        }
+
+        public override async Task DeleteData(ExecutionContext executionContext, Guid providerDefinitionId, string containerName, string originEntityCode)
+        {
+            try
+            {
+                if (_bulkSupported)
+                {
+                    var bulkFeature = _features.GetFeature<IBulkDeleteDataFeature>();
+                    await bulkFeature.BulkTableDelete(
+                        executionContext,
+                        providerDefinitionId,
+                        containerName,
+                        originEntityCode,
+                        _bulkInsertThreshold,
+                        _bulkClient,
+                        () => base.GetAuthenticationDetails(executionContext, providerDefinitionId),
+                        _logger);
+                }
+                else
+                {
+                    var config = await base.GetAuthenticationDetails(executionContext, providerDefinitionId);
+
+                    var commands = _features.GetFeature<IBuildDeleteDataFeature>()
+                        .BuildDeleteDataSql(executionContext, providerDefinitionId, containerName, originEntityCode, _logger);
 
                     foreach (var command in commands)
                     {
