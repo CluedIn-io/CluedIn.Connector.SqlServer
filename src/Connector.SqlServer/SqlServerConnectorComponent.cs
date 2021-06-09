@@ -1,10 +1,5 @@
-using System.Diagnostics;
-using System.Reflection;
 using Castle.MicroKernel.Registration;
-using CluedIn.Connector.SqlServer.Connector;
-using CluedIn.Connector.SqlServer.Features;
 using CluedIn.Core;
-using CluedIn.Core.Providers;
 using CluedIn.Core.Server;
 using ComponentHost;
 using Microsoft.Extensions.Logging;
