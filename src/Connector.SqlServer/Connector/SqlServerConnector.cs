@@ -361,6 +361,8 @@ namespace CluedIn.Connector.SqlServer.Connector
         {
             try
             {
+                var deleteByColumns = new Dictionary<string, object> { ["Id"] = entityId };
+
                 if (_bulkSupported)
                 {
                     var bulkFeature = _features.GetFeature<IBulkDeleteDataFeature>();
@@ -368,7 +370,7 @@ namespace CluedIn.Connector.SqlServer.Connector
                         executionContext,
                         providerDefinitionId,
                         containerName,
-                        entityId,
+                        deleteByColumns,
                         _bulkInsertThreshold,
                         _bulkClient,
                         () => base.GetAuthenticationDetails(executionContext, providerDefinitionId),
@@ -378,8 +380,36 @@ namespace CluedIn.Connector.SqlServer.Connector
                 {
                     var config = await base.GetAuthenticationDetails(executionContext, providerDefinitionId);
 
-                    var commands = _features.GetFeature<IBuildDeleteDataFeature>()
-                        .BuildDeleteDataSql(executionContext, providerDefinitionId, containerName, entityId, _logger);
+                    var deleteFeature = _features.GetFeature<IBuildDeleteDataFeature>();
+                    var commands = deleteFeature
+                        .BuildDeleteDataSql(executionContext, providerDefinitionId, containerName, deleteByColumns, _logger);
+
+                    // see if we need to delete edges
+                    var edgeTable = EdgeContainerHelper.GetName(containerName);
+                    if(await CheckTableExists(executionContext, providerDefinitionId, edgeTable))
+                    {
+                        // do look up of OriginEntityCode from current table data
+                        using (var connection = await _client.GetConnection(config.Authentication)) {
+                            var cmd = connection.CreateCommand();
+                            cmd.CommandText = $"Select distinct OriginEntityCode from [{containerName.SqlSanitize()}] where [Id] = @Id;";
+                            cmd.Parameters.Add(new SqlParameter("Id", entityId));
+
+                            var resp = await cmd.ExecuteReaderAsync();
+                            if (resp.HasRows)
+                            {
+                                while(await resp.ReadAsync())
+                                {
+                                    var entry = resp.GetString(0);
+                                    commands = commands.Concat(deleteFeature
+                                        .BuildDeleteDataSql(executionContext, providerDefinitionId, edgeTable, new Dictionary<string, object> { ["OriginEntityCode"] = entry }, _logger));
+
+                                    commands = commands.Concat(deleteFeature
+                                        .BuildDeleteDataSql(executionContext, providerDefinitionId, edgeTable, new Dictionary<string, object> { ["Code"] = entry }, _logger));
+                                }
+                            }
+                            resp.Close();
+                        }
+                    }
 
                     foreach (var command in commands)
                     {

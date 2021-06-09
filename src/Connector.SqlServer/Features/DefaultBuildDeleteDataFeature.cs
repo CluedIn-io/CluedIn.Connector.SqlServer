@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Text;
 using CluedIn.Connector.SqlServer.Connector;
 using CluedIn.Core;
 using Microsoft.Data.SqlClient;
@@ -15,7 +16,7 @@ namespace CluedIn.Connector.SqlServer.Features
             ExecutionContext executionContext,
             Guid providerDefinitionId,
             string containerName,
-            Guid entityId,
+            IDictionary<string, object> data,
             ILogger logger)
         {
             if (executionContext == null)
@@ -27,20 +28,28 @@ namespace CluedIn.Connector.SqlServer.Features
             if (string.IsNullOrWhiteSpace(containerName))
                 throw new InvalidOperationException("The containerName must be provided.");
 
+            if (data == null || data.Count == 0)
+                throw new InvalidOperationException("The data to specify columns must be provided.");
 
-            var sql = $"DELETE FROM {containerName.SqlSanitize()} WHERE {DefaultKeyField} = @KeyValue";
+            var sqlBuilder = new StringBuilder($"DELETE FROM {containerName.SqlSanitize()} WHERE ");
+            var clauses = new List<string>();
+            var parameters = new List<SqlParameter>();
 
-            var parameters = new List<SqlParameter>
+            foreach (var entry in data)
             {
-                new SqlParameter("KeyValue", entityId)
-            };
+                var key = entry.Key.SqlSanitize();
+                clauses.Add($"[{key}] = @{key}");
+                parameters.Add(new SqlParameter(key, entry.Value));
+            }
 
+            sqlBuilder.AppendJoin(" AND ", clauses);
+            sqlBuilder.Append(";");
 
             return new[]
             {
                 new SqlServerConnectorCommand
                 {
-                    Text = sql,
+                    Text = sqlBuilder.ToString(),
                     Parameters = parameters
                 }
             };
