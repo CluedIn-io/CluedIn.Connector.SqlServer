@@ -12,10 +12,11 @@ namespace CluedIn.Connector.SqlServer.Features
 {
     public class DefaultBuildCreateContainerFeature : IBuildCreateContainerFeature
     {
-        private static readonly IDictionary<string, string> _knownColumnTypes = new Dictionary<string, string>
+        private static readonly IDictionary<string, string> _knownColumnTypes = new Dictionary<string, string>(StringComparer.InvariantCultureIgnoreCase)
         {
             {"originentitycode", "nvarchar(1024)"},
             {"codes", "nvarchar(1024)"},
+            {"code", "nvarchar(1024)"}, // used in edges table
         };
             
         public virtual IEnumerable<SqlServerConnectorCommand> BuildCreateContainerSql(
