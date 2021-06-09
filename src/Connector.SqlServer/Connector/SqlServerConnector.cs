@@ -389,7 +389,7 @@ namespace CluedIn.Connector.SqlServer.Connector
             }
             catch (Exception e)
             {
-                var message = $"Could not store data into Container '{containerName}' for Connector {providerDefinitionId}";
+                var message = $"Could not delete data from Container '{containerName}' for Connector {providerDefinitionId}";
                 _logger.LogError(e, message);
                 throw new StoreDataException(message);
             }
