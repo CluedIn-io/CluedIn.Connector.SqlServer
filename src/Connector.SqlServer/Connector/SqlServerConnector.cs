@@ -357,7 +357,7 @@ namespace CluedIn.Connector.SqlServer.Connector
             }
         }
 
-        public override async Task DeleteData(ExecutionContext executionContext, Guid providerDefinitionId, string containerName, string originEntityCode)
+        public override async Task DeleteData(ExecutionContext executionContext, Guid providerDefinitionId, string containerName, Guid entityId)
         {
             try
             {
@@ -368,7 +368,7 @@ namespace CluedIn.Connector.SqlServer.Connector
                         executionContext,
                         providerDefinitionId,
                         containerName,
-                        originEntityCode,
+                        entityId,
                         _bulkInsertThreshold,
                         _bulkClient,
                         () => base.GetAuthenticationDetails(executionContext, providerDefinitionId),
@@ -379,7 +379,7 @@ namespace CluedIn.Connector.SqlServer.Connector
                     var config = await base.GetAuthenticationDetails(executionContext, providerDefinitionId);
 
                     var commands = _features.GetFeature<IBuildDeleteDataFeature>()
-                        .BuildDeleteDataSql(executionContext, providerDefinitionId, containerName, originEntityCode, _logger);
+                        .BuildDeleteDataSql(executionContext, providerDefinitionId, containerName, entityId, _logger);
 
                     foreach (var command in commands)
                     {

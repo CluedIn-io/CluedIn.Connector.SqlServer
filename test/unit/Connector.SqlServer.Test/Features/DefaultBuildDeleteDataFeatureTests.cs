@@ -25,7 +25,7 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests.Features
         public void BuildDeleteDataSql_NullContext_Throws(
             Guid providerDefinitionId,
             string containerName,
-            string data)
+            Guid data)
         {
             Assert.Throws<ArgumentNullException>("executionContext", () => _sut.BuildDeleteDataSql(null, providerDefinitionId, containerName, data, _logger.Object));
         }
@@ -37,25 +37,16 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests.Features
         public void BuildDeleteDataSql_InvalidContainerName_Throws(
             string containerName,
             Guid providerDefinitionId,
-            string data)
+            Guid data)
         {
             Assert.Throws<InvalidOperationException>(() => _sut.BuildDeleteDataSql(_testContext.Context, providerDefinitionId, containerName, data, _logger.Object));
         }
 
         [Theory, InlineAutoData]
-        public void BuildDeleteDataSql_NullData_Throws(
-            Guid providerDefinitionId,
-            string containerName)
-        {
-            Assert.Throws<InvalidOperationException>(() => _sut.BuildDeleteDataSql(_testContext.Context, providerDefinitionId, containerName, null, _logger.Object));
-        }
-
-
-        [Theory, InlineAutoData]
         public void BuildDeleteDataSql_NullLogger_Throws(
             Guid providerDefinitionId,
             string containerName,
-            string data)
+            Guid data)
         {
             Assert.Throws<ArgumentNullException>("logger", () => _sut.BuildDeleteDataSql(_testContext.Context, providerDefinitionId, containerName, data, null));
         }
@@ -63,7 +54,7 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests.Features
         [Theory, InlineAutoData]
         public void BuildDeleteDataSql_ValidData_IsSuccessful(
             string name,
-            string data,
+            Guid data,
             Guid providerDefinitionId)
         {
             var execContext = _testContext.Context;

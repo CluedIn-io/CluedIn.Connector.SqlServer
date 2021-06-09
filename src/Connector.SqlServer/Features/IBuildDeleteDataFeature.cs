@@ -11,7 +11,7 @@ namespace CluedIn.Connector.SqlServer.Features
         IEnumerable<SqlServerConnectorCommand> BuildDeleteDataSql(ExecutionContext executionContext,
             Guid providerDefinitionId,
             string containerName,
-            string keyValue,
+            Guid entityId,
             ILogger logger);
     }
 }
