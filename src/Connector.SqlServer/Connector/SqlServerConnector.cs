@@ -10,6 +10,7 @@ using CluedIn.Connector.SqlServer.Features;
 using CluedIn.Core;
 using CluedIn.Core.Configuration;
 using CluedIn.Core.Connectors;
+using CluedIn.Core.Data;
 using CluedIn.Core.Data.Vocabularies;
 using CluedIn.Core.DataStore;
 using Microsoft.Data.SqlClient;
@@ -357,7 +358,13 @@ namespace CluedIn.Connector.SqlServer.Connector
             }
         }
 
-        public override async Task DeleteData(ExecutionContext executionContext, Guid providerDefinitionId, string containerName, Guid entityId)
+        public override async Task DeleteData(
+            ExecutionContext executionContext,
+            Guid providerDefinitionId,
+            string containerName,
+            string originEntityCode,
+            IList<IEntityCode> codes,
+            Guid entityId)
         {
             try
             {
@@ -370,7 +377,9 @@ namespace CluedIn.Connector.SqlServer.Connector
                         executionContext,
                         providerDefinitionId,
                         containerName,
-                        deleteByColumns,
+                        originEntityCode,
+                        codes,
+                        entityId,
                         _bulkInsertThreshold,
                         _bulkClient,
                         () => base.GetAuthenticationDetails(executionContext, providerDefinitionId),
@@ -382,33 +391,17 @@ namespace CluedIn.Connector.SqlServer.Connector
 
                     var deleteFeature = _features.GetFeature<IBuildDeleteDataFeature>();
                     var commands = deleteFeature
-                        .BuildDeleteDataSql(executionContext, providerDefinitionId, containerName, deleteByColumns, _logger);
+                        .BuildDeleteDataSql(executionContext, providerDefinitionId, containerName, originEntityCode, codes, entityId, _logger);
 
                     // see if we need to delete edges
                     var edgeTable = EdgeContainerHelper.GetName(containerName);
                     if(await CheckTableExists(executionContext, providerDefinitionId, edgeTable))
                     {
-                        // do look up of OriginEntityCode from current table data
-                        using (var connection = await _client.GetConnection(config.Authentication)) {
-                            var cmd = connection.CreateCommand();
-                            cmd.CommandText = $"Select distinct OriginEntityCode from [{containerName.SqlSanitize()}] where [Id] = @Id;";
-                            cmd.Parameters.Add(new SqlParameter("Id", entityId));
+                        commands = commands.Concat(deleteFeature
+                                        .BuildDeleteDataSql(executionContext, providerDefinitionId, edgeTable, originEntityCode, null, null, _logger));
 
-                            var resp = await cmd.ExecuteReaderAsync();
-                            if (resp.HasRows)
-                            {
-                                while(await resp.ReadAsync())
-                                {
-                                    var entry = resp.GetString(0);
-                                    commands = commands.Concat(deleteFeature
-                                        .BuildDeleteDataSql(executionContext, providerDefinitionId, edgeTable, new Dictionary<string, object> { ["OriginEntityCode"] = entry }, _logger));
-
-                                    commands = commands.Concat(deleteFeature
-                                        .BuildDeleteDataSql(executionContext, providerDefinitionId, edgeTable, new Dictionary<string, object> { ["Code"] = entry }, _logger));
-                                }
-                            }
-                            resp.Close();
-                        }
+                        commands = commands.Concat(deleteFeature
+                            .BuildDeleteDataSql(executionContext, providerDefinitionId, edgeTable, null, codes, null, _logger));
                     }
 
                     foreach (var command in commands)

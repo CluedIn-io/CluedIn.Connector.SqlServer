@@ -1,8 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using CluedIn.Connector.SqlServer.Connector;
 using CluedIn.Core;
+using CluedIn.Core.Data;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Logging;
 
@@ -16,7 +18,9 @@ namespace CluedIn.Connector.SqlServer.Features
             ExecutionContext executionContext,
             Guid providerDefinitionId,
             string containerName,
-            IDictionary<string, object> data,
+            string originEntityCode,
+            IList<IEntityCode> codes,
+            Guid? entityId,
             ILogger logger)
         {
             if (executionContext == null)
@@ -28,14 +32,38 @@ namespace CluedIn.Connector.SqlServer.Features
             if (string.IsNullOrWhiteSpace(containerName))
                 throw new InvalidOperationException("The containerName must be provided.");
 
-            if (data == null || data.Count == 0)
-                throw new InvalidOperationException("The data to specify columns must be provided.");
+            if (!string.IsNullOrWhiteSpace(originEntityCode))
+            {
+                return ComposeDelete(containerName, new Dictionary<string, object>
+                {
+                    ["OriginEntityCode"] = originEntityCode
+                });
+            }
+            else if(entityId.HasValue)
+            {
+                return ComposeDelete(containerName, new Dictionary<string, object>
+                {
+                    ["Id"] = entityId.Value
+                });
+            }
+            else if(codes != null)
+            {
+                return codes.SelectMany(x => ComposeDelete(containerName, new Dictionary<string, object>
+                {
+                    ["Code"] = x.Value
+                }));
+            }
 
-            var sqlBuilder = new StringBuilder($"DELETE FROM {containerName.SqlSanitize()} WHERE ");
+            return Enumerable.Empty<SqlServerConnectorCommand>();
+        }
+
+        protected virtual IEnumerable<SqlServerConnectorCommand> ComposeDelete(string tableName, IDictionary<string, object> fields)
+        {
+            var sqlBuilder = new StringBuilder($"DELETE FROM {tableName.SqlSanitize()} WHERE ");
             var clauses = new List<string>();
             var parameters = new List<SqlParameter>();
 
-            foreach (var entry in data)
+            foreach (var entry in fields)
             {
                 var key = entry.Key.SqlSanitize();
                 clauses.Add($"[{key}] = @{key}");
@@ -45,13 +73,10 @@ namespace CluedIn.Connector.SqlServer.Features
             sqlBuilder.AppendJoin(" AND ", clauses);
             sqlBuilder.Append(";");
 
-            return new[]
+            yield return new SqlServerConnectorCommand
             {
-                new SqlServerConnectorCommand
-                {
-                    Text = sqlBuilder.ToString(),
-                    Parameters = parameters
-                }
+                Text = sqlBuilder.ToString(),
+                Parameters = parameters
             };
         }
     }

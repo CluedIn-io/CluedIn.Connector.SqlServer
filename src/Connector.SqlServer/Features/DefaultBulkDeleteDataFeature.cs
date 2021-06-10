@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using CluedIn.Connector.SqlServer.Connector;
 using CluedIn.Core;
 using CluedIn.Core.Connectors;
+using CluedIn.Core.Data;
 using Microsoft.Extensions.Logging;
 
 namespace CluedIn.Connector.SqlServer.Features
@@ -14,7 +15,9 @@ namespace CluedIn.Connector.SqlServer.Features
             ExecutionContext executionContext,
             Guid providerDefinitionId,
             string containerName,
-            IDictionary<string, object> data,
+            string originEntityCode,
+            IList<IEntityCode> codes,
+            Guid entityId,
             int threshold,
             IBulkSqlClient client,
             Func<Task<IConnectorConnection>> connectionFactory,
