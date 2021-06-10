@@ -24,7 +24,7 @@ namespace CluedIn.Connector.SqlServer.Features
             Guid providerDefinitionId,
             string name,
             IEnumerable<ConnectionDataType> columns,
-            IList<string> keys,
+            IEnumerable<string> keys,
             ILogger logger)
         {
             if (executionContext == null)

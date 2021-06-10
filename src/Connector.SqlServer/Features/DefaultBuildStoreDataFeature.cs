@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -33,7 +34,7 @@ namespace CluedIn.Connector.SqlServer.Features
 
             if (logger == null)
                 throw new ArgumentNullException(nameof(logger));
-
+                        
             var builder = new StringBuilder();
             var parameters = new List<SqlParameter>();
             var fields = new List<string>();
