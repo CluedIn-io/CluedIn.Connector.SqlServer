@@ -412,16 +412,36 @@ namespace CluedIn.Connector.SqlServer.Connector
                     var commands = deleteFeature
                         .BuildDeleteDataSql(executionContext, providerDefinitionId, container.PrimaryTable, originEntityCode, codes, entityId, _logger);
 
+                    // We need to origin entity code for entities that have been deleted
                     // see if we need to delete linked tables
+                    // do look up of OriginEntityCode from current table data
+                    var lookupOriginCodes = new List<string>();
+                    using (var connection = await _client.GetConnection(config.Authentication))
+                    {
+                        var cmd = connection.CreateCommand();
+                        cmd.CommandText = $"Select distinct OriginEntityCode from [{container.PrimaryTable}] where [Id] = @Id;";
+                        cmd.Parameters.Add(new SqlParameter("Id", entityId));
+
+                        var resp = await cmd.ExecuteReaderAsync();
+                        if (resp.HasRows)
+                        {
+                            while (await resp.ReadAsync())
+                            {
+                                lookupOriginCodes.Add(resp.GetString(0));
+                            }
+                        }
+                        resp.Close();
+                    }
+
                     foreach (var table in container.Tables)
                     {
                         if (await CheckTableExists(executionContext, providerDefinitionId, table.Value.Name))
                         {
-                            commands = commands.Concat(deleteFeature
-                                        .BuildDeleteDataSql(executionContext, providerDefinitionId, table.Value.Name, originEntityCode, null, null, _logger));
-
-                            commands = commands.Concat(deleteFeature
-                                .BuildDeleteDataSql(executionContext, providerDefinitionId, table.Value.Name, null, codes, null, _logger));
+                            foreach (var entry in lookupOriginCodes)
+                            {
+                                commands = commands.Concat(deleteFeature
+                                            .BuildDeleteDataSql(executionContext, providerDefinitionId, table.Value.Name, entry, null, null, _logger));
+                            }
                         }
                     }
 

@@ -50,7 +50,7 @@ namespace CluedIn.Connector.SqlServer.Features
             {
                 return codes.SelectMany(x => ComposeDelete(containerName, new Dictionary<string, object>
                 {
-                    ["Code"] = x.Value
+                    ["Code"] = x
                 }));
             }
 

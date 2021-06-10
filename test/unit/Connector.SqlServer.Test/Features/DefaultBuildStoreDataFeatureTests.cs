@@ -51,6 +51,8 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests.Features
             Guid providerDefinitionId,
             string containerName)
         {
+
+            _sut.BuildStoreDataSql(_testContext.Context, providerDefinitionId, containerName, null, _defaultKeyFields, _logger.Object);
             Assert.Throws<InvalidOperationException>(() => _sut.BuildStoreDataSql(_testContext.Context, providerDefinitionId, containerName, null, _defaultKeyFields, _logger.Object));
         }
 

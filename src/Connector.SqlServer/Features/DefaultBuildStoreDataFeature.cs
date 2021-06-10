@@ -45,12 +45,13 @@ namespace CluedIn.Connector.SqlServer.Features
                 // HACK need a better way to source origin entity code
 
                 // need to delete from Codes table
-                yield return ComposeDelete(container.Tables["Codes"].Name, new Dictionary<string, object> { ["OriginEntityCode"] = data["OriginEntityCode"] });
+                var codesTable = container.Tables["Codes"];
+                yield return ComposeDelete(codesTable.Name, new Dictionary<string, object> { ["OriginEntityCode"] = data["OriginEntityCode"] });
 
                 // need to insert into Codes table
                 var enumerator = codesEnumerable.GetEnumerator();
                 while(enumerator.MoveNext())
-                    yield return ComposeUpsert(container.PrimaryTable, new Dictionary<string, object> {
+                    yield return ComposeUpsert(codesTable.Name, new Dictionary<string, object> {
                         ["OriginEntityCode"] = data["OriginEntityCode"],
                         ["Code"] = enumerator.Current
                     }, keys, logger);
