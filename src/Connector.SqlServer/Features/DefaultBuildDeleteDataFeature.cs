@@ -10,8 +10,6 @@ namespace CluedIn.Connector.SqlServer.Features
 {
     public class DefaultBuildDeleteDataFeature : IBuildDeleteDataFeature
     {
-        public const string DefaultKeyField = "Id";
-
         public IEnumerable<SqlServerConnectorCommand> BuildDeleteDataSql(
             ExecutionContext executionContext,
             Guid providerDefinitionId,

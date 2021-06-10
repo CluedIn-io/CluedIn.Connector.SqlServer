@@ -389,26 +389,25 @@ namespace CluedIn.Connector.SqlServer.Connector
                     if(await CheckTableExists(executionContext, providerDefinitionId, edgeTable))
                     {
                         // do look up of OriginEntityCode from current table data
-                        using (var connection = await _client.GetConnection(config.Authentication)) {
-                            var cmd = connection.CreateCommand();
-                            cmd.CommandText = $"Select distinct OriginEntityCode from [{containerName.SqlSanitize()}] where [Id] = @Id;";
-                            cmd.Parameters.Add(new SqlParameter("Id", entityId));
+                        await using var connection = await _client.GetConnection(config.Authentication);
+                        var cmd = connection.CreateCommand();
+                        cmd.CommandText = $"Select distinct OriginEntityCode from [{containerName.SqlSanitize()}] where [Id] = @Id;";
+                        cmd.Parameters.Add(new SqlParameter("Id", entityId));
 
-                            var resp = await cmd.ExecuteReaderAsync();
-                            if (resp.HasRows)
+                        var resp = await cmd.ExecuteReaderAsync();
+                        if (resp.HasRows)
+                        {
+                            while(await resp.ReadAsync())
                             {
-                                while(await resp.ReadAsync())
-                                {
-                                    var entry = resp.GetString(0);
-                                    commands = commands.Concat(deleteFeature
-                                        .BuildDeleteDataSql(executionContext, providerDefinitionId, edgeTable, new Dictionary<string, object> { ["OriginEntityCode"] = entry }, _logger));
+                                var entry = resp.GetString(0);
+                                commands = commands.Concat(deleteFeature
+                                    .BuildDeleteDataSql(executionContext, providerDefinitionId, edgeTable, new Dictionary<string, object> { ["OriginEntityCode"] = entry }, _logger));
 
-                                    commands = commands.Concat(deleteFeature
-                                        .BuildDeleteDataSql(executionContext, providerDefinitionId, edgeTable, new Dictionary<string, object> { ["Code"] = entry }, _logger));
-                                }
+                                commands = commands.Concat(deleteFeature
+                                    .BuildDeleteDataSql(executionContext, providerDefinitionId, edgeTable, new Dictionary<string, object> { ["Code"] = entry }, _logger));
                             }
-                            resp.Close();
                         }
+                        resp.Close();
                     }
 
                     foreach (var command in commands)
