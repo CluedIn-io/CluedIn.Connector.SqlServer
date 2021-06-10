@@ -27,6 +27,8 @@ namespace CluedIn.Connector.SqlServer.Features
             IEnumerable<string> keys,
             ILogger logger)
         {
+            // TODO: Columns should define if they are collections so we can handle creating additional tables
+
             if (executionContext == null)
                 throw new ArgumentNullException(nameof(executionContext));
 
@@ -39,10 +41,13 @@ namespace CluedIn.Connector.SqlServer.Features
             if (logger == null)
                 throw new ArgumentNullException(nameof(logger));
 
+            // HACK: Remove 'Codes' column as it will be pushed to a separate table
+            var trimmedColumns = columns.Where(x => x.Name != "Codes");
+
             var builder = new StringBuilder();
             var sanitizedName = name.SqlSanitize();
             builder.AppendLine($"CREATE TABLE [{sanitizedName}](");
-            builder.AppendJoin(", ", columns.Select(c => $"[{c.Name.SqlSanitize()}] {GetDbType(c.Type, c.Name)} NULL"));
+            builder.AppendJoin(", ", trimmedColumns.Select(c => $"[{c.Name.SqlSanitize()}] {GetDbType(c.Type, c.Name)} NULL"));
             builder.AppendLine(") ON[PRIMARY]");
 
             return new[] { new SqlServerConnectorCommand { Text = builder.ToString() } };

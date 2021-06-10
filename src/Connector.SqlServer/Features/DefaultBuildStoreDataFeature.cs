@@ -29,12 +29,39 @@ namespace CluedIn.Connector.SqlServer.Features
             if (data == null || data.Count == 0)
                 throw new InvalidOperationException("The data to specify columns must be provided.");
 
-            if (keys == null || ! keys.Any())
+            if (keys == null || !keys.Any())
                 throw new InvalidOperationException("No Key Fields have been specified");
 
             if (logger == null)
                 throw new ArgumentNullException(nameof(logger));
-                        
+
+            //HACK we need to pull out Codes into a separate table
+            var container = new Container(containerName);
+            if(data.TryGetValue("Codes", out var codes) && codes is IEnumerable codesEnumerable)
+            {
+                data.Remove("Codes");
+                keys.Remove("Codes");
+
+                // HACK need a better way to source origin entity code
+
+                // need to delete from Codes table
+                yield return ComposeDelete(container.Tables["Codes"].Name, new Dictionary<string, object> { ["OriginEntityCode"] = data["OriginEntityCode"] });
+
+                // need to insert into Codes table
+                var enumerator = codesEnumerable.GetEnumerator();
+                while(enumerator.MoveNext())
+                    yield return ComposeUpsert(container.PrimaryTable, new Dictionary<string, object> {
+                        ["OriginEntityCode"] = data["OriginEntityCode"],
+                        ["Code"] = enumerator.Current
+                    }, keys, logger);
+            }
+
+            // Primary table
+            yield return ComposeUpsert(container.PrimaryTable, data, keys, logger);
+        }
+
+        protected virtual SqlServerConnectorCommand ComposeUpsert(string tableName, IDictionary<string, object> data, IList<string> keys, ILogger logger)
+        {
             var builder = new StringBuilder();
             var parameters = new List<SqlParameter>();
             var fields = new List<string>();
@@ -47,7 +74,6 @@ namespace CluedIn.Connector.SqlServer.Features
                 try
                 {
                     var dbType = param.DbType;
-                    //logger.LogDebug("Adding [{field}] as sql type [{sqlType}].", name, dbType);                    
                 }
                 catch (Exception ex)
                 {
@@ -65,7 +91,7 @@ namespace CluedIn.Connector.SqlServer.Features
             var mergeOnList = keys.Select(n => $"target.[{n}] = source.[{n}]");
             var mergeOn = string.Join(" AND ", mergeOnList);
 
-            builder.AppendLine($"MERGE [{containerName.SqlSanitize()}] AS target");
+            builder.AppendLine($"MERGE [{tableName.SqlSanitize()}] AS target");
             builder.AppendLine($"USING (SELECT {string.Join(", ", parameters.Select(x => x.ParameterName))}) AS source ({fieldsString})");
             builder.AppendLine($"  ON ({mergeOn})");
             builder.AppendLine("WHEN MATCHED THEN");
@@ -74,14 +100,34 @@ namespace CluedIn.Connector.SqlServer.Features
             builder.AppendLine($"  INSERT ({fieldsString})");
             builder.AppendLine($"  VALUES ({string.Join(", ", inserts)});");
 
-            return new[]
+            return new SqlServerConnectorCommand
             {
-                new SqlServerConnectorCommand
-                {
-                    Text = builder.ToString(),
-                    Parameters = parameters
-                }
-            };            
+                Text = builder.ToString(),
+                Parameters = parameters
+            };
+        }
+
+        protected virtual SqlServerConnectorCommand ComposeDelete(string tableName, IDictionary<string, object> fields)
+        {
+            var sqlBuilder = new StringBuilder($"DELETE FROM {tableName.SqlSanitize()} WHERE ");
+            var clauses = new List<string>();
+            var parameters = new List<SqlParameter>();
+
+            foreach (var entry in fields)
+            {
+                var key = entry.Key.SqlSanitize();
+                clauses.Add($"[{key}] = @{key}");
+                parameters.Add(new SqlParameter(key, entry.Value));
+            }
+
+            sqlBuilder.AppendJoin(" AND ", clauses);
+            sqlBuilder.Append(";");
+
+            return new SqlServerConnectorCommand
+            {
+                Text = sqlBuilder.ToString(),
+                Parameters = parameters
+            };
         }
     }
 }
