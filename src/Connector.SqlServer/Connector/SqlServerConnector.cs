@@ -83,14 +83,14 @@ namespace CluedIn.Connector.SqlServer.Connector
             var tasks = new List<Task> {
                 // Primary table
                 CreateTable(container.PrimaryTable, model.DataTypes, _defaultKeyFields, "Data"),
-                // Codes table                
+                // Codes table
                 CreateTable(codesTable.Name, codesTable.Columns, codesTable.Keys, "Codes")
             };
 
             // We optionally build an edges table
             if (model.CreateEdgeTable)
             {
-                var edgesTable = container.Tables["Codes"];
+                var edgesTable = container.Tables["Edges"];
                 tasks.Add(CreateTable(edgesTable.Name, edgesTable.Columns, edgesTable.Keys, "Edges"));
             }
 
@@ -407,29 +407,22 @@ namespace CluedIn.Connector.SqlServer.Connector
                 {
                     var config = await base.GetAuthenticationDetails(executionContext, providerDefinitionId);
 
+                    var container = new Container(containerName);
                     var deleteFeature = _features.GetFeature<IBuildDeleteDataFeature>();
                     var commands = deleteFeature
-                        .BuildDeleteDataSql(executionContext, providerDefinitionId, containerName, originEntityCode, codes, entityId, _logger);
+                        .BuildDeleteDataSql(executionContext, providerDefinitionId, container.PrimaryTable, originEntityCode, codes, entityId, _logger);
 
                     // see if we need to delete linked tables
-                    var edgeTable = EdgeContainerHelper.GetName(containerName);
-                    if(await CheckTableExists(executionContext, providerDefinitionId, edgeTable))
+                    foreach (var table in container.Tables)
                     {
-                        commands = commands.Concat(deleteFeature
-                                        .BuildDeleteDataSql(executionContext, providerDefinitionId, edgeTable, originEntityCode, null, null, _logger));
+                        if (await CheckTableExists(executionContext, providerDefinitionId, table.Value.Name))
+                        {
+                            commands = commands.Concat(deleteFeature
+                                        .BuildDeleteDataSql(executionContext, providerDefinitionId, table.Value.Name, originEntityCode, null, null, _logger));
 
-                        commands = commands.Concat(deleteFeature
-                            .BuildDeleteDataSql(executionContext, providerDefinitionId, edgeTable, null, codes, null, _logger));
-                    }
-
-                    var codeTable = CodeContainerHelper.GetName(containerName);
-                    if (await CheckTableExists(executionContext, providerDefinitionId, codeTable))
-                    {
-                        commands = commands.Concat(deleteFeature
-                                        .BuildDeleteDataSql(executionContext, providerDefinitionId, codeTable, originEntityCode, null, null, _logger));
-
-                        commands = commands.Concat(deleteFeature
-                            .BuildDeleteDataSql(executionContext, providerDefinitionId, codeTable, null, codes, null, _logger));
+                            commands = commands.Concat(deleteFeature
+                                .BuildDeleteDataSql(executionContext, providerDefinitionId, table.Value.Name, null, codes, null, _logger));
+                        }
                     }
 
                     foreach (var command in commands)
