@@ -10,6 +10,7 @@ using CluedIn.Connector.SqlServer.Features;
 using CluedIn.Core;
 using CluedIn.Core.Configuration;
 using CluedIn.Core.Connectors;
+using CluedIn.Core.Data;
 using CluedIn.Core.Data.Vocabularies;
 using CluedIn.Core.DataStore;
 using Microsoft.Data.SqlClient;
@@ -22,7 +23,8 @@ namespace CluedIn.Connector.SqlServer.Connector
         private readonly ILogger<SqlServerConnector> _logger;
         private readonly ISqlClient _client;
         private readonly IFeatureStore _features;
-        private readonly int _bulkThreshold;
+        private readonly int _bulkInsertThreshold;
+        private readonly int _bulkDeleteThreshold;
         private readonly IBulkSqlClient _bulkClient;
         private readonly bool _bulkSupported;
         private readonly IList<string> _defaultKeyFields = new List<string> { "OriginEntityCode" };
@@ -39,9 +41,10 @@ namespace CluedIn.Connector.SqlServer.Connector
             _client = client ?? throw new ArgumentNullException(nameof(client));
             _features = features ?? throw new ArgumentNullException(nameof(logger));
 
-            _bulkThreshold = ConfigurationManagerEx.AppSettings.GetValue("Streams.SqlConnector.BulkInsertRecordCount", 0);
+            _bulkInsertThreshold = ConfigurationManagerEx.AppSettings.GetValue("Streams.SqlConnector.BulkInsertRecordCount", 0);
+            _bulkDeleteThreshold = ConfigurationManagerEx.AppSettings.GetValue("Streams.SqlConnector.BulkDeleteRecordCount", 0);
             _bulkClient = _client as IBulkSqlClient;
-            _bulkSupported = _bulkThreshold > 0 && _bulkClient != null;
+            _bulkSupported = _bulkInsertThreshold > 0 && _bulkClient != null;
             _logger.LogInformation($"{nameof(SqlServerConnector)} - bulk insert support enabled {{enabled}}", _bulkSupported);
         }
 
@@ -49,12 +52,13 @@ namespace CluedIn.Connector.SqlServer.Connector
         {
             var config = await base.GetAuthenticationDetails(executionContext, providerDefinitionId);
 
-            async Task CreateTable(string name, IEnumerable<ConnectionDataType> columns, IList<string> keys, string context)
+            async Task CreateTable(string name, IEnumerable<ConnectionDataType> columns, IEnumerable<string> keys, string context)
             {
                 try
                 {
                     IEnumerable<SqlServerConnectorCommand> commands = _features.GetFeature<IBuildCreateContainerFeature>()
                         .BuildCreateContainerSql(executionContext, providerDefinitionId, name, columns, keys, _logger).ToList();
+
                     var indexCommands = _features.GetFeature<IBuildCreateIndexFeature>().BuildCreateIndexSql(executionContext, providerDefinitionId, name, keys, _logger);
                     commands = commands.Union(indexCommands);
 
@@ -73,18 +77,21 @@ namespace CluedIn.Connector.SqlServer.Connector
                 }
             }
 
-            var tasks = new List<Task> { CreateTable(model.Name, model.DataTypes, _defaultKeyFields, "Data") };
+            var container = new Container(model.Name);
+            var codesTable = container.Tables["Codes"];
+
+            var tasks = new List<Task> {
+                // Primary table
+                CreateTable(container.PrimaryTable, model.DataTypes, _defaultKeyFields, "Data"),
+                // Codes table
+                CreateTable(codesTable.Name, codesTable.Columns, codesTable.Keys, "Codes")
+            };
+
+            // We optionally build an edges table
             if (model.CreateEdgeTable)
             {
-                var originEntityCodeColumn = "OriginEntityCode".SqlSanitize();
-                var codeColumn = "Code".SqlSanitize();
-                tasks.Add(CreateTable(EdgeContainerHelper.GetName(model.Name), new List<ConnectionDataType>
-                {
-                    new ConnectionDataType { Name = originEntityCodeColumn, Type = VocabularyKeyDataType.Text },
-                    new ConnectionDataType { Name = codeColumn, Type = VocabularyKeyDataType.Text },
-                }, new List<string> { originEntityCodeColumn , codeColumn }, "Edges"));
-
-
+                var edgesTable = container.Tables["Edges"];
+                tasks.Add(CreateTable(edgesTable.Name, edgesTable.Columns, edgesTable.Keys, "Edges"));
             }
 
             await Task.WhenAll(tasks);
@@ -111,10 +118,13 @@ namespace CluedIn.Connector.SqlServer.Connector
                 }
             }
 
-            var tasks = new List<Task> { EmptyTable(id, "Data") };
-            var edgeTableName = EdgeContainerHelper.GetName(id);
-            if (await CheckTableExists(executionContext, providerDefinitionId, edgeTableName))
-                tasks.Add(EmptyTable(edgeTableName, "Edges"));
+            var container = new Container(id);
+            var tasks = new List<Task> { EmptyTable(container.PrimaryTable, "Data") };
+            foreach(var table in container.Tables)
+            {
+                if (await CheckTableExists(executionContext, providerDefinitionId, table.Value.Name))
+                        tasks.Add(EmptyTable(table.Value.Name, table.Key));
+            }
 
             await Task.WhenAll(tasks);
 
@@ -142,10 +152,13 @@ namespace CluedIn.Connector.SqlServer.Connector
                 }
             }
 
-            var tasks = new List<Task> { ArchiveTable(id, "Data") };
-            var edgeTableName = EdgeContainerHelper.GetName(id);
-            if (await CheckTableExists(executionContext, providerDefinitionId, edgeTableName))
-                tasks.Add(ArchiveTable(edgeTableName, "Edges"));
+            var container = new Container(id);
+            var tasks = new List<Task> { ArchiveTable(container.PrimaryTable, "Data") };
+            foreach (var table in container.Tables)
+            {
+                if (await CheckTableExists(executionContext, providerDefinitionId, table.Value.Name))
+                    tasks.Add(ArchiveTable(table.Value.Name, table.Key));
+            }
 
             await Task.WhenAll(tasks);
         }
@@ -174,10 +187,15 @@ namespace CluedIn.Connector.SqlServer.Connector
                 }
             }
 
-            var tasks = new List<Task> { RenameTable(id, newName, "Data") };
-            var edgeTableName = EdgeContainerHelper.GetName(id);
-            if (await CheckTableExists(executionContext, providerDefinitionId, edgeTableName))
-                tasks.Add(RenameTable(edgeTableName, EdgeContainerHelper.GetName(newName), "Edges"));
+            var currentContainer = new Container(id);
+            var updatedContainer = new Container(newName);
+
+            var tasks = new List<Task> { RenameTable(currentContainer.PrimaryTable, updatedContainer.PrimaryTable, "Data") };
+            foreach (var current in currentContainer.Tables)
+            {
+                if (await CheckTableExists(executionContext, providerDefinitionId, current.Value.Name))
+                    tasks.Add(RenameTable(current.Value.Name, updatedContainer.Tables[current.Key].Name, current.Key));
+            }
 
             await Task.WhenAll(tasks);
 
@@ -205,10 +223,13 @@ namespace CluedIn.Connector.SqlServer.Connector
                 }
             }
 
-            var tasks = new List<Task> { RemoveTable(id, "Data") };
-            var edgeTableName = EdgeContainerHelper.GetName(id);
-            if (await CheckTableExists(executionContext, providerDefinitionId, edgeTableName))
-                tasks.Add(RemoveTable(edgeTableName, "Edges"));
+            var container = new Container(id);
+            var tasks = new List<Task> { RemoveTable(container.PrimaryTable, "Data") };
+            foreach (var table in container.Tables)
+            {
+                if (await CheckTableExists(executionContext, providerDefinitionId, table.Value.Name))
+                    tasks.Add(RemoveTable(table.Value.Name, table.Key));
+            }
 
             await Task.WhenAll(tasks);
         }
@@ -329,10 +350,10 @@ namespace CluedIn.Connector.SqlServer.Connector
                         providerDefinitionId,
                         containerName,
                         data,
-                        _bulkThreshold,
+                        _bulkInsertThreshold,
                         _bulkClient,
                         () => base.GetAuthenticationDetails(executionContext, providerDefinitionId),
-                        _logger);                    
+                        _logger);
                 }
                 else
                 {
@@ -350,6 +371,89 @@ namespace CluedIn.Connector.SqlServer.Connector
             catch (Exception e)
             {
                 var message = $"Could not store data into Container '{containerName}' for Connector {providerDefinitionId}";
+                _logger.LogError(e, message);
+                throw new StoreDataException(message);
+            }
+        }
+
+        public override async Task DeleteData(
+            ExecutionContext executionContext,
+            Guid providerDefinitionId,
+            string containerName,
+            string originEntityCode,
+            IList<IEntityCode> codes,
+            Guid entityId)
+        {
+            try
+            {
+                var deleteByColumns = new Dictionary<string, object> { ["Id"] = entityId };
+
+                if (_bulkSupported)
+                {
+                    var bulkFeature = _features.GetFeature<IBulkDeleteDataFeature>();
+                    await bulkFeature.BulkTableDelete(
+                        executionContext,
+                        providerDefinitionId,
+                        containerName,
+                        originEntityCode,
+                        codes,
+                        entityId,
+                        _bulkInsertThreshold,
+                        _bulkClient,
+                        () => base.GetAuthenticationDetails(executionContext, providerDefinitionId),
+                        _logger);
+                }
+                else
+                {
+                    var config = await base.GetAuthenticationDetails(executionContext, providerDefinitionId);
+
+                    var container = new Container(containerName);
+                    var deleteFeature = _features.GetFeature<IBuildDeleteDataFeature>();
+                    var commands = deleteFeature
+                        .BuildDeleteDataSql(executionContext, providerDefinitionId, container.PrimaryTable, originEntityCode, codes, entityId, _logger);
+
+                    // We need to origin entity code for entities that have been deleted
+                    // see if we need to delete linked tables
+                    // do look up of OriginEntityCode from current table data
+                    var lookupOriginCodes = new List<string>();
+                    using (var connection = await _client.GetConnection(config.Authentication))
+                    {
+                        var cmd = connection.CreateCommand();
+                        cmd.CommandText = $"Select distinct OriginEntityCode from [{container.PrimaryTable}] where [Id] = @Id;";
+                        cmd.Parameters.Add(new SqlParameter("Id", entityId));
+
+                        var resp = await cmd.ExecuteReaderAsync();
+                        if (resp.HasRows)
+                        {
+                            while (await resp.ReadAsync())
+                            {
+                                lookupOriginCodes.Add(resp.GetString(0));
+                            }
+                        }
+                        resp.Close();
+                    }
+
+                    foreach (var table in container.Tables)
+                    {
+                        if (await CheckTableExists(executionContext, providerDefinitionId, table.Value.Name))
+                        {
+                            foreach (var entry in lookupOriginCodes)
+                            {
+                                commands = commands.Concat(deleteFeature
+                                            .BuildDeleteDataSql(executionContext, providerDefinitionId, table.Value.Name, entry, null, null, _logger));
+                            }
+                        }
+                    }
+
+                    foreach (var command in commands)
+                    {
+                        await _client.ExecuteCommandAsync(config, command.Text, command.Parameters);
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                var message = $"Could not delete data from Container '{containerName}' for Connector {providerDefinitionId}";
                 _logger.LogError(e, message);
                 throw new StoreDataException(message);
             }

@@ -13,7 +13,7 @@ namespace CluedIn.Connector.SqlServer.Features
             ExecutionContext executionContext,
             Guid providerDefinitionId,
             string containerName,
-            IList<string> keys,
+            IEnumerable<string> keys,
             ILogger logger)
         {
             if (executionContext == null)

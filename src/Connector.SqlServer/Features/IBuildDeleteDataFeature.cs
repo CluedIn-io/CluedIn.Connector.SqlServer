@@ -2,16 +2,19 @@
 using System.Collections.Generic;
 using CluedIn.Connector.SqlServer.Connector;
 using CluedIn.Core;
+using CluedIn.Core.Data;
 using Microsoft.Extensions.Logging;
 
 namespace CluedIn.Connector.SqlServer.Features
 {
-    public interface IBuildCreateIndexFeature
+    public interface IBuildDeleteDataFeature
     {
-        IEnumerable<SqlServerConnectorCommand> BuildCreateIndexSql(ExecutionContext executionContext,
+        IEnumerable<SqlServerConnectorCommand> BuildDeleteDataSql(ExecutionContext executionContext,
             Guid providerDefinitionId,
             string containerName,
-            IEnumerable<string> keys,
+            string originEntityCode,
+            IList<IEntityCode> codes,
+            Guid? entityId,
             ILogger logger);
     }
 }

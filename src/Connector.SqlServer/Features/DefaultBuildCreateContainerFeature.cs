@@ -12,10 +12,11 @@ namespace CluedIn.Connector.SqlServer.Features
 {
     public class DefaultBuildCreateContainerFeature : IBuildCreateContainerFeature
     {
-        private static readonly IDictionary<string, string> _knownColumnTypes = new Dictionary<string, string>
+        private static readonly IDictionary<string, string> _knownColumnTypes = new Dictionary<string, string>(StringComparer.InvariantCultureIgnoreCase)
         {
             {"originentitycode", "nvarchar(1024)"},
             {"codes", "nvarchar(1024)"},
+            {"code", "nvarchar(1024)"}, // used in edges table
         };
             
         public virtual IEnumerable<SqlServerConnectorCommand> BuildCreateContainerSql(
@@ -23,9 +24,11 @@ namespace CluedIn.Connector.SqlServer.Features
             Guid providerDefinitionId,
             string name,
             IEnumerable<ConnectionDataType> columns,
-            IList<string> keys,
+            IEnumerable<string> keys,
             ILogger logger)
         {
+            // TODO: Columns should define if they are collections so we can handle creating additional tables
+
             if (executionContext == null)
                 throw new ArgumentNullException(nameof(executionContext));
 
@@ -38,10 +41,13 @@ namespace CluedIn.Connector.SqlServer.Features
             if (logger == null)
                 throw new ArgumentNullException(nameof(logger));
 
+            // HACK: Remove 'Codes' column as it will be pushed to a separate table
+            var trimmedColumns = columns.Where(x => x.Name != "Codes");
+
             var builder = new StringBuilder();
             var sanitizedName = name.SqlSanitize();
             builder.AppendLine($"CREATE TABLE [{sanitizedName}](");
-            builder.AppendJoin(", ", columns.Select(c => $"[{c.Name.SqlSanitize()}] {GetDbType(c.Type, c.Name)} NULL"));
+            builder.AppendJoin(", ", trimmedColumns.Select(c => $"[{c.Name.SqlSanitize()}] {GetDbType(c.Type, c.Name)} NULL"));
             builder.AppendLine(") ON[PRIMARY]");
 
             return new[] { new SqlServerConnectorCommand { Text = builder.ToString() } };
