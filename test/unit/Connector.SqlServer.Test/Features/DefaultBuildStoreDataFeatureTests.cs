@@ -31,7 +31,7 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests.Features
             string containerName,
             IDictionary<string, object> data)
         {
-            Assert.Throws<ArgumentNullException>("executionContext", () => _sut.BuildStoreDataSql(null, providerDefinitionId, containerName, data, _defaultKeyFields, _logger.Object));
+            Assert.Throws<ArgumentNullException>("executionContext", () => _sut.BuildStoreDataSql(null, providerDefinitionId, containerName, data, _defaultKeyFields, _logger.Object).ToList());
         }
 
         [Theory]
@@ -43,7 +43,7 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests.Features
             Guid providerDefinitionId,
             IDictionary<string, object> data)
         {
-            Assert.Throws<InvalidOperationException>(() => _sut.BuildStoreDataSql(_testContext.Context, providerDefinitionId, containerName, data, _defaultKeyFields, _logger.Object));
+            Assert.Throws<InvalidOperationException>(() => _sut.BuildStoreDataSql(_testContext.Context, providerDefinitionId, containerName, data, _defaultKeyFields, _logger.Object).ToList());
         }
 
         [Theory, InlineAutoData]
@@ -53,7 +53,7 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests.Features
         {
 
             _sut.BuildStoreDataSql(_testContext.Context, providerDefinitionId, containerName, null, _defaultKeyFields, _logger.Object);
-            Assert.Throws<InvalidOperationException>(() => _sut.BuildStoreDataSql(_testContext.Context, providerDefinitionId, containerName, null, _defaultKeyFields, _logger.Object));
+            Assert.Throws<InvalidOperationException>(() => _sut.BuildStoreDataSql(_testContext.Context, providerDefinitionId, containerName, null, _defaultKeyFields, _logger.Object).ToList());
         }
 
         [Theory, InlineAutoData]
@@ -61,7 +61,7 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests.Features
             Guid providerDefinitionId,
             string containerName)
         {
-            Assert.Throws<InvalidOperationException>(() => _sut.BuildStoreDataSql(_testContext.Context, providerDefinitionId, containerName, new Dictionary<string, object>(), _defaultKeyFields, _logger.Object));
+            Assert.Throws<InvalidOperationException>(() => _sut.BuildStoreDataSql(_testContext.Context, providerDefinitionId, containerName, new Dictionary<string, object>(), _defaultKeyFields, _logger.Object).ToList());
         }
 
         [Theory, InlineAutoData]
@@ -70,7 +70,7 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests.Features
             string containerName,
             IDictionary<string, object> data)
         {
-            Assert.Throws<ArgumentNullException>("logger", () => _sut.BuildStoreDataSql(_testContext.Context, providerDefinitionId, containerName, data, _defaultKeyFields, null));
+            Assert.Throws<ArgumentNullException>("logger", () => _sut.BuildStoreDataSql(_testContext.Context, providerDefinitionId, containerName, data, _defaultKeyFields, null).ToList());
         }
 
         [Theory, InlineAutoData]
