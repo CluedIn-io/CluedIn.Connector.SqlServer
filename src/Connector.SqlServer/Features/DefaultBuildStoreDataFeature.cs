@@ -51,10 +51,10 @@ namespace CluedIn.Connector.SqlServer.Features
                 // need to insert into Codes table
                 var enumerator = codesEnumerable.GetEnumerator();
                 while(enumerator.MoveNext())
-                    yield return ComposeUpsert(codesTable.Name, new Dictionary<string, object> {
+                    yield return ComposeInsert(codesTable.Name, new Dictionary<string, object> {
                         ["OriginEntityCode"] = data["OriginEntityCode"],
                         ["Code"] = enumerator.Current
-                    }, keys, logger);
+                    });
             }
 
             // Primary table
@@ -118,11 +118,35 @@ namespace CluedIn.Connector.SqlServer.Features
             {
                 var key = entry.Key.SqlSanitize();
                 clauses.Add($"[{key}] = @{key}");
-                parameters.Add(new SqlParameter(key, entry.Value));
+                parameters.Add(new SqlParameter($"@{key}", entry.Value));
             }
 
             sqlBuilder.AppendJoin(" AND ", clauses);
             sqlBuilder.Append(";");
+
+            return new SqlServerConnectorCommand
+            {
+                Text = sqlBuilder.ToString(),
+                Parameters = parameters
+            };
+        }
+
+        protected virtual SqlServerConnectorCommand ComposeInsert(string tableName, IDictionary<string, object> fields)
+        {
+            var columns = new List<string>();
+            var parameters = new List<SqlParameter>();
+
+            foreach (var entry in fields)
+            {
+                columns.Add($"[{entry.Key}]");
+                parameters.Add(new SqlParameter($"@{entry.Key}", entry.Value));
+            }
+
+            var sqlBuilder = new StringBuilder($"INSERT INTO [{tableName.SqlSanitize()}] (");
+            sqlBuilder.AppendJoin(",", columns);
+            sqlBuilder.Append(") values (");
+            sqlBuilder.AppendJoin(",", parameters.Select(x => $"{x.ParameterName}"));
+            sqlBuilder.Append(");");
 
             return new SqlServerConnectorCommand
             {

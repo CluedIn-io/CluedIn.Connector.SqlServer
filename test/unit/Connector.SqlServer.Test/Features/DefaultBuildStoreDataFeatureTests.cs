@@ -148,5 +148,68 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests.Features
             Assert.Equal(paramsList[2].Value, data["InvalidField"].ToString());
         }
 
+        [Theory, InlineAutoData]
+        public void BuildStoreDataSql_ValidDataWithCodes_IsSuccessful(
+           string name,
+           string originEntityCode,
+           string additionalField,
+           Guid providerDefinitionId)
+        {
+            var codes = new[] { "alpha", "beta", "gamma", "delta" };
+
+            var data = new Dictionary<string, object>
+            {
+                    { "Codes", codes },
+                    { "OriginEntityCode", originEntityCode },
+                    { "AdditionalField", additionalField }
+            };
+
+            var keys = _defaultKeyFields;
+
+            var execContext = _testContext.Context;
+            var result = _sut.BuildStoreDataSql(execContext, providerDefinitionId, name, data, keys, _logger.Object).ToList();
+
+            // codes inserts will delete from table first
+            // then insert into codes
+            // then main table insert
+            var expectedCount = codes.Length + 2;
+            Assert.Equal(expectedCount, result.Count());
+
+            var deleteCodesCommand = result.First();
+            Assert.Equal($"DELETE FROM {name}Codes WHERE [OriginEntityCode] = @OriginEntityCode;", deleteCodesCommand.Text.Trim());
+            
+            var deleteCodesParameters = deleteCodesCommand.Parameters.ToList();
+            Assert.Single(deleteCodesParameters);
+            Assert.Contains(deleteCodesParameters, p => p.ParameterName == "@OriginEntityCode" && (string)p.Value == originEntityCode);
+
+            for (var x = 0; x < codes.Length; x++)
+            {
+                var code = codes[x];
+                var codesCommand = result[x+1];
+                Assert.Equal($"INSERT INTO [{name}Codes] ([OriginEntityCode],[Code]) values (@OriginEntityCode,@Code);", codesCommand.Text.Trim());
+
+                var codesParameters = codesCommand.Parameters.ToList();
+                Assert.Equal(2, codesParameters.Count());
+                Assert.Contains(codesParameters, p => p.ParameterName == "@OriginEntityCode" && (string)p.Value == originEntityCode);
+                Assert.Contains(codesParameters, p => p.ParameterName == "@Code" && (string)p.Value == code);
+            }
+
+            var mainTableCommand = result.Last();
+            Assert.Equal($"MERGE [{name}] AS target" + Environment.NewLine +
+                         "USING (SELECT @OriginEntityCode, @AdditionalField) AS source ([OriginEntityCode], [AdditionalField])" + Environment.NewLine +
+                         "  ON (target.[OriginEntityCode] = source.[OriginEntityCode])" + Environment.NewLine +
+                         "WHEN MATCHED THEN" + Environment.NewLine +
+                         "  UPDATE SET target.[OriginEntityCode] = source.[OriginEntityCode], target.[AdditionalField] = source.[AdditionalField]" + Environment.NewLine +
+                         "WHEN NOT MATCHED THEN" + Environment.NewLine +
+                         "  INSERT ([OriginEntityCode], [AdditionalField])" + Environment.NewLine +
+                         "  VALUES (source.[OriginEntityCode], source.[AdditionalField]);", mainTableCommand.Text.Trim());
+            Assert.Equal(data.Count, mainTableCommand.Parameters.Count());
+
+            var mainTableParameters = mainTableCommand.Parameters.ToList();
+            Assert.Equal(2, mainTableParameters.Count());
+            Assert.Contains(mainTableParameters, p => p.ParameterName == "@OriginEntityCode" && (string)p.Value == originEntityCode);
+            Assert.Contains(mainTableParameters, p => p.ParameterName == "@AdditionalField" && (string)p.Value == additionalField);
+        }
+
     }
 }
