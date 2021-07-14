@@ -12,18 +12,18 @@
     <EmbeddedResource Include="Resources\sqlserver.png" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="CluedIn.Core" />
+    <!--<PackageReference Include="CluedIn.Core" />
     <PackageReference Include="CluedIn.Core.Agent" />
-    <PackageReference Include="CluedIn.Crawling" />
+    <PackageReference Include="CluedIn.Crawling" />-->
     <PackageReference Include="ComponentHost" />
     <PackageReference Include="Dapper" />
     <PackageReference Include="Dapper.SqlBuilder" />
   </ItemGroup>
 
   <!-- Disable to above cluedin assets and enable the below for local debugging  -->
-  <!--<ItemGroup>    
+  <ItemGroup>    
     <ProjectReference Include="..\..\..\Cluedin\Code\Core\Core.csproj" />
     <ProjectReference Include="..\..\..\Cluedin\Code\Core.Agent\Core.Agent.csproj" />
     <ProjectReference Include="..\..\..\Cluedin\Code\Crawling\Crawling.csproj" />
-  </ItemGroup>-->
+  </ItemGroup>
 </Project>

@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using CluedIn.Connector.SqlServer.Connector;
 using CluedIn.Core;
+using CluedIn.Core.Streams.Models;
 using Microsoft.Extensions.Logging;
 
 namespace CluedIn.Connector.SqlServer.Features
@@ -13,6 +14,7 @@ namespace CluedIn.Connector.SqlServer.Features
             string containerName,
             IDictionary<string, object> data,
             IList<string> keys,
+            StreamMode mode,
             ILogger logger);
     }
 }

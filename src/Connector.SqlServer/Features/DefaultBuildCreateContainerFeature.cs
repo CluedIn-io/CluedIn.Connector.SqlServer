@@ -16,7 +16,8 @@ namespace CluedIn.Connector.SqlServer.Features
         {
             {"originentitycode", "nvarchar(1024)"},
             {"codes", "nvarchar(1024)"},
-            {"code", "nvarchar(1024)"}, // used in edges table
+            {"code", "nvarchar(1024)"},  // used in edges table
+            {"correlationid", "nvarchar(1024)"}, // used in edges and codes table
         };
             
         public virtual IEnumerable<SqlServerConnectorCommand> BuildCreateContainerSql(

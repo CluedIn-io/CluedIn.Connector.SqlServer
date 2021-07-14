@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using AutoFixture.Xunit2;
 using CluedIn.Connector.SqlServer.Features;
+using CluedIn.Core.Streams.Models;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Xunit;
@@ -31,7 +32,7 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests.Features
             string containerName,
             IDictionary<string, object> data)
         {
-            Assert.Throws<ArgumentNullException>("executionContext", () => _sut.BuildStoreDataSql(null, providerDefinitionId, containerName, data, _defaultKeyFields, _logger.Object).ToList());
+            Assert.Throws<ArgumentNullException>("executionContext", () => _sut.BuildStoreDataSql(null, providerDefinitionId, containerName, data, _defaultKeyFields, StreamMode.Sync, _logger.Object).ToList());
         }
 
         [Theory]
@@ -43,7 +44,7 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests.Features
             Guid providerDefinitionId,
             IDictionary<string, object> data)
         {
-            Assert.Throws<InvalidOperationException>(() => _sut.BuildStoreDataSql(_testContext.Context, providerDefinitionId, containerName, data, _defaultKeyFields, _logger.Object).ToList());
+            Assert.Throws<InvalidOperationException>(() => _sut.BuildStoreDataSql(_testContext.Context, providerDefinitionId, containerName, data, _defaultKeyFields, StreamMode.Sync, _logger.Object).ToList());
         }
 
         [Theory, InlineAutoData]
@@ -52,8 +53,8 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests.Features
             string containerName)
         {
 
-            _sut.BuildStoreDataSql(_testContext.Context, providerDefinitionId, containerName, null, _defaultKeyFields, _logger.Object);
-            Assert.Throws<InvalidOperationException>(() => _sut.BuildStoreDataSql(_testContext.Context, providerDefinitionId, containerName, null, _defaultKeyFields, _logger.Object).ToList());
+            _sut.BuildStoreDataSql(_testContext.Context, providerDefinitionId, containerName, null, _defaultKeyFields, StreamMode.Sync, _logger.Object);
+            Assert.Throws<InvalidOperationException>(() => _sut.BuildStoreDataSql(_testContext.Context, providerDefinitionId, containerName, null, _defaultKeyFields, StreamMode.Sync, _logger.Object).ToList());
         }
 
         [Theory, InlineAutoData]
@@ -61,7 +62,7 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests.Features
             Guid providerDefinitionId,
             string containerName)
         {
-            Assert.Throws<InvalidOperationException>(() => _sut.BuildStoreDataSql(_testContext.Context, providerDefinitionId, containerName, new Dictionary<string, object>(), _defaultKeyFields, _logger.Object).ToList());
+            Assert.Throws<InvalidOperationException>(() => _sut.BuildStoreDataSql(_testContext.Context, providerDefinitionId, containerName, new Dictionary<string, object>(), _defaultKeyFields, StreamMode.Sync, _logger.Object).ToList());
         }
 
         [Theory, InlineAutoData]
@@ -70,7 +71,7 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests.Features
             string containerName,
             IDictionary<string, object> data)
         {
-            Assert.Throws<ArgumentNullException>("logger", () => _sut.BuildStoreDataSql(_testContext.Context, providerDefinitionId, containerName, data, _defaultKeyFields, null).ToList());
+            Assert.Throws<ArgumentNullException>("logger", () => _sut.BuildStoreDataSql(_testContext.Context, providerDefinitionId, containerName, data, _defaultKeyFields, StreamMode.Sync, null).ToList());
         }
 
         [Theory, InlineAutoData]
@@ -93,7 +94,7 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests.Features
                         };
 
             var execContext = _testContext.Context;
-            var result = _sut.BuildStoreDataSql(execContext, providerDefinitionId, name, data, _defaultKeyFields, _logger.Object);
+            var result = _sut.BuildStoreDataSql(execContext, providerDefinitionId, name, data, _defaultKeyFields, StreamMode.Sync, _logger.Object);
             var command = result.Single();
             Assert.Equal($"MERGE [{name}] AS target" + Environment.NewLine +
                          "USING (SELECT @Field1, @Field2, @Field3, @Field4, @Field5) AS source ([Field1], [Field2], [Field3], [Field4], [Field5])" + Environment.NewLine +
@@ -130,7 +131,7 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests.Features
                         };
             
             var execContext = _testContext.Context;
-            var result = _sut.BuildStoreDataSql(execContext, providerDefinitionId, name, data, _defaultKeyFields, _logger.Object);
+            var result = _sut.BuildStoreDataSql(execContext, providerDefinitionId, name, data, _defaultKeyFields, StreamMode.Sync, _logger.Object);
             var command = result.Single();
             Assert.Equal($"MERGE [{name}] AS target" + Environment.NewLine +
                          "USING (SELECT @Field1, @Field2, @InvalidField) AS source ([Field1], [Field2], [InvalidField])" + Environment.NewLine +
@@ -167,7 +168,7 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests.Features
             var keys = _defaultKeyFields;
 
             var execContext = _testContext.Context;
-            var result = _sut.BuildStoreDataSql(execContext, providerDefinitionId, name, data, keys, _logger.Object).ToList();
+            var result = _sut.BuildStoreDataSql(execContext, providerDefinitionId, name, data, keys, StreamMode.Sync, _logger.Object).ToList();
 
             // codes inserts will delete from table first
             // then insert into codes
