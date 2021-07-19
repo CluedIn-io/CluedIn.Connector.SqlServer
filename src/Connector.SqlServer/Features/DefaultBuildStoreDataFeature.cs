@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text;
 using CluedIn.Connector.SqlServer.Connector;
 using CluedIn.Core;
+using CluedIn.Core.Data.Parts;
 using CluedIn.Core.Streams.Models;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Logging;
@@ -20,6 +21,9 @@ namespace CluedIn.Connector.SqlServer.Features
             IDictionary<string, object> data,
             IList<string> keys,
             StreamMode mode,
+            string correlationId,
+            DateTimeOffset timestamp,
+            VersionChangeType changeType,
             ILogger logger)
         {
             if (executionContext == null)
@@ -56,10 +60,17 @@ namespace CluedIn.Connector.SqlServer.Features
                 // need to insert into Codes table
                 var enumerator = codesEnumerable.GetEnumerator();
                 while(enumerator.MoveNext())
-                    yield return ComposeInsert(codesTable.Name, new Dictionary<string, object> {
+                {
+                    var dictionary = new Dictionary<string, object> {
                         ["OriginEntityCode"] = data["OriginEntityCode"],
                         ["Code"] = enumerator.Current
-                    });
+                    };
+
+                    if (mode == StreamMode.EventStream)
+                        dictionary["CorrelationId"] = correlationId;
+
+                    yield return ComposeInsert(codesTable.Name, dictionary);
+                }
             }
 
             // Primary table

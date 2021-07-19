@@ -408,7 +408,7 @@ namespace CluedIn.Connector.SqlServer.Connector
                     var config = await base.GetAuthenticationDetails(executionContext, providerDefinitionId);
 
                     var commands = _features.GetFeature<IBuildStoreDataFeature>()
-                        .BuildStoreDataSql(executionContext, providerDefinitionId, containerName, data, _defaultKeyFields, StreamMode, _logger);
+                        .BuildStoreDataSql(executionContext, providerDefinitionId, containerName, data, _defaultKeyFields, StreamMode, correlationId, timestamp, changeType, _logger);
 
                     foreach (var command in commands)
                     {
@@ -554,12 +554,20 @@ namespace CluedIn.Connector.SqlServer.Connector
                     Value = edge
                 };
                 param.Add(edgeParam);
-                edgeValues.Add($"(@OriginEntityCode, @CorrelationId, {edgeParam.ParameterName})");
+
+                if (StreamMode == StreamMode.EventStream)
+                    edgeValues.Add($"(@OriginEntityCode, @CorrelationId, {edgeParam.ParameterName})");
+                else
+                    edgeValues.Add($"(@OriginEntityCode, {edgeParam.ParameterName})");
             }
 
             if (edgeValues.Count > 0)
             {
-                builder.AppendLine($"INSERT INTO [{containerName.SqlSanitize()}] ([OriginEntityCode],[CorrelationId],[Code]) values");
+                if (StreamMode == StreamMode.EventStream)
+                    builder.AppendLine($"INSERT INTO [{containerName.SqlSanitize()}] ([OriginEntityCode],[CorrelationId],[Code]) values");
+                else
+                    builder.AppendLine($"INSERT INTO [{containerName.SqlSanitize()}] ([OriginEntityCode],[Code]) values");
+
                 builder.AppendJoin(", ", edgeValues);
             }
 
