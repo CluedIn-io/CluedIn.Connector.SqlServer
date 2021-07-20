@@ -12,7 +12,7 @@ using Microsoft.Extensions.Logging;
 
 namespace CluedIn.Connector.SqlServer.Features
 {
-    public class DefaultBuildStoreDataFeature : IBuildStoreDataFeature
+    public class DefaultBuildStoreDataFeature : IBuildStoreDataFeature, IBuildStoreDataForMode
     {
         public virtual IEnumerable<SqlServerConnectorCommand> BuildStoreDataSql(
             ExecutionContext executionContext,
@@ -172,6 +172,11 @@ namespace CluedIn.Connector.SqlServer.Features
                 Text = sqlBuilder.ToString(),
                 Parameters = parameters
             };
+        }
+
+        public IEnumerable<SqlServerConnectorCommand> BuildStoreDataSql(ExecutionContext executionContext, Guid providerDefinitionId, string containerName, IDictionary<string, object> data, IList<string> keys, ILogger logger)
+        {
+            return BuildStoreDataSql(executionContext, providerDefinitionId, containerName, data, keys, StreamMode.Sync, null, DateTimeOffset.Now, VersionChangeType.NotSet, logger);
         }
     }
 }

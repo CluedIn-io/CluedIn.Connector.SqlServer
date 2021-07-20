@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Data;
 using System.Diagnostics;
 using System.Linq;
+using System.Net.WebSockets;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
@@ -226,14 +227,14 @@ namespace CluedIn.Connector.SqlServer.Connector
 
         }
 
-        public override Task StoreData(ExecutionContext executionContext, Guid providerDefinitionId, string containerName, IDictionary<string, object> data)
+        public override async Task StoreData(ExecutionContext executionContext, Guid providerDefinitionId, string containerName, IDictionary<string, object> data)
         {
-            throw new NotImplementedException();
+            await StoreData(executionContext, providerDefinitionId, containerName, null, DateTimeOffset.Now, VersionChangeType.NotSet, data);
         }
 
-        public override Task StoreEdgeData(ExecutionContext executionContext, Guid providerDefinitionId, string containerName, string originEntityCode, IEnumerable<string> edges)
+        public override async Task StoreEdgeData(ExecutionContext executionContext, Guid providerDefinitionId, string containerName, string originEntityCode, IEnumerable<string> edges)
         {
-            throw new NotImplementedException();
+            await StoreEdgeData(executionContext, providerDefinitionId, containerName, originEntityCode, null, DateTimeOffset.Now, VersionChangeType.NotSet, edges);
         }
 
         public override async Task RemoveContainer(ExecutionContext executionContext, Guid providerDefinitionId, string id)
@@ -383,11 +384,12 @@ namespace CluedIn.Connector.SqlServer.Connector
             try
             {
                 // If we are in Event Stream mode, append extra fields
+                var dataToUse = new Dictionary<string, object>(data);
                 if (StreamMode == StreamMode.EventStream)
                 {
-                    data.Add(TimestampFieldName, timestamp);
-                    data.Add(ChangeTypeFieldName, changeType);
-                    data.Add(CorrelationIdFieldName, correlationId);
+                    dataToUse.Add(TimestampFieldName, timestamp);
+                    dataToUse.Add(ChangeTypeFieldName, changeType);
+                    dataToUse.Add(CorrelationIdFieldName, correlationId);
                 }
 
                 if (_bulkSupported)
@@ -397,7 +399,7 @@ namespace CluedIn.Connector.SqlServer.Connector
                         executionContext,
                         providerDefinitionId,
                         containerName,
-                        data,
+                        dataToUse,
                         _bulkInsertThreshold,
                         _bulkClient,
                         () => base.GetAuthenticationDetails(executionContext, providerDefinitionId),
@@ -407,8 +409,12 @@ namespace CluedIn.Connector.SqlServer.Connector
                 {
                     var config = await base.GetAuthenticationDetails(executionContext, providerDefinitionId);
 
-                    var commands = _features.GetFeature<IBuildStoreDataFeature>()
-                        .BuildStoreDataSql(executionContext, providerDefinitionId, containerName, data, _defaultKeyFields, StreamMode, correlationId, timestamp, changeType, _logger);
+                    var feature = _features.GetFeature<IBuildStoreDataFeature>();
+                    IEnumerable<SqlServerConnectorCommand> commands;
+                    if (feature is IBuildStoreDataForMode modeFeature)
+                        commands = modeFeature.BuildStoreDataSql(executionContext, providerDefinitionId, containerName, dataToUse, _defaultKeyFields, StreamMode, correlationId, timestamp, changeType, _logger);
+                    else
+                        commands = feature.BuildStoreDataSql(executionContext, providerDefinitionId, containerName, dataToUse, _defaultKeyFields, _logger);
 
                     foreach (var command in commands)
                     {
