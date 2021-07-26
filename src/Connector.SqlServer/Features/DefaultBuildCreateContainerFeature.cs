@@ -18,7 +18,7 @@ namespace CluedIn.Connector.SqlServer.Features
             {"codes", "nvarchar(1024)"},
             {"code", "nvarchar(1024)"}, // used in edges table
         };
-            
+
         public virtual IEnumerable<SqlServerConnectorCommand> BuildCreateContainerSql(
             ExecutionContext executionContext,
             Guid providerDefinitionId,
@@ -71,7 +71,7 @@ namespace CluedIn.Connector.SqlServer.Features
             //     _ => "nvarchar(max)"
             // };
 
-            return "nvarchar(max)";
+            return "nvarchar(128)";
         }
     }
 }
