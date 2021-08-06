@@ -5,12 +5,14 @@ using System.Linq;
 using System.Text;
 using CluedIn.Connector.SqlServer.Connector;
 using CluedIn.Core;
+using CluedIn.Core.Data.Parts;
+using CluedIn.Core.Streams.Models;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Logging;
 
 namespace CluedIn.Connector.SqlServer.Features
 {
-    public class DefaultBuildStoreDataFeature : IBuildStoreDataFeature
+    public class DefaultBuildStoreDataFeature : IBuildStoreDataFeature, IBuildStoreDataForMode
     {
         public virtual IEnumerable<SqlServerConnectorCommand> BuildStoreDataSql(
             ExecutionContext executionContext,
@@ -18,6 +20,10 @@ namespace CluedIn.Connector.SqlServer.Features
             string containerName,
             IDictionary<string, object> data,
             IList<string> keys,
+            StreamMode mode,
+            string correlationId,
+            DateTimeOffset timestamp,
+            VersionChangeType changeType,
             ILogger logger)
         {
             if (executionContext == null)
@@ -36,29 +42,42 @@ namespace CluedIn.Connector.SqlServer.Features
                 throw new ArgumentNullException(nameof(logger));
 
             //HACK we need to pull out Codes into a separate table
-            var container = new Container(containerName);
+            var container = new Container(containerName, mode);
             if(data.TryGetValue("Codes", out var codes) && codes is IEnumerable codesEnumerable)
             {
                 data.Remove("Codes");
                 keys.Remove("Codes");
 
                 // HACK need a better way to source origin entity code
-
-                // need to delete from Codes table
                 var codesTable = container.Tables["Codes"];
-                yield return ComposeDelete(codesTable.Name, new Dictionary<string, object> { ["OriginEntityCode"] = data["OriginEntityCode"] });
+
+                if (mode == StreamMode.Sync)
+                {
+                    // need to delete from Codes table
+                    yield return ComposeDelete(codesTable.Name, new Dictionary<string, object> {["OriginEntityCode"] = data["OriginEntityCode"]});
+                }
 
                 // need to insert into Codes table
                 var enumerator = codesEnumerable.GetEnumerator();
                 while(enumerator.MoveNext())
-                    yield return ComposeInsert(codesTable.Name, new Dictionary<string, object> {
+                {
+                    var dictionary = new Dictionary<string, object> {
                         ["OriginEntityCode"] = data["OriginEntityCode"],
                         ["Code"] = enumerator.Current
-                    });
+                    };
+
+                    if (mode == StreamMode.EventStream)
+                        dictionary["CorrelationId"] = correlationId;
+
+                    yield return ComposeInsert(codesTable.Name, dictionary);
+                }
             }
 
             // Primary table
-            yield return ComposeUpsert(container.PrimaryTable, data, keys, logger);
+            if (mode == StreamMode.Sync)
+                yield return ComposeUpsert(container.PrimaryTable, data, keys, logger);
+            else
+                yield return ComposeInsert(container.PrimaryTable, data);
         }
 
         protected virtual SqlServerConnectorCommand ComposeUpsert(string tableName, IDictionary<string, object> data, IList<string> keys, ILogger logger)
@@ -153,6 +172,11 @@ namespace CluedIn.Connector.SqlServer.Features
                 Text = sqlBuilder.ToString(),
                 Parameters = parameters
             };
+        }
+
+        public IEnumerable<SqlServerConnectorCommand> BuildStoreDataSql(ExecutionContext executionContext, Guid providerDefinitionId, string containerName, IDictionary<string, object> data, IList<string> keys, ILogger logger)
+        {
+            return BuildStoreDataSql(executionContext, providerDefinitionId, containerName, data, keys, StreamMode.Sync, null, DateTimeOffset.Now, VersionChangeType.NotSet, logger);
         }
     }
 }
