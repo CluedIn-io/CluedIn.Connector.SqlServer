@@ -15,6 +15,10 @@ namespace CluedIn.Connector.SqlServer.Connector
 
         private static readonly ConnectionDataType[] _eventStreamCodeEdgeColumns = {new ConnectionDataType {Name = "CorrelationId", Type = VocabularyKeyDataType.Text},};
 
+        public Container(string containerName) : this(containerName, StreamMode.Sync)
+        {
+            
+        }
         public Container(string containerName, StreamMode mode)
         {
             PrimaryTable = containerName.SqlSanitize();

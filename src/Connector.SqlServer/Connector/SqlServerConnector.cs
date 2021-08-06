@@ -227,14 +227,14 @@ namespace CluedIn.Connector.SqlServer.Connector
 
         }
 
-        public override async Task StoreData(ExecutionContext executionContext, Guid providerDefinitionId, string containerName, IDictionary<string, object> data)
+        public override Task StoreData(ExecutionContext executionContext, Guid providerDefinitionId, string containerName, IDictionary<string, object> data)
         {
-            await StoreData(executionContext, providerDefinitionId, containerName, null, DateTimeOffset.Now, VersionChangeType.NotSet, data);
+            return StoreData(executionContext, providerDefinitionId, containerName, null, DateTimeOffset.Now, VersionChangeType.NotSet, data);
         }
 
-        public override async Task StoreEdgeData(ExecutionContext executionContext, Guid providerDefinitionId, string containerName, string originEntityCode, IEnumerable<string> edges)
+        public override Task StoreEdgeData(ExecutionContext executionContext, Guid providerDefinitionId, string containerName, string originEntityCode, IEnumerable<string> edges)
         {
-            await StoreEdgeData(executionContext, providerDefinitionId, containerName, originEntityCode, null, DateTimeOffset.Now, VersionChangeType.NotSet, edges);
+            return StoreEdgeData(executionContext, providerDefinitionId, containerName, originEntityCode, null, DateTimeOffset.Now, VersionChangeType.NotSet, edges);
         }
 
         public override async Task RemoveContainer(ExecutionContext executionContext, Guid providerDefinitionId, string id)
@@ -374,9 +374,9 @@ namespace CluedIn.Connector.SqlServer.Connector
             }
         }
 
-        public async Task<string> GetCorrelationId()
+        public Task<string> GetCorrelationId()
         {
-            return await Task.FromResult(Guid.NewGuid().ToString());
+            return Task.FromResult(Guid.NewGuid().ToString());
         }
 
         public async Task StoreData(ExecutionContext executionContext, Guid providerDefinitionId, string containerName, string correlationId, DateTimeOffset timestamp, VersionChangeType changeType, IDictionary<string, object> data)
