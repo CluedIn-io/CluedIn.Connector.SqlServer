@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using AutoFixture.Xunit2;
+using CluedIn.Core.Streams.Models;
 using Xunit;
 
 namespace CluedIn.Connector.SqlServer.Unit.Tests
@@ -43,7 +44,7 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests
             var result = Sut.BuildEdgeStoreDataSql(name, originEntityCode, correlationId, edges, out var param);
             Assert.Equal(edges.Count + 2, param.Count); // params will also include origin entity code
             Assert.Contains(param, p => p.ParameterName == "@OriginEntityCode" && p.Value.Equals(originEntityCode));
-            for(var index = 0; index < edges.Count; index++)
+            for (var index = 0; index < edges.Count; index++)
             {
                 Assert.Contains(param, p => p.ParameterName == $"@{index}" && p.Value.Equals(edges[index]));
             }
@@ -51,8 +52,8 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests
             var expectedLines = new List<string>
             {
                 $"DELETE FROM [{name}] where [OriginEntityCode] = @OriginEntityCode",
-                $"INSERT INTO [{name}] ([OriginEntityCode],[CorrelationId],[Code]) values",
-                string.Join(", ", Enumerable.Range(0, edges.Count).Select(i => $"(@OriginEntityCode, @CorrelationId, @{i})"))
+                $"INSERT INTO [{name}] ([OriginEntityCode],[Code]) values",
+                string.Join(", ", Enumerable.Range(0, edges.Count).Select(i => $"(@OriginEntityCode, @{i})"))
             };
 
             var expectedSql = string.Join(Environment.NewLine, expectedLines);
