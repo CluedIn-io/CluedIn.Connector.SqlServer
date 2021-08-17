@@ -2,8 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using AutoFixture.Xunit2;
-using CluedIn.Core.Connectors;
-using CluedIn.Core.Data.Vocabularies;
+using CluedIn.Core.Streams.Models;
 using Xunit;
 
 namespace CluedIn.Connector.SqlServer.Unit.Tests
@@ -40,44 +39,12 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests
         // }
 
         [Theory, InlineAutoData]
-        public void StoreDataWorks(string name, int field1, string field2, DateTime field3, decimal field4, bool field5)
+        public void StoreEdgeDataWorks(string name, string originEntityCode, string correlationId, List<string> edges)
         {
-            var data = new Dictionary<string, object>
-                        {
-                             { "Field1", field1   },
-                             { "Field2", field2   },
-                             { "Field3", field3  },
-                             { "Field4", field4   },
-                             { "Field5", field5   }
-                        };
-
-            var result = Sut.BuildStoreDataSql(name, data, out var param);
-
-            Assert.Equal($"MERGE [{name}] AS target" + Environment.NewLine +
-                         "USING (SELECT @Field1, @Field2, @Field3, @Field4, @Field5) AS source ([Field1], [Field2], [Field3], [Field4], [Field5])" + Environment.NewLine +
-                         "  ON (target.[OriginEntityCode] = source.[OriginEntityCode])" + Environment.NewLine +
-                         "WHEN MATCHED THEN" + Environment.NewLine +
-                         "  UPDATE SET target.[Field1] = source.[Field1], target.[Field2] = source.[Field2], target.[Field3] = source.[Field3], target.[Field4] = source.[Field4], target.[Field5] = source.[Field5]" + Environment.NewLine +
-                         "WHEN NOT MATCHED THEN" + Environment.NewLine +
-                         "  INSERT ([Field1], [Field2], [Field3], [Field4], [Field5])" + Environment.NewLine +
-                         "  VALUES (source.[Field1], source.[Field2], source.[Field3], source.[Field4], source.[Field5]);", result.Trim());
-            Assert.Equal(data.Count, param.Count);
-
-            for (var index = 0; index < data.Count; index++)
-            {
-                var parameter = param[index];
-                var val = data[$"Field{index + 1}"];
-                Assert.Equal(val, parameter.Value);
-            }
-        }
-
-        [Theory, InlineAutoData]
-        public void StoreEdgeDataWorks(string name, string originEntityCode, List<string> edges)
-        {
-            var result = Sut.BuildEdgeStoreDataSql(name, originEntityCode, edges, out var param);
-            Assert.Equal(edges.Count + 1, param.Count); // params will also include origin entity code
+            var result = Sut.BuildEdgeStoreDataSql(name, originEntityCode, correlationId, edges, out var param);
+            Assert.Equal(edges.Count + 2, param.Count); // params will also include origin entity code
             Assert.Contains(param, p => p.ParameterName == "@OriginEntityCode" && p.Value.Equals(originEntityCode));
-            for(var index = 0; index < edges.Count; index++)
+            for (var index = 0; index < edges.Count; index++)
             {
                 Assert.Contains(param, p => p.ParameterName == $"@{index}" && p.Value.Equals(edges[index]));
             }
@@ -94,11 +61,11 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests
         }
 
         [Theory, InlineAutoData]
-        public void StoreEdgeData_NoEdges_Works(string name, string originEntityCode)
+        public void StoreEdgeData_NoEdges_Works(string name, string originEntityCode, string correlationId)
         {
             var edges = new List<string>();
-            var result = Sut.BuildEdgeStoreDataSql(name, originEntityCode, edges, out var param);
-            Assert.Single(param); // params will also include origin entity code
+            var result = Sut.BuildEdgeStoreDataSql(name, originEntityCode, correlationId, edges, out var param);
+            Assert.Equal(2, param.Count); // params will also include origin entity code and correlationid
             Assert.Contains(param, p => p.ParameterName == "@OriginEntityCode" && p.Value.Equals(originEntityCode));
             Assert.Equal($"DELETE FROM [{name}] where [OriginEntityCode] = @OriginEntityCode", result.Trim());
         }
