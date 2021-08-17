@@ -104,6 +104,10 @@ namespace CluedIn.Connector.SqlServer.Connector
                 connectionDataTypes.Add(new ConnectionDataType { Name = ChangeTypeFieldName, Type = VocabularyKeyDataType.Text });
                 connectionDataTypes.Add(new ConnectionDataType { Name = CorrelationIdFieldName, Type = VocabularyKeyDataType.Text });
             }
+            else
+            {
+                connectionDataTypes.Add(new ConnectionDataType { Name = TimestampFieldName, Type = VocabularyKeyDataType.DateTime });
+            }
 
             var tasks = new List<Task> {
                 // Primary table
@@ -390,6 +394,10 @@ namespace CluedIn.Connector.SqlServer.Connector
                     dataToUse.Add(TimestampFieldName, timestamp);
                     dataToUse.Add(ChangeTypeFieldName, changeType);
                     dataToUse.Add(CorrelationIdFieldName, correlationId);
+                }
+                else
+                {
+                    dataToUse.Add(TimestampFieldName, timestamp);
                 }
 
                 if (_bulkSupported)
