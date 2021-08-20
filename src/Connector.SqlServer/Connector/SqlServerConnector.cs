@@ -21,7 +21,7 @@ using Microsoft.Extensions.Logging;
 
 namespace CluedIn.Connector.SqlServer.Connector
 {
-    public class SqlServerConnector : ConnectorBase, IConnectorStreamModeSupport
+    public class SqlServerConnector : ConnectorBase, IConnectorStreamModeSupport, IConnectorUpgrade
     {
         private readonly ILogger<SqlServerConnector> _logger;
         private readonly ISqlClient _client;
@@ -672,5 +672,15 @@ namespace CluedIn.Connector.SqlServer.Connector
             }
         }
 
+        public async Task VerifyExistingContainer(ExecutionContext executionContext, StreamModel stream)
+        {
+            if (stream.ConnectorProviderDefinitionId.HasValue)
+            {
+                var upgrade = _features.GetFeature<IUpgradeExistingSchemaFeature>();
+                var config = await base.GetAuthenticationDetails(executionContext, stream.ConnectorProviderDefinitionId.Value);
+
+                await upgrade.VerifyExistingContainer(_client, config, stream);
+            }
+        }
     }
 }
