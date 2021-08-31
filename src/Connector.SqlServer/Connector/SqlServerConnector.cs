@@ -361,9 +361,22 @@ namespace CluedIn.Connector.SqlServer.Connector
 
 
 
-            param = (from dataType in data let name = Sanitize(dataType.Key) select new SqlParameter { ParameterName = $"@{name}", Value = dataType.Value ?? "" }).ToList();
+            param = (from dataType in data let name = Sanitize(dataType.Key) select new SqlParameter { ParameterName = $"@{name}", Value = GetDbCompatibleValue(dataType.Value ?? "") }).ToList();
 
             return builder.ToString();
+        }
+
+        private object GetDbCompatibleValue(object o)
+        {
+            try
+            {
+                var t = new SqlParameter() {ParameterName = "dummy", Value = o}.DbType;
+                return o;
+            }
+            catch
+            {
+                return JsonUtility.Serialize(o);
+            }
         }
 
         public string BuildEdgeStoreDataSql(string containerName, string originEntityCode, IEnumerable<string> edges, out List<SqlParameter> param)
