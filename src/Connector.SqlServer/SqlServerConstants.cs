@@ -32,7 +32,7 @@ namespace CluedIn.Connector.SqlServer
 
         public static IList<string> ServiceType = new List<string> { "Connector" };
         public static IList<string> Aliases = new List<string> { "SqlServerConnector" };
-        public const string IconResourceName = "Resources.sqlserver.png";
+        public const string IconResourceName = "Resources.microsoft-sql-server-logo.svg";
         public const string Instructions = "Provide authentication instructions here, if applicable";
         public const IntegrationType Type = IntegrationType.Connector;
         public const string Category = "Connectivity";

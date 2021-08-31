@@ -6,10 +6,10 @@
     <IsCluedInServerComponent>true</IsCluedInServerComponent>
   </PropertyGroup>
   <ItemGroup>
-    <None Remove="Resources\SqlServer.png" />
+    <None Remove="Resources\microsoft-sql-server-logo.svg" />
   </ItemGroup>
   <ItemGroup>
-    <EmbeddedResource Include="Resources\sqlserver.png" />
+    <EmbeddedResource Include="Resources\microsoft-sql-server-logo.svg" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="CluedIn.Core" />
