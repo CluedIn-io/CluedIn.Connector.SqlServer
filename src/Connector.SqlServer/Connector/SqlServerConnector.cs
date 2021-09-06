@@ -21,7 +21,7 @@ using Microsoft.Extensions.Logging;
 
 namespace CluedIn.Connector.SqlServer.Connector
 {
-    public class SqlServerConnector : ConnectorBase, IConnectorStreamModeSupport
+    public class SqlServerConnector : ConnectorBase, IConnectorStreamModeSupport, IConnectorUpgrade
     {
         private readonly ILogger<SqlServerConnector> _logger;
         private readonly ISqlClient _client;
@@ -103,6 +103,10 @@ namespace CluedIn.Connector.SqlServer.Connector
                 connectionDataTypes.Add(new ConnectionDataType { Name= TimestampFieldName, Type= VocabularyKeyDataType.DateTime});
                 connectionDataTypes.Add(new ConnectionDataType { Name = ChangeTypeFieldName, Type = VocabularyKeyDataType.Text });
                 connectionDataTypes.Add(new ConnectionDataType { Name = CorrelationIdFieldName, Type = VocabularyKeyDataType.Text });
+            }
+            else
+            {
+                connectionDataTypes.Add(new ConnectionDataType { Name = TimestampFieldName, Type = VocabularyKeyDataType.DateTime });
             }
 
             var tasks = new List<Task> {
@@ -391,6 +395,10 @@ namespace CluedIn.Connector.SqlServer.Connector
                     dataToUse.Add(ChangeTypeFieldName, changeType);
                     dataToUse.Add(CorrelationIdFieldName, correlationId);
                 }
+                else
+                {
+                    dataToUse.Add(TimestampFieldName, timestamp);
+                }
 
                 if (_bulkSupported)
                 {
@@ -664,5 +672,15 @@ namespace CluedIn.Connector.SqlServer.Connector
             }
         }
 
+        public async Task VerifyExistingContainer(ExecutionContext executionContext, StreamModel stream)
+        {
+            if (stream.ConnectorProviderDefinitionId.HasValue)
+            {
+                var upgrade = _features.GetFeature<IUpgradeExistingSchemaFeature>();
+                var config = await base.GetAuthenticationDetails(executionContext, stream.ConnectorProviderDefinitionId.Value);
+
+                await upgrade.VerifyExistingContainer(_client, config, stream);
+            }
+        }
     }
 }

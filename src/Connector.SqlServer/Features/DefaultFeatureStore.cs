@@ -12,7 +12,8 @@ namespace CluedIn.Connector.SqlServer.Features
             [typeof(IBuildCreateIndexFeature)] = new DefaultBuildCreateIndexFeature(),
             [typeof(IBuildDeleteDataFeature)] = new DefaultBuildDeleteDataFeature(),
             [typeof(IBulkStoreDataFeature)] = new DefaultBulkStoreDataFeature(),
-            [typeof(IBulkDeleteDataFeature)] = new DefaultBulkDeleteDataFeature()
+            [typeof(IBulkDeleteDataFeature)] = new DefaultBulkDeleteDataFeature(),
+            [typeof(IUpgradeExistingSchemaFeature)] = new DefaultUpgradeExistingSchemaFeature()
         };
 
         public T GetFeature<T>() => _store.TryGetValue(typeof(T), out var result) ? (T)result : default;        
