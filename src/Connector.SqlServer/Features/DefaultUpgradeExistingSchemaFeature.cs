@@ -15,16 +15,16 @@ namespace CluedIn.Connector.SqlServer.Features
         {
             var tableName = stream.ContainerName.SqlSanitize();
             var tables = await client.GetTableColumns(config.Authentication, tableName);
-            var result = from DataRow row in tables.Rows
+            var result = (from DataRow row in tables.Rows
                 let name = row["COLUMN_NAME"] as string
                 let rawType = row["DATA_TYPE"] as string
                 select new 
                 {
                     Name = name,
                     RawDataType = rawType
-                };
+                }).ToList();
 
-            if (!result.Any(n => n.Name.Equals("TimeStamp", StringComparison.OrdinalIgnoreCase)))
+            if (result.Any() && !result.Any(n => n.Name.Equals("TimeStamp", StringComparison.OrdinalIgnoreCase)))
             {
                 var columnName = "TimeStamp";
                 var addTimeStampSql = $"alter table [{tableName}] add [{columnName}] {SqlColumnHelper.GetColumnType(VocabularyKeyDataType.DateTime, columnName)}";
