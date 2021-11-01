@@ -273,3 +273,4 @@ coverage.json
 # Build Artifacts
 .artifacts/
 .DS_Store
+/.mfractor

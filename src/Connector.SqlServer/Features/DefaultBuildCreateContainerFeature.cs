@@ -1,0 +1,56 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using CluedIn.Connector.SqlServer.Connector;
+using CluedIn.Core;
+using CluedIn.Core.Connectors;
+using CluedIn.Core.Data.Vocabularies;
+using Microsoft.Extensions.Logging;
+
+namespace CluedIn.Connector.SqlServer.Features
+{
+    public class DefaultBuildCreateContainerFeature : IBuildCreateContainerFeature
+    {
+        
+            
+        public virtual IEnumerable<SqlServerConnectorCommand> BuildCreateContainerSql(
+            ExecutionContext executionContext,
+            Guid providerDefinitionId,
+            string name,
+            IEnumerable<ConnectionDataType> columns,
+            IEnumerable<string> keys,
+            ILogger logger)
+        {
+            // TODO: Columns should define if they are collections so we can handle creating additional tables
+
+            if (executionContext == null)
+                throw new ArgumentNullException(nameof(executionContext));
+
+            if (string.IsNullOrWhiteSpace(name))
+                throw new InvalidOperationException("The name must be provided.");
+
+            if (columns == null || !columns.Any())
+                throw new InvalidOperationException("The data to specify columns must be provided.");
+
+            if (logger == null)
+                throw new ArgumentNullException(nameof(logger));
+
+            // HACK: Remove 'Codes' column as it will be pushed to a separate table
+            var trimmedColumns = columns.Where(x => x.Name != "Codes");
+
+            var builder = new StringBuilder();
+            var sanitizedName = name.SqlSanitize();
+            builder.AppendLine($"CREATE TABLE [{sanitizedName}](");
+            builder.AppendJoin(", ", trimmedColumns.Select(c => $"[{c.Name.SqlSanitize()}] {GetDbType(c.Type, c.Name)} NULL"));
+            builder.AppendLine(") ON[PRIMARY]");
+
+            return new[] { new SqlServerConnectorCommand { Text = builder.ToString() } };
+        }
+
+        protected virtual string GetDbType(VocabularyKeyDataType type, string columnName)
+        {
+            return SqlColumnHelper.GetColumnType(type, columnName);
+        }
+    }
+}
