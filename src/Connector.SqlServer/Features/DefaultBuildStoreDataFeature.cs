@@ -98,7 +98,7 @@ namespace CluedIn.Connector.SqlServer.Features
                 catch (Exception ex)
                 {
                     logger.LogWarning(ex, "[{field}] does not map to a known sql type - will be persisted as a string.", name);
-                    param.Value = entry.Value == null ? string.Empty : entry.Value.ToString();
+                    param.Value =  JsonUtility.Serialize(entry.Value);
                 }
 
                 parameters.Add(param);
