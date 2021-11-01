@@ -52,7 +52,7 @@ namespace CluedIn.Connector.SqlServer
                 new Control
                 {
                     name = KeyName.DatabaseName,
-                    displayName = "DatabaseName",
+                    displayName = "Database Name",
                     type = "input",
                     isRequired = true
                 },
