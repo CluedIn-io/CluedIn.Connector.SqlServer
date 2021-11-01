@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using AutoFixture.Xunit2;
 using CluedIn.Connector.SqlServer.Features;
+using CluedIn.Core;
 using CluedIn.Core.Data.Parts;
 using CluedIn.Core.Streams.Models;
 using Microsoft.Extensions.Logging;
@@ -121,7 +122,7 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests.Features
                          "  UPDATE SET target.[Field1] = source.[Field1], target.[Field2] = source.[Field2], target.[Field3] = source.[Field3], target.[Field4] = source.[Field4], target.[Field5] = source.[Field5]" + Environment.NewLine +
                          "WHEN NOT MATCHED THEN" + Environment.NewLine +
                          "  INSERT ([Field1], [Field2], [Field3], [Field4], [Field5])" + Environment.NewLine +
-                         "  VALUES (source.[Field1], source.[Field2], source.[Field3], source.[Field4], source.[Field5]);", command.Text.Trim());            
+                         "  VALUES (source.[Field1], source.[Field2], source.[Field3], source.[Field4], source.[Field5]);", command.Text.Trim());
             Assert.Equal(data.Count, command.Parameters.Count());
 
             var paramsList = command.Parameters.ToList();
@@ -150,7 +151,7 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests.Features
                              { "Field2", field2   },
                              { "InvalidField", invalidField  }
                         };
-            
+
             var execContext = _testContext.Context;
             var result = _sut.BuildStoreDataSql(execContext, providerDefinitionId, name, data, _defaultKeyFields, StreamMode.Sync, correlationId, timestamp, changeType, _logger.Object);
             var command = result.Single();
@@ -167,7 +168,7 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests.Features
 
             Assert.Equal(paramsList[0].Value, data["Field1"]);
             Assert.Equal(paramsList[1].Value, data["Field2"]);
-            Assert.Equal(paramsList[2].Value, data["InvalidField"].ToString());
+            Assert.Equal(paramsList[2].Value, JsonUtility.Serialize(data["InvalidField"]));
         }
 
         [Theory, InlineAutoData]
@@ -202,7 +203,7 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests.Features
 
             var deleteCodesCommand = result.First();
             Assert.Equal($"DELETE FROM {name}Codes WHERE [OriginEntityCode] = @OriginEntityCode;", deleteCodesCommand.Text.Trim());
-            
+
             var deleteCodesParameters = deleteCodesCommand.Parameters.ToList();
             Assert.Single(deleteCodesParameters);
             Assert.Contains(deleteCodesParameters, p => p.ParameterName == "@OriginEntityCode" && (string)p.Value == originEntityCode);
