@@ -93,12 +93,12 @@ namespace CluedIn.Connector.SqlServer.Features
                 var param = new SqlParameter($"@{name}", entry.Value ?? DBNull.Value);
                 try
                 {
-                    var dbType = param.DbType;
+                    _ = param.DbType;
                 }
                 catch (Exception ex)
                 {
                     logger.LogWarning(ex, "[{field}] does not map to a known sql type - will be persisted as a string.", name);
-                    param.Value = entry.Value == null ? string.Empty : entry.Value.ToString();
+                    param.Value = JsonUtility.Serialize(entry.Value);
                 }
 
                 parameters.Add(param);
