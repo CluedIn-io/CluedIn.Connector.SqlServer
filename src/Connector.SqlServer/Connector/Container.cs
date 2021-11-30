@@ -2,24 +2,37 @@
 using System.Linq;
 using CluedIn.Core.Connectors;
 using CluedIn.Core.Data.Vocabularies;
+using CluedIn.Core.Streams.Models;
 
 namespace CluedIn.Connector.SqlServer.Connector
 {
     public class Container
     {
-        private static readonly ConnectionDataType[] _codeEdgeColumns = new[]
-        {
-            new ConnectionDataType { Name = "OriginEntityCode".SqlSanitize(), Type = VocabularyKeyDataType.Text },
-            new ConnectionDataType { Name =  "Code".SqlSanitize(), Type = VocabularyKeyDataType.Text }
+        private static readonly ConnectionDataType[] _codeEdgeColumns = {
+            new ConnectionDataType { Name = "OriginEntityCode", Type = VocabularyKeyDataType.Text },
+            new ConnectionDataType { Name =  "Code", Type = VocabularyKeyDataType.Text }
         };
 
-        public Container(string containerName)
+        private static readonly ConnectionDataType[] _eventStreamCodeEdgeColumns = {new ConnectionDataType {Name = "CorrelationId", Type = VocabularyKeyDataType.Text},};
+
+        public Container(string containerName) : this(containerName, StreamMode.Sync)
+        {
+            
+        }
+        public Container(string containerName, StreamMode mode)
         {
             PrimaryTable = containerName.SqlSanitize();
+            var columns = _codeEdgeColumns;
+
+            if (mode == StreamMode.EventStream)
+            {
+                columns = columns.Union(_eventStreamCodeEdgeColumns).ToArray();
+            }
+
             Tables = new Dictionary<string, Table>
             {
-                ["Codes"] = new Table($"{containerName}Codes", _codeEdgeColumns, _codeEdgeColumns.Select(x => x.Name)),
-                ["Edges"] = new Table($"{containerName}Edges", _codeEdgeColumns, _codeEdgeColumns.Select(x => x.Name)),
+                ["Codes"] = new Table($"{PrimaryTable}Codes", columns, _codeEdgeColumns.Select(x => x.Name)),
+                ["Edges"] = new Table($"{PrimaryTable}Edges", columns, _codeEdgeColumns.Select(x => x.Name)),
             };
         }
 
