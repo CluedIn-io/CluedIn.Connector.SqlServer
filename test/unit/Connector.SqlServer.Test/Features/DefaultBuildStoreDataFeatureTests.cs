@@ -166,9 +166,9 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests.Features
             Assert.Equal(3, command.Parameters.Count());
             var paramsList = command.Parameters.ToList();
 
-            Assert.Equal(paramsList[0].Value, data["Field1"]);
-            Assert.Equal(paramsList[1].Value, data["Field2"]);
-            Assert.Equal(paramsList[2].Value, JsonUtility.Serialize(data["InvalidField"]));
+            Assert.Equal(data["Field1"], paramsList[0].Value);
+            Assert.Equal(data["Field2"], paramsList[1].Value);
+            Assert.Equal(JsonUtility.Serialize(data["InvalidField"]), paramsList[2].Value);
         }
 
         [Theory, InlineAutoData]
