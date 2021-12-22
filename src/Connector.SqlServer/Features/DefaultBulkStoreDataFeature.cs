@@ -1,12 +1,12 @@
-﻿using System;
+﻿using CluedIn.Connector.SqlServer.Connector;
+using CluedIn.Core;
+using CluedIn.Core.Connectors;
+using Microsoft.Extensions.Logging;
+using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Diagnostics;
 using System.Threading.Tasks;
-using CluedIn.Connector.SqlServer.Connector;
-using CluedIn.Core;
-using CluedIn.Core.Connectors;
-using Microsoft.Extensions.Logging;
 
 namespace CluedIn.Connector.SqlServer.Features
 {
@@ -25,19 +25,15 @@ namespace CluedIn.Connector.SqlServer.Features
             var table = GetDataTable(executionContext, containerName, data);
             CacheDataTableRow(data, table);
 
-            if(table.Rows.Count >= threshold)
-            {
+            if (table.Rows.Count >= threshold)
                 await FlushTable(executionContext, connectionFactory, client, containerName, table, logger);
-            }            
         }
 
         private static void CacheDataTableRow(IDictionary<string, object> data, DataTable table)
         {
             var row = table.NewRow();
             foreach (var item in data)
-            {
                 row[item.Key.SqlSanitize()] = item.Value;
-            }
 
             table.Rows.Add(row);
         }
@@ -61,7 +57,8 @@ namespace CluedIn.Connector.SqlServer.Features
             logger.LogDebug($"Stream StoreData BulkInsert {table.Rows.Count} rows - {sw.ElapsedMilliseconds}ms");
         }
 
-        private DataTable GetDataTable(ExecutionContext executionContext, string containerName, IDictionary<string, object> data)
+        private DataTable GetDataTable(ExecutionContext executionContext, string containerName,
+            IDictionary<string, object> data)
         {
             var dataTableCacheName = GetDataTableCacheName(containerName);
 
@@ -69,9 +66,7 @@ namespace CluedIn.Connector.SqlServer.Features
             {
                 var table = new DataTable(containerName);
                 foreach (var col in data)
-                {
                     table.Columns.Add(col.Key.SqlSanitize(), typeof(string));
-                }
 
                 return table;
             });

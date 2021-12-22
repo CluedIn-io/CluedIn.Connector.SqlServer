@@ -1,22 +1,13 @@
-﻿using System;
+﻿using AutoFixture.Xunit2;
+using System;
 using System.Collections.Generic;
 using System.Linq;
-using AutoFixture.Xunit2;
-using CluedIn.Core.Streams.Models;
 using Xunit;
 
 namespace CluedIn.Connector.SqlServer.Unit.Tests
 {
     public class SqlGenerationTests : SqlServerConnectorTestsBase
     {
-        [Theory, InlineAutoData]
-        public void EmptyContainerWorks(string name)
-        {
-            var result = Sut.BuildEmptyContainerSql(name);
-
-            Assert.Equal($"TRUNCATE TABLE [{name}]", result.Trim());
-        }
-
         // [Theory, InlineAutoData]
         // public void CreateContainerWorks(string name)
         // {

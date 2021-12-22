@@ -1,19 +1,27 @@
-﻿using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using CluedIn.Connector.SqlServer.Connector;
+﻿using CluedIn.Connector.SqlServer.Connector;
 using CluedIn.Core;
 using CluedIn.Core.Data.Parts;
 using CluedIn.Core.Streams.Models;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Logging;
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
 
 namespace CluedIn.Connector.SqlServer.Features
 {
     public class DefaultBuildStoreDataFeature : IBuildStoreDataFeature, IBuildStoreDataForMode
     {
+        public IEnumerable<SqlServerConnectorCommand> BuildStoreDataSql(ExecutionContext executionContext,
+            Guid providerDefinitionId, string containerName, IDictionary<string, object> data, IList<string> keys,
+            ILogger logger)
+        {
+            return BuildStoreDataSql(executionContext, providerDefinitionId, containerName, data, keys, StreamMode.Sync,
+                null, DateTimeOffset.Now, VersionChangeType.NotSet, logger);
+        }
+
         public virtual IEnumerable<SqlServerConnectorCommand> BuildStoreDataSql(
             ExecutionContext executionContext,
             Guid providerDefinitionId,
@@ -41,9 +49,9 @@ namespace CluedIn.Connector.SqlServer.Features
             if (logger == null)
                 throw new ArgumentNullException(nameof(logger));
 
-            //HACK we need to pull out Codes into a separate table
+            //HACK: we need to pull out Codes into a separate table
             var container = new Container(containerName, mode);
-            if(data.TryGetValue("Codes", out var codes) && codes is IEnumerable codesEnumerable)
+            if (data.TryGetValue("Codes", out var codes) && codes is IEnumerable codesEnumerable)
             {
                 data.Remove("Codes");
                 keys.Remove("Codes");
@@ -52,16 +60,16 @@ namespace CluedIn.Connector.SqlServer.Features
                 var codesTable = container.Tables["Codes"];
 
                 if (mode == StreamMode.Sync)
-                {
                     // need to delete from Codes table
-                    yield return ComposeDelete(codesTable.Name, new Dictionary<string, object> {["OriginEntityCode"] = data["OriginEntityCode"]});
-                }
+                    yield return ComposeDelete(codesTable.Name,
+                        new Dictionary<string, object> { ["OriginEntityCode"] = data["OriginEntityCode"] });
 
                 // need to insert into Codes table
                 var enumerator = codesEnumerable.GetEnumerator();
-                while(enumerator.MoveNext())
+                while (enumerator.MoveNext())
                 {
-                    var dictionary = new Dictionary<string, object> {
+                    var dictionary = new Dictionary<string, object>
+                    {
                         ["OriginEntityCode"] = data["OriginEntityCode"],
                         ["Code"] = enumerator.Current
                     };
@@ -80,7 +88,8 @@ namespace CluedIn.Connector.SqlServer.Features
                 yield return ComposeInsert(container.PrimaryTable, data);
         }
 
-        protected virtual SqlServerConnectorCommand ComposeUpsert(string tableName, IDictionary<string, object> data, IList<string> keys, ILogger logger)
+        protected virtual SqlServerConnectorCommand ComposeUpsert(string tableName, IDictionary<string, object> data,
+            IList<string> keys, ILogger logger)
         {
             var builder = new StringBuilder();
             var parameters = new List<SqlParameter>();
@@ -93,11 +102,12 @@ namespace CluedIn.Connector.SqlServer.Features
                 var param = new SqlParameter($"@{name}", entry.Value ?? DBNull.Value);
                 try
                 {
-                    _ = param.DbType;
+                    var dbType = param.DbType;
                 }
                 catch (Exception ex)
                 {
-                    logger.LogWarning(ex, "[{field}] does not map to a known sql type - will be persisted as a string.", name);
+                    logger.LogWarning(ex, "[{field}] does not map to a known sql type - will be persisted as a string.",
+                        name);
                     param.Value = JsonUtility.Serialize(entry.Value);
                 }
 
@@ -112,7 +122,8 @@ namespace CluedIn.Connector.SqlServer.Features
             var mergeOn = string.Join(" AND ", mergeOnList);
 
             builder.AppendLine($"MERGE [{tableName.SqlSanitize()}] AS target");
-            builder.AppendLine($"USING (SELECT {string.Join(", ", parameters.Select(x => x.ParameterName))}) AS source ({fieldsString})");
+            builder.AppendLine(
+                $"USING (SELECT {string.Join(", ", parameters.Select(x => x.ParameterName))}) AS source ({fieldsString})");
             builder.AppendLine($"  ON ({mergeOn})");
             builder.AppendLine("WHEN MATCHED THEN");
             builder.AppendLine($"  UPDATE SET {string.Join(", ", updates)}");
@@ -120,11 +131,7 @@ namespace CluedIn.Connector.SqlServer.Features
             builder.AppendLine($"  INSERT ({fieldsString})");
             builder.AppendLine($"  VALUES ({string.Join(", ", inserts)});");
 
-            return new SqlServerConnectorCommand
-            {
-                Text = builder.ToString(),
-                Parameters = parameters
-            };
+            return new SqlServerConnectorCommand { Text = builder.ToString(), Parameters = parameters };
         }
 
         protected virtual SqlServerConnectorCommand ComposeDelete(string tableName, IDictionary<string, object> fields)
@@ -143,11 +150,7 @@ namespace CluedIn.Connector.SqlServer.Features
             sqlBuilder.AppendJoin(" AND ", clauses);
             sqlBuilder.Append(";");
 
-            return new SqlServerConnectorCommand
-            {
-                Text = sqlBuilder.ToString(),
-                Parameters = parameters
-            };
+            return new SqlServerConnectorCommand { Text = sqlBuilder.ToString(), Parameters = parameters };
         }
 
         protected virtual SqlServerConnectorCommand ComposeInsert(string tableName, IDictionary<string, object> fields)
@@ -167,16 +170,7 @@ namespace CluedIn.Connector.SqlServer.Features
             sqlBuilder.AppendJoin(",", parameters.Select(x => $"{x.ParameterName}"));
             sqlBuilder.Append(");");
 
-            return new SqlServerConnectorCommand
-            {
-                Text = sqlBuilder.ToString(),
-                Parameters = parameters
-            };
-        }
-
-        public IEnumerable<SqlServerConnectorCommand> BuildStoreDataSql(ExecutionContext executionContext, Guid providerDefinitionId, string containerName, IDictionary<string, object> data, IList<string> keys, ILogger logger)
-        {
-            return BuildStoreDataSql(executionContext, providerDefinitionId, containerName, data, keys, StreamMode.Sync, null, DateTimeOffset.Now, VersionChangeType.NotSet, logger);
+            return new SqlServerConnectorCommand { Text = sqlBuilder.ToString(), Parameters = parameters };
         }
     }
 }

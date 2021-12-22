@@ -16,8 +16,14 @@ namespace CluedIn.Connector.SqlServer.Features
             [typeof(IUpgradeExistingSchemaFeature)] = new DefaultUpgradeExistingSchemaFeature()
         };
 
-        public T GetFeature<T>() => _store.TryGetValue(typeof(T), out var result) ? (T)result : default;        
+        public T GetFeature<T>()
+        {
+            return _store.TryGetValue(typeof(T), out var result) ? (T)result : default;
+        }
 
-        public void SetFeature<T>(T instance) => _store.AddOrUpdate(typeof(T), instance, (_, __) => instance);        
+        public void SetFeature<T>(T instance)
+        {
+            _store.AddOrUpdate(typeof(T), instance, (_, __) => instance);
+        }
     }
 }

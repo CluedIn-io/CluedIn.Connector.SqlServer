@@ -1,7 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
+﻿using System.Collections.Generic;
 using CluedIn.Connector.SqlServer.Connector;
+using CluedIn.Connector.Common;
 using Xunit;
 
 namespace CluedIn.Connector.SqlServer.Unit.Tests.Connector
@@ -20,10 +19,10 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests.Connector
         {
             var properties = new Dictionary<string, object>
             {
-                [SqlServerConstants.KeyName.Password] = "password",
-                [SqlServerConstants.KeyName.Username] = "user",
-                [SqlServerConstants.KeyName.Host] = "host",
-                [SqlServerConstants.KeyName.DatabaseName] = "database"
+                [CommonConfigurationNames.Password] = "password",
+                [CommonConfigurationNames.Username] = "user",
+                [CommonConfigurationNames.Host] = "host",
+                [CommonConfigurationNames.DatabaseName] = "database"
             };
 
             var result = _sut.BuildConnectionString(properties);
@@ -36,11 +35,11 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests.Connector
         {
             var properties = new Dictionary<string, object>
             {
-                [SqlServerConstants.KeyName.Password] = "password",
-                [SqlServerConstants.KeyName.Username] = "user",
-                [SqlServerConstants.KeyName.Host] = "host",
-                [SqlServerConstants.KeyName.DatabaseName] = "database",
-                [SqlServerConstants.KeyName.PortNumber] = 9499,
+                [CommonConfigurationNames.Password] = "password",
+                [CommonConfigurationNames.Username] = "user",
+                [CommonConfigurationNames.Host] = "host",
+                [CommonConfigurationNames.DatabaseName] = "database",
+                [CommonConfigurationNames.PortNumber] = 9499,
             };
 
             var result = _sut.BuildConnectionString(properties);
@@ -53,11 +52,11 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests.Connector
         {
             var properties = new Dictionary<string, object>
             {
-                [SqlServerConstants.KeyName.Password] = "password",
-                [SqlServerConstants.KeyName.Username] = "user",
-                [SqlServerConstants.KeyName.Host] = "host",
-                [SqlServerConstants.KeyName.DatabaseName] = "database",
-                [SqlServerConstants.KeyName.PortNumber] = "9499",
+                [CommonConfigurationNames.Password] = "password",
+                [CommonConfigurationNames.Username] = "user",
+                [CommonConfigurationNames.Host] = "host",
+                [CommonConfigurationNames.DatabaseName] = "database",
+                [CommonConfigurationNames.PortNumber] = "9499",
             };
 
             var result = _sut.BuildConnectionString(properties);
@@ -70,11 +69,11 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests.Connector
         {
             var properties = new Dictionary<string, object>
             {
-                [SqlServerConstants.KeyName.Password] = "password",
-                [SqlServerConstants.KeyName.Username] = "user",
-                [SqlServerConstants.KeyName.Host] = "host",
-                [SqlServerConstants.KeyName.DatabaseName] = "database",
-                [SqlServerConstants.KeyName.PortNumber] = new object(),
+                [CommonConfigurationNames.Password] = "password",
+                [CommonConfigurationNames.Username] = "user",
+                [CommonConfigurationNames.Host] = "host",
+                [CommonConfigurationNames.DatabaseName] = "database",
+                [CommonConfigurationNames.PortNumber] = new object(),
             };
 
             var result = _sut.BuildConnectionString(properties);

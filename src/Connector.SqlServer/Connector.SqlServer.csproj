@@ -12,6 +12,7 @@
     <EmbeddedResource Include="Resources\microsoft-sql-server-logo.svg" />
   </ItemGroup>
   <ItemGroup>  
+    <PackageReference Include="CluedIn.CluedIn.Connector.Common" />
     <PackageReference Include="CluedIn.Core" />
     <PackageReference Include="ComponentHost" />
   </ItemGroup>

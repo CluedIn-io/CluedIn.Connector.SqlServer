@@ -4,7 +4,12 @@
     {
         public static string SqlSanitize(this string str)
         {
-            return str.Replace("--", "").Replace(";", "").Replace("'", "");       // Bare-bones sanitization to prevent Sql Injection. Extra info here http://sommarskog.se/dynamic_sql.html
+            // Bare-bones sanitization to prevent Sql Injection. Extra info here http://sommarskog.se/dynamic_sql.html
+            return
+                str
+                    .Replace("--", "")
+                    .Replace(";", "")
+                    .Replace("'", "");
         }
     }
 }

@@ -1,9 +1,9 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-using CluedIn.Connector.SqlServer.Connector;
+﻿using CluedIn.Connector.SqlServer.Connector;
 using CluedIn.Core;
 using Microsoft.Extensions.Logging;
+using System;
+using System.Collections.Generic;
+using System.Text;
 
 namespace CluedIn.Connector.SqlServer.Features
 {
@@ -31,13 +31,7 @@ namespace CluedIn.Connector.SqlServer.Features
 
             builder.AppendLine($"CREATE INDEX [{indexName}] ON [{sanitizedName}]({string.Join(", ", keys)}); ");
 
-            return new[]
-            {
-                new SqlServerConnectorCommand
-                {
-                    Text = builder.ToString()
-                }
-            };
+            return new[] { new SqlServerConnectorCommand { Text = builder.ToString() } };
         }
     }
 }
