@@ -1,6 +1,6 @@
 using CluedIn.Core.Providers;
-using CluedIn.Connector.Common;
 using System;
+using CluedIn.Connector.Common.Configurations;
 
 namespace CluedIn.Connector.SqlServer
 {

@@ -2,6 +2,7 @@ using CluedIn.Core;
 using CluedIn.Connector.Common;
 using Microsoft.Extensions.Logging;
 using System.Collections.Generic;
+using CluedIn.Connector.Common.Configurations;
 
 namespace CluedIn.Connector.SqlServer
 {

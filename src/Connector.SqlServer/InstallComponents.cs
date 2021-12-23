@@ -3,7 +3,7 @@ using Castle.MicroKernel.SubSystems.Configuration;
 using Castle.Windsor;
 using CluedIn.Connector.SqlServer.Connector;
 using System.Reflection;
-using CluedIn.Connector.SqlServer.Features;
+using CluedIn.Connector.Common.Features;
 
 namespace CluedIn.Connector.SqlServer
 {

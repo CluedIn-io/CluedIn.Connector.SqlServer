@@ -1,4 +1,7 @@
-﻿using CluedIn.Connector.SqlServer.Features;
+﻿using CluedIn.Connector.Common.Connectors;
+using CluedIn.Connector.Common.Features;
+using CluedIn.Connector.Common.Helpers;
+using CluedIn.Connector.SqlServer.Features;
 using CluedIn.Core;
 using CluedIn.Core.Configuration;
 using CluedIn.Core.Connectors;
@@ -7,7 +10,6 @@ using CluedIn.Core.Data.Parts;
 using CluedIn.Core.Data.Vocabularies;
 using CluedIn.Core.DataStore;
 using CluedIn.Core.Streams.Models;
-using CluedIn.Connector.Common;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Logging;
 using System;
@@ -19,7 +21,7 @@ using System.Threading.Tasks;
 
 namespace CluedIn.Connector.SqlServer.Connector
 {
-    public class SqlServerConnector : SqlConnectorBase<SqlServerConnector, ISqlClient>, IConnectorStreamModeSupport,
+    public class SqlServerConnector : SqlConnectorBase<SqlServerConnector, SqlConnection, SqlParameter>, IConnectorStreamModeSupport,
         IConnectorUpgrade
     {
         private const string TimestampFieldName = "TimeStamp";
@@ -38,8 +40,7 @@ namespace CluedIn.Connector.SqlServer.Connector
             ILogger<SqlServerConnector> logger,
             ISqlClient client,
             IFeatureStore features,
-            ICommonServiceHolder serviceHolder,
-            ISqlServerConstants constants) : base(repository, logger, client, serviceHolder, constants.ProviderId)
+            ISqlServerConstants constants) : base(repository, logger, client, constants.ProviderId)
         {
             _features = features ?? throw new ArgumentNullException(nameof(logger));
 
@@ -132,7 +133,7 @@ namespace CluedIn.Connector.SqlServer.Connector
         {
             try
             {
-                var edgeTableName = EdgeContainerHelper.GetName(containerName);
+                var edgeTableName = GetEdgesContainerName(containerName);
                 if (await CheckTableExists(executionContext, providerDefinitionId, edgeTableName))
                 {
                     var sql = BuildEdgeStoreDataSql(edgeTableName, originEntityCode, correlationId, edges,
@@ -164,7 +165,7 @@ namespace CluedIn.Connector.SqlServer.Connector
                 var config =
                     await base.GetAuthenticationDetails(executionContext, stream.ConnectorProviderDefinitionId.Value);
 
-                await upgrade.VerifyExistingContainer(_client, config, stream);
+                await upgrade.VerifyExistingContainer(_client as ISqlClient, config, stream);
             }
         }
 
@@ -324,7 +325,7 @@ namespace CluedIn.Connector.SqlServer.Connector
 
             async Task renameTable(string currentName, string updatedName, string context)
             {
-                var tempName = updatedName.SqlSanitize();
+                var tempName = SqlStringSanitizer.Sanitize(updatedName);
 
                 var sql = BuildRenameContainerSql(currentName, tempName, out var param);
 
@@ -402,13 +403,6 @@ namespace CluedIn.Connector.SqlServer.Connector
                     tasks.Add(removeTable(table.Value.Name, table.Key));
 
             await Task.WhenAll(tasks);
-        }
-
-        public override async Task<string> GetValidContainerName(ExecutionContext executionContext,
-            Guid providerDefinitionId, string name)
-        {
-            return await _commonServiceHolder.GetValidContainerName(executionContext, providerDefinitionId, name,
-                CheckTableExists);
         }
 
         public override async Task<IEnumerable<IConnectorContainer>> GetContainers(ExecutionContext executionContext,
@@ -544,7 +538,7 @@ namespace CluedIn.Connector.SqlServer.Connector
 
             if (StreamMode == StreamMode.Sync)
                 builder.AppendLine(
-                    $"DELETE FROM [{containerName.SqlSanitize()}] where [OriginEntityCode] = {originParam.ParameterName};");
+                    $"DELETE FROM [{SqlStringSanitizer.Sanitize(containerName)}] where [OriginEntityCode] = {originParam.ParameterName}");
 
             var edgeValues = new List<string>();
             foreach (var edge in edges)
@@ -563,8 +557,8 @@ namespace CluedIn.Connector.SqlServer.Connector
 
             builder.AppendLine(
                 StreamMode == StreamMode.EventStream
-                    ? $"INSERT INTO [{containerName.SqlSanitize()}] ([OriginEntityCode],[CorrelationId],[Code]) values"
-                    : $"INSERT INTO [{containerName.SqlSanitize()}] ([OriginEntityCode],[Code]) values");
+                    ? $"INSERT INTO [{SqlStringSanitizer.Sanitize(containerName)}] ([OriginEntityCode],[CorrelationId],[Code]) values"
+                    : $"INSERT INTO [{SqlStringSanitizer.Sanitize(containerName)}] ([OriginEntityCode],[Code]) values");
 
             builder.AppendJoin(", ", edgeValues);
 
@@ -575,8 +569,8 @@ namespace CluedIn.Connector.SqlServer.Connector
         {
             // TODO: ROK: this seems to be a tuple or something that returns two values.
             // TODO: ROK: the id seems to be the old table name -> rename it
-            var sanitizedId = id.SqlSanitize();
-            var sanitizedName = newName.SqlSanitize();
+            var sanitizedId = SqlStringSanitizer.Sanitize(id);
+            var sanitizedName = SqlStringSanitizer.Sanitize(newName);
             param = new List<SqlParameter>
             {
                 new SqlParameter("@tableName", SqlDbType.NVarChar) {Value = sanitizedId},
@@ -588,19 +582,7 @@ namespace CluedIn.Connector.SqlServer.Connector
 
         private string BuildRemoveContainerSql(string id)
         {
-            return $"DROP TABLE [{id.SqlSanitize()}] IF EXISTS";
-        }
-
-        private async Task<bool> CheckTableExists(ExecutionContext executionContext, Guid providerDefinitionId,
-            string name)
-        {
-            return await _commonServiceHolder.CheckTableExists(executionContext, providerDefinitionId, name, _client,
-                this, _logger);
-        }
-
-        protected override async Task<IDbConnection> GetDbConnection(IDictionary<string, object> config)
-        {
-            return await _client.GetConnection(config);
+            return $"DROP TABLE [{SqlStringSanitizer.Sanitize(id)}] IF EXISTS";
         }
     }
 }

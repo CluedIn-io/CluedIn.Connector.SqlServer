@@ -44,7 +44,7 @@
     <PackageReference Update="CluedIn.CrawlerIntegrationTesting" Version="$(_CluedIn)" />
     <PackageReference Update="CluedIn.DataStore" Version="$(_CluedIn)" />
     <PackageReference Update="RestSharp" Version="106.10.1" />
-    <PackageReference Update="CluedIn.CluedIn.Connector.Common" Version="1.0.0-alpha.7" />
+    <PackageReference Update="CluedIn.Connector.Common" Version="3.2.5-alpha.13" />
 
   </ItemGroup>
 

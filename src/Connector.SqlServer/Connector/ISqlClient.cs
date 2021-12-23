@@ -1,4 +1,4 @@
-﻿using CluedIn.Connector.Common;
+﻿using CluedIn.Connector.Common.Clients;
 using Microsoft.Data.SqlClient;
 
 namespace CluedIn.Connector.SqlServer.Connector

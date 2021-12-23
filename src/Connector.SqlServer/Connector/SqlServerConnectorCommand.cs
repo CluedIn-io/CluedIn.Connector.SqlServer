@@ -3,7 +3,7 @@ using Microsoft.Data.SqlClient;
 
 namespace CluedIn.Connector.SqlServer.Connector
 {
-    public class SqlServerConnectorCommand : CommonConnectorCommandBase<SqlParameter>
+    public class SqlServerConnectorCommand : CommandBase<SqlParameter>
     {
     }
 }

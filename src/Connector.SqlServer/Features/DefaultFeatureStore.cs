@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Concurrent;
+using CluedIn.Connector.Common.Features;
 
 namespace CluedIn.Connector.SqlServer.Features
 {
