@@ -28,7 +28,7 @@ namespace CluedIn.Connector.SqlServer.Features
             if (string.IsNullOrWhiteSpace(name))
                 throw new InvalidOperationException("The name must be provided.");
 
-            var enumeratedColumns = columns as ConnectionDataType[] ?? columns.ToArray();
+            var enumeratedColumns = columns as ConnectionDataType[] ?? columns?.ToArray();
             if (columns == null || !enumeratedColumns.Any())
                 throw new InvalidOperationException("The data to specify columns must be provided.");
 

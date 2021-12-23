@@ -21,7 +21,7 @@ namespace CluedIn.Connector.SqlServer.Connector
                 Pooling = true
             };
 
-            if (config.TryGetValue(CommonConfigurationNames.PortNumber, out var portEntry) && portEntry is int port)
+            if (config.TryGetValue(CommonConfigurationNames.PortNumber, out var portEntry) && int.TryParse(portEntry.ToString(), out var port))
                 connectionStringBuilder.DataSource = $"{connectionStringBuilder.DataSource},{port}";
             else
                 connectionStringBuilder.DataSource = $"{connectionStringBuilder.DataSource},{_defaultPort}";

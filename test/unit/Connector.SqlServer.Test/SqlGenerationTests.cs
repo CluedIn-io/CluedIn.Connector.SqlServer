@@ -29,7 +29,8 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests
         //     Assert.Equal($"CREATE TABLE [{name}]( [Field1] bigint NULL, [Field2] nvarchar(max) NULL, [Field3] datetime2 NULL, [Field4] decimal(18,4) NULL, [Field5] nvarchar(max) NULL) ON[PRIMARY]", result.Trim().Replace(Environment.NewLine, " "));
         // }
 
-        [Theory, InlineAutoData]
+        [Theory]
+        [InlineAutoData("tableName")]
         public void StoreEdgeDataWorks(string name, string originEntityCode, string correlationId, List<string> edges)
         {
             var result = Sut.BuildEdgeStoreDataSql(name, originEntityCode, correlationId, edges, out var param);
@@ -51,7 +52,8 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests
             Assert.Equal(expectedSql, result.Trim());
         }
 
-        [Theory, InlineAutoData]
+        [Theory]
+        [InlineAutoData("tableName")]
         public void StoreEdgeData_NoEdges_Works(string name, string originEntityCode, string correlationId)
         {
             var edges = new List<string>();
