@@ -1,4 +1,5 @@
-﻿using CluedIn.Connector.SqlServer.Connector;
+﻿using CluedIn.Connector.Common.Helpers;
+using CluedIn.Connector.SqlServer.Connector;
 using CluedIn.Core;
 using CluedIn.Core.Data.Parts;
 using CluedIn.Core.Streams.Models;
@@ -98,7 +99,7 @@ namespace CluedIn.Connector.SqlServer.Features
             var updates = new List<string>();
             foreach (var entry in data)
             {
-                var name = entry.Key.SqlSanitize();
+                var name = SqlStringSanitizer.Sanitize(entry.Key);
                 var param = new SqlParameter($"@{name}", entry.Value ?? DBNull.Value);
                 try
                 {
@@ -121,7 +122,7 @@ namespace CluedIn.Connector.SqlServer.Features
             var mergeOnList = keys.Select(n => $"target.[{n}] = source.[{n}]");
             var mergeOn = string.Join(" AND ", mergeOnList);
 
-            builder.AppendLine($"MERGE [{tableName.SqlSanitize()}] AS target");
+            builder.AppendLine($"MERGE [{SqlStringSanitizer.Sanitize(tableName)}] AS target");
             builder.AppendLine(
                 $"USING (SELECT {string.Join(", ", parameters.Select(x => x.ParameterName))}) AS source ({fieldsString})");
             builder.AppendLine($"  ON ({mergeOn})");
@@ -136,13 +137,13 @@ namespace CluedIn.Connector.SqlServer.Features
 
         protected virtual SqlServerConnectorCommand ComposeDelete(string tableName, IDictionary<string, object> fields)
         {
-            var sqlBuilder = new StringBuilder($"DELETE FROM {tableName.SqlSanitize()} WHERE ");
+            var sqlBuilder = new StringBuilder($"DELETE FROM {SqlStringSanitizer.Sanitize(tableName)} WHERE ");
             var clauses = new List<string>();
             var parameters = new List<SqlParameter>();
 
             foreach (var entry in fields)
             {
-                var key = entry.Key.SqlSanitize();
+                var key = SqlStringSanitizer.Sanitize(entry.Key);
                 clauses.Add($"[{key}] = @{key}");
                 parameters.Add(new SqlParameter($"@{key}", entry.Value));
             }
@@ -164,7 +165,7 @@ namespace CluedIn.Connector.SqlServer.Features
                 parameters.Add(new SqlParameter($"@{entry.Key}", entry.Value));
             }
 
-            var sqlBuilder = new StringBuilder($"INSERT INTO [{tableName.SqlSanitize()}] (");
+            var sqlBuilder = new StringBuilder($"INSERT INTO [{SqlStringSanitizer.Sanitize(tableName)}] (");
             sqlBuilder.AppendJoin(",", columns);
             sqlBuilder.Append(") values (");
             sqlBuilder.AppendJoin(",", parameters.Select(x => $"{x.ParameterName}"));

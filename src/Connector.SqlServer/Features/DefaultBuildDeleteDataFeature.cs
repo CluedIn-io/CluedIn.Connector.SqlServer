@@ -1,4 +1,5 @@
-﻿using CluedIn.Connector.SqlServer.Connector;
+﻿using CluedIn.Connector.Common.Helpers;
+using CluedIn.Connector.SqlServer.Connector;
 using CluedIn.Core;
 using CluedIn.Core.Data;
 using Microsoft.Data.SqlClient;
@@ -45,13 +46,13 @@ namespace CluedIn.Connector.SqlServer.Features
         protected virtual IEnumerable<SqlServerConnectorCommand> ComposeDelete(string tableName,
             IDictionary<string, object> fields)
         {
-            var sqlBuilder = new StringBuilder($"DELETE FROM {tableName.SqlSanitize()} WHERE ");
+            var sqlBuilder = new StringBuilder($"DELETE FROM {SqlStringSanitizer.Sanitize(tableName)} WHERE ");
             var clauses = new List<string>();
             var parameters = new List<SqlParameter>();
 
             foreach (var entry in fields)
             {
-                var key = entry.Key.SqlSanitize();
+                var key = SqlStringSanitizer.Sanitize(entry.Key);
                 clauses.Add($"[{key}] = @{key}");
                 parameters.Add(new SqlParameter(key, entry.Value));
             }

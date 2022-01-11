@@ -1,4 +1,5 @@
-﻿using CluedIn.Connector.SqlServer.Connector;
+﻿using CluedIn.Connector.Common.Helpers;
+using CluedIn.Connector.SqlServer.Connector;
 using CluedIn.Core.Connectors;
 using CluedIn.Core.Data.Vocabularies;
 using CluedIn.Core.Streams.Models;
@@ -14,7 +15,8 @@ namespace CluedIn.Connector.SqlServer.Features
         public virtual async Task VerifyExistingContainer(ISqlClient client, IConnectorConnection config,
             StreamModel stream)
         {
-            var tableName = stream.ContainerName.SqlSanitize();
+            //TODO. Check if ContainerName already sanitized.
+            var tableName = SqlStringSanitizer.Sanitize(stream.ContainerName);
             var tables = await client.GetTableColumns(config.Authentication, tableName);
             var result = (from DataRow row in tables.Rows
                           let name = row["COLUMN_NAME"] as string

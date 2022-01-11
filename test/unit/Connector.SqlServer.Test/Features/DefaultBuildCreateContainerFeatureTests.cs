@@ -1,15 +1,14 @@
-﻿using System;
+﻿using AutoFixture.Xunit2;
+using CluedIn.Connector.Common.Helpers;
+using CluedIn.Connector.SqlServer.Features;
+using CluedIn.Core.Connectors;
+using Microsoft.Extensions.Logging;
+using Moq;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using AutoFixture.Xunit2;
-using CluedIn.Connector.SqlServer.Features;
-using CluedIn.Core.Connectors;
-using CluedIn.Core.Data.Vocabularies;
-using Microsoft.Extensions.Logging;
-using Moq;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace CluedIn.Connector.SqlServer.Unit.Tests.Features
 {
@@ -18,7 +17,6 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests.Features
         private readonly TestContext _testContext;
         private readonly Mock<ILogger> _logger;
         private readonly DefaultBuildCreateContainerFeature _sut;
-        private readonly ConnectionDataType[] _defaultColumns;
         private readonly IList<string> _defaultKeyFields = new List<string> { "OriginEntityCode" };
 
         public DefaultBuildCreateContainerFeatureTests()
@@ -26,14 +24,6 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests.Features
             _testContext = new TestContext();
             _logger = new Mock<ILogger>();
             _sut = new DefaultBuildCreateContainerFeature();
-            _defaultColumns = new[]
-            {
-                new ConnectionDataType
-                {
-                    Name = "TEST",
-                    Type = VocabularyKeyDataType.Text
-                }
-            };
         }
 
         [Theory, InlineAutoData]
@@ -89,8 +79,8 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests.Features
             List<ConnectionDataType> columns)
         {
             var expected = new StringBuilder();
-            expected.AppendLine($"CREATE TABLE [{name.SqlSanitize()}](");
-            expected.AppendJoin(", ", columns.Select(c => $"[{c.Name.SqlSanitize()}] nvarchar(max) NULL"));
+            expected.AppendLine($"CREATE TABLE [{SqlStringSanitizer.Sanitize(name)}](");
+            expected.AppendJoin(", ", columns.Select(c => $"[{SqlStringSanitizer.Sanitize(c.Name)}] nvarchar(max) NULL"));
             expected.AppendLine(") ON[PRIMARY]");
 
             var execContext = _testContext.Context;

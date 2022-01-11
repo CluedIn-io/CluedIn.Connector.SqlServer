@@ -1,4 +1,5 @@
-﻿using CluedIn.Connector.SqlServer.Connector;
+﻿using CluedIn.Connector.Common.Helpers;
+using CluedIn.Connector.SqlServer.Connector;
 using CluedIn.Core;
 using CluedIn.Core.Connectors;
 using Microsoft.Extensions.Logging;
@@ -33,7 +34,7 @@ namespace CluedIn.Connector.SqlServer.Features
         {
             var row = table.NewRow();
             foreach (var item in data)
-                row[item.Key.SqlSanitize()] = item.Value;
+                row[SqlStringSanitizer.Sanitize(item.Key)] = item.Value;
 
             table.Rows.Add(row);
         }
@@ -66,7 +67,7 @@ namespace CluedIn.Connector.SqlServer.Features
             {
                 var table = new DataTable(containerName);
                 foreach (var col in data)
-                    table.Columns.Add(col.Key.SqlSanitize(), typeof(string));
+                    table.Columns.Add(SqlStringSanitizer.Sanitize(col.Key), typeof(string));
 
                 return table;
             });
@@ -74,7 +75,7 @@ namespace CluedIn.Connector.SqlServer.Features
 
         private static string GetDataTableCacheName(string containerName)
         {
-            return $"Stream_cache_{containerName.SqlSanitize()}";
+            return $"Stream_cache_{SqlStringSanitizer.Sanitize(containerName)}";
         }
     }
 }

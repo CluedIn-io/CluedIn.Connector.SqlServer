@@ -1,4 +1,5 @@
-﻿using CluedIn.Connector.SqlServer.Connector;
+﻿using CluedIn.Connector.Common.Helpers;
+using CluedIn.Connector.SqlServer.Connector;
 using CluedIn.Core;
 using CluedIn.Core.Connectors;
 using CluedIn.Core.Data.Vocabularies;
@@ -39,10 +40,10 @@ namespace CluedIn.Connector.SqlServer.Features
             var trimmedColumns = enumeratedColumns.Where(x => x.Name != "Codes");
 
             var builder = new StringBuilder();
-            var sanitizedName = name.SqlSanitize();
+            var sanitizedName = SqlStringSanitizer.Sanitize(name);
             builder.AppendLine($"CREATE TABLE [{sanitizedName}](");
             builder.AppendJoin(", ",
-                trimmedColumns.Select(c => $"[{c.Name.SqlSanitize()}] {GetDbType(c.Type, c.Name)} NULL"));
+                trimmedColumns.Select(c => $"[{SqlStringSanitizer.Sanitize(c.Name)}] {GetDbType(c.Type, c.Name)} NULL"));
             builder.AppendLine(") ON[PRIMARY]");
 
             return new[] { new SqlServerConnectorCommand { Text = builder.ToString() } };
