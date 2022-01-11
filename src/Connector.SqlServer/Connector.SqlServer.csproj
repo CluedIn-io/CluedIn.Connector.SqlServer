@@ -13,8 +13,6 @@
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="CluedIn.Connector.Common" />
-    <PackageReference Include="CluedIn.Core" />
-    <PackageReference Include="ComponentHost" />
   </ItemGroup>
 
   <!-- Disable to above cluedin assets and enable the below for local debugging  -->

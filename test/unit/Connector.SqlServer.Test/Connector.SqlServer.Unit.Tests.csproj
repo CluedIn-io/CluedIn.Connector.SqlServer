@@ -7,9 +7,6 @@
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="AutoFixture.Xunit2" />
-    <PackageReference Include="CluedIn.DataStore" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
     <PackageReference Include="AutoFixture.Idioms" />
     <PackageReference Include="AutoFixture.AutoMoq" />

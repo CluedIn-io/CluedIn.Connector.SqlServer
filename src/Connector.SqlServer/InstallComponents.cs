@@ -1,9 +1,9 @@
 ﻿using Castle.MicroKernel.Registration;
 using Castle.MicroKernel.SubSystems.Configuration;
 using Castle.Windsor;
+using CluedIn.Connector.Common.Features;
 using CluedIn.Connector.SqlServer.Connector;
 using System.Reflection;
-using CluedIn.Connector.Common.Features;
 
 namespace CluedIn.Connector.SqlServer
 {
