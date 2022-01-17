@@ -1,12 +1,9 @@
-﻿using System.Collections.Generic;
+﻿using CluedIn.Connector.Common;
 using Microsoft.Data.SqlClient;
 
 namespace CluedIn.Connector.SqlServer.Connector
 {
-    public class SqlServerConnectorCommand
+    public class SqlServerConnectorCommand : CommandBase<SqlParameter>
     {
-        public string Text { get; set; }
-
-        public IEnumerable<SqlParameter> Parameters { get; set; }
     }
 }

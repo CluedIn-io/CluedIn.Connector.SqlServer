@@ -1,5 +1,3 @@
-using System;
-using System.Net;
 using Castle.DynamicProxy;
 using Castle.MicroKernel.Registration;
 using Castle.Windsor;
@@ -10,20 +8,16 @@ using CluedIn.Core.Data;
 using CluedIn.Core.Data.Relational;
 using CluedIn.Core.DataStore;
 using CluedIn.Core.DataStore.Entities;
-using CluedIn.Core.Messages.Processing;
-using CluedIn.Core.Net.Mail;
-using CluedIn.Core.Processing;
-using CluedIn.Core.Processing.Statistics;
-using CluedIn.Core.Rules;
 using CluedIn.Core.Server;
 using CluedIn.Core.Workflows;
 using CluedIn.DataStore.Relational;
-using CluedIn.ExternalSearch;
 using EasyNetQ;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
+using System;
+using System.Net;
 
 namespace CluedIn.Connector.SqlServer.Unit.Tests
 {
@@ -37,36 +31,36 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests
         public readonly Mock<ISystemDataShards> SystemDataShards;
         public readonly Mock<SystemContext> SystemContext;
         public readonly Mock<ApplicationContext> AppContext;
-         
+
         public readonly Mock<IPrimaryEntityDataStore<Entity>> PrimaryEntityDataStore;
         public readonly Mock<IGraphEntityDataStore<Entity>> GraphEntityDataStore;
         public readonly Mock<IBlobEntityDataStore<Entity>> BlobEntityDataStore;
-        
+
         public readonly Mock<IOrganizationRepository> OrganizationRepository;
-          
-           
+
+
         public readonly Mock<ISystemVocabularies> SystemVocabularies;
-        
+
         public readonly Mock<WorkflowRepository> WorkflowRepository;
         public readonly Mock<InMemoryApplicationCache> ApplicationCache;
-          
+
         public readonly Func<ExecutionContext, Guid, IOrganization> OrganizationFactory;
-     
+
         public readonly ILogger Logger;
 
-        private ExecutionContext context;
+        private ExecutionContext _context;
 
         public ExecutionContext Context
         {
             get
             {
-                if (context == null)
+                if (_context == null)
                 {
-                    var o1 = Container.Resolve<ApplicationContext>();
-                    context = new ExecutionContext(o1, new TestOrganization(o1, Constants.SystemOrganizationId), Logger);
+                    var appContext = Container.Resolve<ApplicationContext>();
+                    _context = new ExecutionContext(appContext, new TestOrganization(appContext, Constants.SystemOrganizationId), Logger);
                 }
 
-                return context;
+                return _context;
             }
         }
 
