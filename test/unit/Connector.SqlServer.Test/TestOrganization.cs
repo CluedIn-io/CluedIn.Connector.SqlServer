@@ -1,6 +1,6 @@
-﻿using System;
-using CluedIn.Core;
+﻿using CluedIn.Core;
 using CluedIn.Core.Accounts;
+using System;
 
 namespace CluedIn.Connector.SqlServer.Unit.Tests
 {
