@@ -1,6 +1,7 @@
 using CluedIn.Core.Providers;
 using System;
 using CluedIn.Connector.Common.Configurations;
+using CluedIn.Core;
 
 namespace CluedIn.Connector.SqlServer
 {
@@ -23,36 +24,36 @@ namespace CluedIn.Connector.SqlServer
             {
                 new Control
                 {
-                    name = CommonConfigurationNames.Host,
-                    displayName = CommonConfigurationNames.Host,
+                    name = CommonConfigurationNames.Host.ToCamelCase(),
+                    displayName = CommonConfigurationNames.Host.ToDisplayName(),
                     type = "input",
                     isRequired = true
                 },
                 new Control
                 {
-                    name = CommonConfigurationNames.DatabaseName,
-                    displayName = CommonConfigurationNames.DatabaseName,
+                    name = CommonConfigurationNames.DatabaseName.ToCamelCase(),
+                    displayName = CommonConfigurationNames.DatabaseName.ToDisplayName(),
                     type = "input",
                     isRequired = true
                 },
                 new Control
                 {
-                    name = CommonConfigurationNames.Username,
-                    displayName = CommonConfigurationNames.Username,
+                    name = CommonConfigurationNames.Username.ToCamelCase(),
+                    displayName = CommonConfigurationNames.Username.ToDisplayName(),
                     type = "input",
                     isRequired = true
                 },
                 new Control
                 {
-                    name = CommonConfigurationNames.Password,
-                    displayName = CommonConfigurationNames.Password,
+                    name = CommonConfigurationNames.Password.ToCamelCase(),
+                    displayName = CommonConfigurationNames.Password.ToDisplayName(),
                     type = "password",
                     isRequired = true
                 },
                 new Control
                 {
-                    name = CommonConfigurationNames.PortNumber,
-                    displayName = CommonConfigurationNames.PortNumber,
+                    name = CommonConfigurationNames.PortNumber.ToCamelCase(),
+                    displayName = CommonConfigurationNames.PortNumber.ToDisplayName(),
                     type = "input",
                     isRequired = false
                 }
