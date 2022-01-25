@@ -1,5 +1,6 @@
 ﻿using CluedIn.Connector.Common.Clients;
 using CluedIn.Connector.Common.Configurations;
+using CluedIn.Core;
 using Microsoft.Data.SqlClient;
 using System.Collections.Generic;
 
@@ -14,14 +15,14 @@ namespace CluedIn.Connector.SqlServer.Connector
             var connectionStringBuilder = new SqlConnectionStringBuilder
             {
                 Authentication = SqlAuthenticationMethod.SqlPassword,
-                Password = (string)config[CommonConfigurationNames.Password],
-                UserID = (string)config[CommonConfigurationNames.Username],
-                DataSource = (string)config[CommonConfigurationNames.Host],
-                InitialCatalog = (string)config[CommonConfigurationNames.DatabaseName],
+                Password = (string)config[CommonConfigurationNames.Password.ToCamelCase()],
+                UserID = (string)config[CommonConfigurationNames.Username.ToCamelCase()],
+                DataSource = (string)config[CommonConfigurationNames.Host.ToCamelCase()],
+                InitialCatalog = (string)config[CommonConfigurationNames.DatabaseName.ToCamelCase()],
                 Pooling = true
             };
 
-            if (config.TryGetValue(CommonConfigurationNames.PortNumber, out var portEntry) && int.TryParse(portEntry.ToString(), out var port))
+            if (config.TryGetValue(CommonConfigurationNames.PortNumber.ToCamelCase(), out var portEntry) && int.TryParse(portEntry.ToString(), out var port))
                 connectionStringBuilder.DataSource = $"{connectionStringBuilder.DataSource},{port}";
             else
                 connectionStringBuilder.DataSource = $"{connectionStringBuilder.DataSource},{_defaultPort}";

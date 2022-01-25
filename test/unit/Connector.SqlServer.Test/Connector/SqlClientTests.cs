@@ -2,6 +2,7 @@
 using CluedIn.Connector.SqlServer.Connector;
 using Xunit;
 using CluedIn.Connector.Common.Configurations;
+using CluedIn.Core;
 
 namespace CluedIn.Connector.SqlServer.Unit.Tests.Connector
 {
@@ -19,10 +20,10 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests.Connector
         {
             var properties = new Dictionary<string, object>
             {
-                [CommonConfigurationNames.Password] = "password",
-                [CommonConfigurationNames.Username] = "user",
-                [CommonConfigurationNames.Host] = "host",
-                [CommonConfigurationNames.DatabaseName] = "database"
+                [CommonConfigurationNames.Password.ToCamelCase()] = "password",
+                [CommonConfigurationNames.Username.ToCamelCase()] = "user",
+                [CommonConfigurationNames.Host.ToCamelCase()] = "host",
+                [CommonConfigurationNames.DatabaseName.ToCamelCase()] = "database"
             };
 
             var result = _sut.BuildConnectionString(properties);
@@ -35,11 +36,11 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests.Connector
         {
             var properties = new Dictionary<string, object>
             {
-                [CommonConfigurationNames.Password] = "password",
-                [CommonConfigurationNames.Username] = "user",
-                [CommonConfigurationNames.Host] = "host",
-                [CommonConfigurationNames.DatabaseName] = "database",
-                [CommonConfigurationNames.PortNumber] = 9499,
+                [CommonConfigurationNames.Password.ToCamelCase()] = "password",
+                [CommonConfigurationNames.Username.ToCamelCase()] = "user",
+                [CommonConfigurationNames.Host.ToCamelCase()] = "host",
+                [CommonConfigurationNames.DatabaseName.ToCamelCase()] = "database",
+                [CommonConfigurationNames.PortNumber.ToCamelCase()] = 9499,
             };
 
             var result = _sut.BuildConnectionString(properties);
@@ -52,11 +53,11 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests.Connector
         {
             var properties = new Dictionary<string, object>
             {
-                [CommonConfigurationNames.Password] = "password",
-                [CommonConfigurationNames.Username] = "user",
-                [CommonConfigurationNames.Host] = "host",
-                [CommonConfigurationNames.DatabaseName] = "database",
-                [CommonConfigurationNames.PortNumber] = "9499",
+                [CommonConfigurationNames.Password.ToCamelCase()] = "password",
+                [CommonConfigurationNames.Username.ToCamelCase()] = "user",
+                [CommonConfigurationNames.Host.ToCamelCase()] = "host",
+                [CommonConfigurationNames.DatabaseName.ToCamelCase()] = "database",
+                [CommonConfigurationNames.PortNumber.ToCamelCase()] = "9499",
             };
 
             var result = _sut.BuildConnectionString(properties);
@@ -69,11 +70,11 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests.Connector
         {
             var properties = new Dictionary<string, object>
             {
-                [CommonConfigurationNames.Password] = "password",
-                [CommonConfigurationNames.Username] = "user",
-                [CommonConfigurationNames.Host] = "host",
-                [CommonConfigurationNames.DatabaseName] = "database",
-                [CommonConfigurationNames.PortNumber] = new object(),
+                [CommonConfigurationNames.Password.ToCamelCase()] = "password",
+                [CommonConfigurationNames.Username.ToCamelCase()] = "user",
+                [CommonConfigurationNames.Host.ToCamelCase()] = "host",
+                [CommonConfigurationNames.DatabaseName.ToCamelCase()] = "database",
+                [CommonConfigurationNames.PortNumber.ToCamelCase()] = new object(),
             };
 
             var result = _sut.BuildConnectionString(properties);
