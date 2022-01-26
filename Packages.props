@@ -19,5 +19,6 @@
     <PackageReference Update="xunit" Version="2.4.1" />
     <PackageReference Update="xunit.runner.visualstudio" Version="2.4.1" />
     <PackageReference Update="Moq" Version="4.13.1" />
+    <PackageReference Update="FluentAssertions" Version="5.10.3" />
   </ItemGroup>
 </Project>
