@@ -8,6 +8,7 @@ using CluedIn.Core.Data;
 using CluedIn.Core.Data.Relational;
 using CluedIn.Core.DataStore;
 using CluedIn.Core.DataStore.Entities;
+using CluedIn.Core.Providers;
 using CluedIn.Core.Server;
 using CluedIn.Core.Workflows;
 using CluedIn.DataStore.Relational;
@@ -49,6 +50,7 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests
         public readonly ILogger Logger;
 
         private ExecutionContext _context;
+        private ProviderUpdateContext providerUpdateContext;
 
         public ExecutionContext Context
         {
@@ -61,6 +63,20 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests
                 }
 
                 return _context;
+            }
+        }
+       
+        public ProviderUpdateContext ProviderUpdateContext
+        {
+            get
+            {
+                if (providerUpdateContext == null)
+                {
+                    var appContext = Container.Resolve<ApplicationContext>();
+                    providerUpdateContext = new ProviderUpdateContext(appContext, new TestOrganization(appContext, Constants.SystemOrganizationId), Logger);
+                }
+
+                return providerUpdateContext;
             }
         }
 
