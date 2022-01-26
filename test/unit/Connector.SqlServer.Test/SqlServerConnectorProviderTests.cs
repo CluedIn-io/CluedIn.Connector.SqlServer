@@ -180,29 +180,26 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests
 
 
         [Theory, AutoData]
-        public async void GetAccountInformation_NullData_ReturnsEmpty(Guid orgId, Guid userId, Guid providerDefId)
+        public void GetAccountInformation_NullData_Throws(Guid orgId, Guid userId, Guid providerDefId)
         {
             var sut = new SqlServerConnectorProvider(_testContext.AppContext.Object, _constants, _logger);
 
-            var result = await sut.GetAccountInformation(
-                _testContext.ProviderUpdateContext, null, orgId, userId, providerDefId);
+            Func<Task> action = () => sut.GetAccountInformation(_testContext.ProviderUpdateContext, null, orgId, userId, providerDefId);
 
-            result.AccountId.Should().Be(string.Empty);
-            result.AccountId.Should().Be(string.Empty);
+            action.Should().Throw<ArgumentNullException>()
+                .And.ParamName.Should().Be("jobData");
         }
 
         [Theory, AutoData]
-        public async void GetAccountInformation_InvalidJobDataType_ReturnsEmpty(Guid orgId, Guid userId, Guid providerDefId)
+        public void GetAccountInformation_InvalidJobDataType_Throws(Guid orgId, Guid userId, Guid providerDefId)
         {
             var sut = new SqlServerConnectorProvider(_testContext.AppContext.Object, _constants, _logger);
 
-            var data = new CrawlJobData();
+            Func<Task> action = () => sut.GetAccountInformation(
+                _testContext.ProviderUpdateContext, new CrawlJobData(), orgId, userId, providerDefId);
 
-            var result = await sut.GetAccountInformation(
-                _testContext.ProviderUpdateContext, data, orgId, userId, providerDefId);
-
-            result.AccountId.Should().Be(string.Empty);
-            result.AccountId.Should().Be(string.Empty);
+            action.Should().Throw<ArgumentException>()
+                .And.ParamName.Should().Be("jobData");
 
         }
 
@@ -215,8 +212,8 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests
             var result = await sut.GetAccountInformation(
                 _testContext.ProviderUpdateContext, data, orgId, userId, providerDefId);
 
-            result.AccountId.Should().BeEmpty();
-            result.AccountId.Should().BeEmpty();
+            result.AccountId.Should().Be(".");
+            result.AccountId.Should().Be(".");
         }
 
         [Theory, AutoData]
@@ -234,8 +231,8 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests
             var result = await sut.GetAccountInformation(
                 _testContext.ProviderUpdateContext, data, orgId, userId, providerDefId);
 
-            result.AccountId.Should().BeEmpty();
-            result.AccountDisplay.Should().Be("host database ");
+            result.AccountId.Should().Be("host.database");
+            result.AccountId.Should().Be("host.database");
         }
 
         [Theory]
