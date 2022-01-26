@@ -4,6 +4,7 @@ using System.Text;
 using System.Threading.Tasks;
 using AutoFixture;
 using AutoFixture.Xunit2;
+using CluedIn.Connector.Common.Configurations;
 using CluedIn.Core.Crawling;
 using CluedIn.Core.Webhooks;
 using FluentAssertions;
@@ -42,9 +43,9 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests
 
             var result = await sut.GetCrawlJobData(null, new Dictionary<string, object>(), orgId, userId, providerDefId);
 
-            result.Should().BeOfType<SqlServerConnectorJobData>();
-            var typedResult = result as SqlServerConnectorJobData;
-            typedResult.ToDictionary().Should().Equal(
+            result.Should().BeOfType<CrawlJobDataWrapper>();
+            var typedResult = result as CrawlJobDataWrapper;
+            typedResult.Configurations.Should().Equal(
                 new Dictionary<string, object>
                 {
                     { SqlServerConstants.KeyName.Username, null },
@@ -53,12 +54,6 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests
                     { SqlServerConstants.KeyName.Password, null },
                     { SqlServerConstants.KeyName.PortNumber, 1433 }
                 });
-
-            typedResult.Username.Should().BeNull();
-            typedResult.DatabaseName.Should().BeNull();
-            typedResult.Host.Should().BeNull();
-            typedResult.Password.Should().BeNull();
-            typedResult.PortNumber.Should().Be(1433);
         }
 
         [Theory, AutoData]
@@ -89,9 +84,9 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests
             var result = await sut.GetCrawlJobData(_testContext.ProviderUpdateContext,
                values, orgId, userId, providerDefId);
 
-            result.Should().BeOfType<SqlServerConnectorJobData>();
-            var typedResult = result as SqlServerConnectorJobData;
-            typedResult.ToDictionary().Should().Equal(
+            result.Should().BeOfType<CrawlJobDataWrapper>();
+            var typedResult = result as CrawlJobDataWrapper;
+            typedResult.Configurations.Should().Equal(
                 new Dictionary<string, object>
                 {
                     { SqlServerConstants.KeyName.Username, "user" },
@@ -100,12 +95,6 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests
                     { SqlServerConstants.KeyName.Password, "password" },
                     { SqlServerConstants.KeyName.PortNumber, 1234 }
                 });
-
-            typedResult.Username.Should().Be("user");
-            typedResult.DatabaseName.Should().Be("database");
-            typedResult.Host.Should().Be("host");
-            typedResult.Password.Should().Be("password");
-            typedResult.PortNumber.Should().Be(1234);
         }
 
         [Theory, AutoData]
@@ -132,7 +121,7 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests
         public async void GetHelperConfiguration_NullContext_ReturnsDefaults(Guid orgId, Guid userId, Guid providerDefId)
         {
             var sut = new SqlServerConnectorProvider(_testContext.AppContext.Object, _constants, _logger);
-            var data = new SqlServerConnectorJobData(new Dictionary<string, object>());
+            var data = new CrawlJobDataWrapper(new Dictionary<string, object>());
 
 
             var result = await sut.GetHelperConfiguration(null, data, orgId, userId, providerDefId);
@@ -163,7 +152,7 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests
         public async void GetHelperConfiguration_CamelCaseKeys_MatchesConstantsAndReturnsValues(Guid orgId, Guid userId, Guid providerDefId)
         {
             var sut = new SqlServerConnectorProvider(_testContext.AppContext.Object, _constants, _logger);
-            var data = new SqlServerConnectorJobData(new Dictionary<string, object> {
+            var data = new CrawlJobDataWrapper(new Dictionary<string, object> {
                 { "username", "user" },
                 { "databaseName", "database" },
                 { "host", "host" },
@@ -190,7 +179,7 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests
         public async void GetHelperConfigurationWithFolder_NullContext_ReturnsDefaults(Guid orgId, Guid userId, Guid providerDefId, string folderId)
         {
             var sut = new SqlServerConnectorProvider(_testContext.AppContext.Object, _constants, _logger);
-            var data = new SqlServerConnectorJobData(new Dictionary<string, object>());
+            var data = new CrawlJobDataWrapper(new Dictionary<string, object>());
 
 
             var result = await sut.GetHelperConfiguration(null, data, orgId, userId, providerDefId, folderId);
@@ -221,7 +210,7 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests
         public async void GetHelperConfigurationWithFolder_CamelCaseKeys_MatchesConstantsAndReturnsValues(Guid orgId, Guid userId, Guid providerDefId, string folderId)
         {
             var sut = new SqlServerConnectorProvider(_testContext.AppContext.Object, _constants, _logger);
-            var data = new SqlServerConnectorJobData(new Dictionary<string, object> {
+            var data = new CrawlJobDataWrapper(new Dictionary<string, object> {
                 { "username", "user" },
                 { "databaseName", "database" },
                 { "host", "host" },
@@ -272,7 +261,7 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests
         public async void GetAccountInformation_EmptyJobData_ReturnsEmpty(Guid orgId, Guid userId, Guid providerDefId)
         {
             var sut = new SqlServerConnectorProvider(_testContext.AppContext.Object, _constants, _logger);
-            var data = new SqlServerConnectorJobData(new Dictionary<string, object>());
+            var data = new CrawlJobDataWrapper(new Dictionary<string, object>());
 
             var result = await sut.GetAccountInformation(
                 _testContext.ProviderUpdateContext, data, orgId, userId, providerDefId);
@@ -285,7 +274,7 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests
         public async void GetAccountInformation_WithJobData_ReturnsValue(Guid orgId, Guid userId, Guid providerDefId)
         {
             var sut = new SqlServerConnectorProvider(_testContext.AppContext.Object, _constants, _logger);
-            var data = new SqlServerConnectorJobData(new Dictionary<string, object> {
+            var data = new CrawlJobDataWrapper(new Dictionary<string, object> {
                 { "username", "user" },
                 { "databaseName", "database" },
                 { "host", "host" },
