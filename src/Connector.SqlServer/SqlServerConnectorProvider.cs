@@ -18,7 +18,7 @@ namespace CluedIn.Connector.SqlServer
         }
 
         protected override IEnumerable<string> ProviderNameParts =>
-            new[] { CommonConfigurationNames.Host, CommonConfigurationNames.DatabaseName };
+            new[] { SqlServerConstants.KeyName.Host, SqlServerConstants.KeyName.DatabaseName };
 
         public override string Schedule(DateTimeOffset relativeDateTime, bool webHooksEnabled)
             => $"{relativeDateTime.Minute} 0/23 * * *";

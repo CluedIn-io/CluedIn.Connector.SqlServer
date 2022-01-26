@@ -7,6 +7,15 @@ namespace CluedIn.Connector.SqlServer
 {
     public class SqlServerConstants : ConfigurationConstantsBase, ISqlServerConstants
     {
+        public struct KeyName
+        {
+            public const string Host = "host";
+            public const string DatabaseName = "databaseName";
+            public const string Username = "username";
+            public const string Password = "password";
+            public const string PortNumber = "portNumber";
+        }
+
         public SqlServerConstants() : base(Guid.Parse("838E4EA2-80E0-4B60-B1D1-F052BFCD0CAF"),
             "Sql Server Connector",
             "SqlServerConnector",
@@ -24,35 +33,35 @@ namespace CluedIn.Connector.SqlServer
             {
                 new Control
                 {
-                    name = CommonConfigurationNames.Host.ToCamelCase(),
+                    name = KeyName.Host,
                     displayName = CommonConfigurationNames.Host.ToDisplayName(),
                     type = "input",
                     isRequired = true
                 },
                 new Control
                 {
-                    name = CommonConfigurationNames.DatabaseName.ToCamelCase(),
+                    name = KeyName.DatabaseName,
                     displayName = CommonConfigurationNames.DatabaseName.ToDisplayName(),
                     type = "input",
                     isRequired = true
                 },
                 new Control
                 {
-                    name = CommonConfigurationNames.Username.ToCamelCase(),
+                    name = KeyName.Username,
                     displayName = CommonConfigurationNames.Username.ToDisplayName(),
                     type = "input",
                     isRequired = true
                 },
                 new Control
                 {
-                    name = CommonConfigurationNames.Password.ToCamelCase(),
+                    name = KeyName.Password,
                     displayName = CommonConfigurationNames.Password.ToDisplayName(),
                     type = "password",
                     isRequired = true
                 },
                 new Control
                 {
-                    name = CommonConfigurationNames.PortNumber.ToCamelCase(),
+                    name = KeyName.PortNumber,
                     displayName = CommonConfigurationNames.PortNumber.ToDisplayName(),
                     type = "input",
                     isRequired = false
