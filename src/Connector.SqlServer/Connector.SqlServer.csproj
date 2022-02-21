@@ -6,14 +6,13 @@
     <IsCluedInServerComponent>true</IsCluedInServerComponent>
   </PropertyGroup>
   <ItemGroup>
-    <None Remove="Resources\SqlServer.png" />
+    <None Remove="Resources\microsoft-sql-server-logo.svg" />
   </ItemGroup>
   <ItemGroup>
-    <EmbeddedResource Include="Resources\sqlserver.png" />
+    <EmbeddedResource Include="Resources\microsoft-sql-server-logo.svg" />
   </ItemGroup>
-  <ItemGroup>  
-    <PackageReference Include="CluedIn.Core" />
-    <PackageReference Include="ComponentHost" />
+  <ItemGroup>
+    <PackageReference Include="CluedIn.Connector.Common" />
   </ItemGroup>
 
   <!-- Disable to above cluedin assets and enable the below for local debugging  -->

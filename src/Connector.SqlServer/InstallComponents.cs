@@ -1,10 +1,9 @@
-﻿using System.Reflection;
-using Castle.MicroKernel.Registration;
+﻿using Castle.MicroKernel.Registration;
 using Castle.MicroKernel.SubSystems.Configuration;
 using Castle.Windsor;
+using CluedIn.Connector.Common.Features;
 using CluedIn.Connector.SqlServer.Connector;
-using CluedIn.Connector.SqlServer.Features;
-using CluedIn.Core.Providers;
+using System.Reflection;
 
 namespace CluedIn.Connector.SqlServer
 {
@@ -13,10 +12,10 @@ namespace CluedIn.Connector.SqlServer
         public void Install(IWindsorContainer container, IConfigurationStore store)
         {
             var asm = Assembly.GetExecutingAssembly();
-            container.Register(Types.FromAssembly(asm).BasedOn<IProvider>().WithServiceFromInterface().If(t => !t.IsAbstract).LifestyleSingleton());
-            container.Register(Types.FromAssembly(asm).BasedOn<IEntityActionBuilder>().WithServiceFromInterface().If(t => !t.IsAbstract).LifestyleSingleton());
-            container.Register(Types.FromAssembly(asm).BasedOn<IFeatureStore>().WithServiceFromInterface().If(t => !t.IsAbstract).LifestyleSingleton());
+            container.Register(Types.FromAssembly(asm).BasedOn<IFeatureStore>().WithServiceFromInterface()
+                .If(t => !t.IsAbstract).LifestyleSingleton());
             container.Register(Component.For<ISqlClient>().ImplementedBy<BulkSqlClient>().OnlyNewServices());
+            container.Register(Component.For<ISqlServerConstants>().ImplementedBy<SqlServerConstants>().LifestyleSingleton());
         }
     }
 }

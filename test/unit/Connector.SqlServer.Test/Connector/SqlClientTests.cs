@@ -1,8 +1,7 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
+﻿using System.Collections.Generic;
 using CluedIn.Connector.SqlServer.Connector;
 using Xunit;
+using CluedIn.Connector.Common.Configurations;
 
 namespace CluedIn.Connector.SqlServer.Unit.Tests.Connector
 {
@@ -28,7 +27,7 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests.Connector
 
             var result = _sut.BuildConnectionString(properties);
 
-            Assert.Equal("Data Source=host;Initial Catalog=database;User ID=user;Password=password;Pooling=True;Authentication=SqlPassword", result);
+            Assert.Equal("Data Source=host,1433;Initial Catalog=database;User ID=user;Password=password;Pooling=True;Authentication=SqlPassword", result);
         }
 
         [Fact]
@@ -79,7 +78,7 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests.Connector
 
             var result = _sut.BuildConnectionString(properties);
 
-            Assert.Equal("Data Source=host;Initial Catalog=database;User ID=user;Password=password;Pooling=True;Authentication=SqlPassword", result);
+            Assert.Equal("Data Source=host,1433;Initial Catalog=database;User ID=user;Password=password;Pooling=True;Authentication=SqlPassword", result);
         }
     }
 }

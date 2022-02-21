@@ -1,5 +1,6 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
+using CluedIn.Connector.Common.Helpers;
 using CluedIn.Core.Connectors;
 using CluedIn.Core.Data.Vocabularies;
 using CluedIn.Core.Streams.Models;
@@ -21,7 +22,7 @@ namespace CluedIn.Connector.SqlServer.Connector
         }
         public Container(string containerName, StreamMode mode)
         {
-            PrimaryTable = containerName.SqlSanitize();
+            PrimaryTable = SqlStringSanitizer.Sanitize(containerName);
             var columns = _codeEdgeColumns;
 
             if (mode == StreamMode.EventStream)
@@ -47,7 +48,7 @@ namespace CluedIn.Connector.SqlServer.Connector
                 IEnumerable<ConnectionDataType> columns,
                 IEnumerable<string> keys)
             {
-                Name = name.SqlSanitize();
+                Name = SqlStringSanitizer.Sanitize(name);
                 Columns = new List<ConnectionDataType>(columns).AsReadOnly();
                 Keys = new List<string>(keys).AsReadOnly();
             }

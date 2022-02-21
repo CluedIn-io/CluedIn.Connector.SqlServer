@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using AutoFixture.Xunit2;
+using CluedIn.Connector.Common.Helpers;
 using CluedIn.Connector.SqlServer.Features;
 using CluedIn.Core.Data;
 using Microsoft.Extensions.Logging;
@@ -68,11 +69,12 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests.Features
             string containerName,
             string originEntityCode)
         {
+            var expectedContainerName = SqlStringSanitizer.Sanitize(containerName);
             var execContext = _testContext.Context;
             var result = _sut.BuildDeleteDataSql(execContext, providerDefinitionId, containerName, originEntityCode, null, null, _logger.Object);
             var command = result.Single();
 
-            Assert.Equal($"DELETE FROM {containerName} WHERE [OriginEntityCode] = @OriginEntityCode;", command.Text.Trim());
+            Assert.Equal($"DELETE FROM {expectedContainerName} WHERE [OriginEntityCode] = @OriginEntityCode;", command.Text.Trim());
             Assert.Single(command.Parameters);
 
             var parameter = command.Parameters.First();
@@ -86,11 +88,12 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests.Features
             string containerName,
             Guid entityId)
         {
+            var expectedContainerName = SqlStringSanitizer.Sanitize(containerName);
             var execContext = _testContext.Context;
             var result = _sut.BuildDeleteDataSql(execContext, providerDefinitionId, containerName, null, null, entityId, _logger.Object);
             var command = result.Single();
 
-            Assert.Equal($"DELETE FROM {containerName} WHERE [Id] = @Id;", command.Text.Trim());
+            Assert.Equal($"DELETE FROM {expectedContainerName} WHERE [Id] = @Id;", command.Text.Trim());
             Assert.Single(command.Parameters);
 
             var parameter = command.Parameters.First();
@@ -103,6 +106,7 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests.Features
             Guid providerDefinitionId,
             string containerName)
         {
+            var expectedContainerName = SqlStringSanitizer.Sanitize(containerName);
             var execContext = _testContext.Context;
             var result = _sut.BuildDeleteDataSql(execContext, providerDefinitionId, containerName, null, _codes, null, _logger.Object).ToList();
             Assert.Equal(result.Count(), _codes.Count);
@@ -110,7 +114,7 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests.Features
             for(var x = 0; x < result.Count(); x++)
             {
                 var command = result[x];
-                Assert.Equal($"DELETE FROM {containerName} WHERE [Code] = @Code;", command.Text.Trim());
+                Assert.Equal($"DELETE FROM {expectedContainerName} WHERE [Code] = @Code;", command.Text.Trim());
                 Assert.Single(command.Parameters);
                 var parameter = command.Parameters.First();
                 Assert.Equal(_codes[x], parameter.Value);
