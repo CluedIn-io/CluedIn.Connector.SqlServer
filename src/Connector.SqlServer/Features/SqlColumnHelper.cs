@@ -33,7 +33,7 @@ namespace CluedIn.Connector.SqlServer.Features
             //     _ => "nvarchar(max)"
             // };
 
-            return "nvarchar(max)";
+            return "nvarchar(100)";
         }
     }
 }
