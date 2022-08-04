@@ -115,7 +115,10 @@ namespace CluedIn.Connector.SqlServer.Features
                 parameters.Add(param);
                 fields.Add($"[{name}]");
                 inserts.Add($"source.[{name}]");
+                if (name != "OriginEntityCode")
+                {
                 updates.Add($"target.[{name}] = source.[{name}]");
+                }
             }
 
             var fieldsString = string.Join(", ", fields);

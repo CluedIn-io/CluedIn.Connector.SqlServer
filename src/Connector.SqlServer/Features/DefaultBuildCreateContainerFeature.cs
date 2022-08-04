@@ -44,7 +44,24 @@ namespace CluedIn.Connector.SqlServer.Features
             builder.AppendLine($"CREATE TABLE [{sanitizedName}](");
             builder.AppendJoin(", ",
                 trimmedColumns.Select(c => $"[{SqlStringSanitizer.Sanitize(c.Name)}] {GetDbType(c.Type, c.Name)} NULL"));
-            builder.AppendLine(") ON[PRIMARY]");
+
+            if (columns.Any(x => x.Name == "Id"))
+            {
+                builder.AppendLine(@")  WITH
+                (
+                    DISTRIBUTION = HASH( [OriginEntityCode]),
+                    CLUSTERED COLUMNSTORE INDEX
+                )");
+            }
+            else
+            {
+                builder.AppendLine(@")  WITH
+                (
+                    DISTRIBUTION = HASH( [OriginEntityCode]),
+                    CLUSTERED COLUMNSTORE INDEX
+                )");
+
+            }
 
             return new[] { new SqlServerConnectorCommand { Text = builder.ToString() } };
         }

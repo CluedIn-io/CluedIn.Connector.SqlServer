@@ -16,6 +16,8 @@ namespace CluedIn.Connector.SqlServer
                 .If(t => !t.IsAbstract).LifestyleSingleton());
             container.Register(Component.For<ISqlClient>().ImplementedBy<BulkSqlClient>().OnlyNewServices());
             container.Register(Component.For<ISqlServerConstants>().ImplementedBy<SqlServerConstants>().LifestyleSingleton());
+            System.Diagnostics.Debugger.Launch();
+            System.Diagnostics.Debugger.Break();
         }
     }
 }
