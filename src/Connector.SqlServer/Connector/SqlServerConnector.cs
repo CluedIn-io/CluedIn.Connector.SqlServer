@@ -31,6 +31,7 @@ namespace CluedIn.Connector.SqlServer.Connector
         private readonly int _bulkDeleteThreshold;
         private readonly int _bulkInsertThreshold;
         private readonly bool _bulkSupported;
+        private readonly bool _syncEdgesTable;
         private readonly IList<string> _defaultKeyFields = new List<string> { "OriginEntityCode" };
 
         private readonly IFeatureStore _features;
@@ -52,6 +53,8 @@ namespace CluedIn.Connector.SqlServer.Connector
             _bulkSupported = _bulkInsertThreshold > 0 && _bulkClient != null;
             _logger.LogInformation($"{nameof(SqlServerConnector)} - bulk insert support enabled {{enabled}}",
                 _bulkSupported);
+            _syncEdgesTable =
+                ConfigurationManagerEx.AppSettings.GetValue("Streams.SqlConnector.SyncEdgesTable", true);
         }
 
         public StreamMode StreamMode { get; private set; } = StreamMode.Sync;
@@ -536,7 +539,7 @@ namespace CluedIn.Connector.SqlServer.Connector
 
             var builder = new StringBuilder();
 
-            if (StreamMode == StreamMode.Sync)
+            if (StreamMode == StreamMode.Sync && _syncEdgesTable)
                 builder.AppendLine(
                     $"DELETE FROM [{SqlStringSanitizer.Sanitize(containerName)}] where [OriginEntityCode] = {originParam.ParameterName}");
 
