@@ -80,7 +80,7 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests.Features
         {
             var expected = new StringBuilder();
             expected.AppendLine($"CREATE TABLE [{SqlStringSanitizer.Sanitize(name)}](");
-            expected.AppendJoin(", ", columns.Select(c => $"[{SqlStringSanitizer.Sanitize(c.Name)}] nvarchar(max) NULL"));
+            expected.AppendJoin(", ", columns.Select(c => $"[{SqlStringSanitizer.Sanitize(c.Name)}] nvarchar(1024) NULL"));
             expected.AppendLine(") ON[PRIMARY]");
 
             var execContext = _testContext.Context;
