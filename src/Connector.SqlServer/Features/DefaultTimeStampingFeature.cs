@@ -10,9 +10,9 @@ using System.Threading.Tasks;
 
 namespace CluedIn.Connector.SqlServer.Features
 {
-    public class DefaultUpgradeExistingSchemaFeature : IUpgradeExistingSchemaFeature
+    public class DefaultTimeStampingFeature : ITimeStampingFeature
     {
-        public virtual async Task VerifyExistingContainer(ISqlClient client, IConnectorConnection config,
+        public virtual async Task VerifyTimeStampColumnExist(ISqlClient client, IConnectorConnection config,
             StreamModel stream)
         {
             //TODO. Check if ContainerName already sanitized.
@@ -27,7 +27,7 @@ namespace CluedIn.Connector.SqlServer.Features
             {
                 var columnName = "TimeStamp";
                 var addTimeStampSql =
-                    $"alter table [{tableName}] add [{columnName}] {SqlColumnHelper.GetColumnType(VocabularyKeyDataType.DateTime, columnName)}";
+                    $"alter table [{tableName}] add [{columnName}] {SqlConnectorHelper.GetColumnType(VocabularyKeyDataType.DateTime, columnName)}";
                 await client.ExecuteCommandAsync(config, addTimeStampSql);
             }
         }
