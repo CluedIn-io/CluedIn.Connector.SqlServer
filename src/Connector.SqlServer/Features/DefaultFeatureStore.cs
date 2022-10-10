@@ -1,9 +1,12 @@
-﻿using System;
+﻿using CluedIn.Connector.Common.Features;
+using System;
 using System.Collections.Concurrent;
-using CluedIn.Connector.Common.Features;
 
 namespace CluedIn.Connector.SqlServer.Features
 {
+    /// <summary>
+    /// LDM: Looks as handmade DI Container. Maybe could be replaced?
+    /// </summary>
     public class DefaultFeatureStore : IFeatureStore
     {
         private readonly ConcurrentDictionary<Type, object> _store = new ConcurrentDictionary<Type, object>

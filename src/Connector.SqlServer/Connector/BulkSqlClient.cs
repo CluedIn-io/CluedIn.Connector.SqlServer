@@ -11,7 +11,7 @@ namespace CluedIn.Connector.SqlServer.Connector
         public async Task ExecuteBulkAsync(IConnectorConnection config, DataTable table, string containerName)
         {
             await using var connection = await GetConnection(config.Authentication);
-            using var bulk = new SqlBulkCopy(connection) { DestinationTableName = SqlStringSanitizer.Sanitize(containerName) };
+            using var bulk = new SqlBulkCopy(connection) { DestinationTableName = $"[{config.GetSchema()}].[{SqlStringSanitizer.Sanitize(containerName)}]" };
             await bulk.WriteToServerAsync(table);
         }
     }

@@ -1,6 +1,6 @@
-﻿using System.Data;
+﻿using CluedIn.Core.Connectors;
+using System.Data;
 using System.Threading.Tasks;
-using CluedIn.Core.Connectors;
 
 namespace CluedIn.Connector.SqlServer.Connector
 {

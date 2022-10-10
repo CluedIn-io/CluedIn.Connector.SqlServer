@@ -51,7 +51,7 @@ namespace CluedIn.Connector.SqlServer.Features
 
         protected virtual string GetDbType(VocabularyKeyDataType type, string columnName)
         {
-            return SqlColumnHelper.GetColumnType(type, columnName);
+            return SqlConnectorHelper.GetColumnType(type, columnName);
         }
     }
 }

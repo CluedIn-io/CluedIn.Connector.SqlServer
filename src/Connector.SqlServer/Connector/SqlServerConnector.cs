@@ -80,16 +80,17 @@ namespace CluedIn.Connector.SqlServer.Connector
         {
             try
             {
+                var dataToUse = new Dictionary<string, object>(data)
+                {
+                    { TimestampFieldName, timestamp }
+                };
+
                 // If we are in Event Stream mode, append extra fields
-                var dataToUse = new Dictionary<string, object>(data);
                 if (StreamMode == StreamMode.EventStream)
                 {
-                    dataToUse.Add(TimestampFieldName, timestamp);
                     dataToUse.Add(ChangeTypeFieldName, changeType);
                     dataToUse.Add(CorrelationIdFieldName, correlationId);
                 }
-                else
-                    dataToUse.Add(TimestampFieldName, timestamp);
 
                 if (_bulkSupported)
                 {
@@ -101,21 +102,39 @@ namespace CluedIn.Connector.SqlServer.Connector
                         dataToUse,
                         _bulkInsertThreshold,
                         _bulkClient,
-                        () => base.GetAuthenticationDetails(executionContext, providerDefinitionId),
+                        () => GetAuthenticationDetails(executionContext, providerDefinitionId),
                         _logger);
                 }
                 else
                 {
-                    var config = await base.GetAuthenticationDetails(executionContext, providerDefinitionId);
-
+                    var config = await GetAuthenticationDetails(executionContext, providerDefinitionId);
                     var feature = _features.GetFeature<IBuildStoreDataFeature>();
+                    var schema = config.GetSchema();
                     IEnumerable<SqlServerConnectorCommand> commands;
                     if (feature is IBuildStoreDataForMode modeFeature)
-                        commands = modeFeature.BuildStoreDataSql(executionContext, providerDefinitionId, containerName,
-                            dataToUse, _defaultKeyFields, StreamMode, correlationId, timestamp, changeType, _logger);
+                    {
+                        commands = modeFeature.BuildStoreDataSql(executionContext: executionContext,
+                            providerDefinitionId: providerDefinitionId,
+                            schema: schema,
+                            containerName: containerName,
+                            data: dataToUse,
+                            keys: _defaultKeyFields,
+                            mode: StreamMode,
+                            correlationId: correlationId,
+                            timestamp: timestamp,
+                            changeType: changeType,
+                            logger: _logger);
+                    }
                     else
-                        commands = feature.BuildStoreDataSql(executionContext, providerDefinitionId, containerName,
-                            dataToUse, _defaultKeyFields, _logger);
+                    {
+                        commands = feature.BuildStoreDataSql(executionContext: executionContext,
+                            providerDefinitionId: providerDefinitionId,
+                            schema: schema,
+                            containerName: containerName,
+                            data: dataToUse,
+                            keys: _defaultKeyFields,
+                            logger: _logger);
+                    }
 
                     foreach (var command in commands)
                         await _client.ExecuteCommandAsync(config, command.Text, command.Parameters);
@@ -164,11 +183,11 @@ namespace CluedIn.Connector.SqlServer.Connector
         {
             if (stream.ConnectorProviderDefinitionId.HasValue)
             {
-                var upgrade = _features.GetFeature<IUpgradeExistingSchemaFeature>();
+                var upgrade = _features.GetFeature<ITimeStampingFeature>();
                 var config =
                     await base.GetAuthenticationDetails(executionContext, stream.ConnectorProviderDefinitionId.Value);
 
-                await upgrade.VerifyExistingContainer(_client as ISqlClient, config, stream);
+                await upgrade.VerifyTimeStampColumnExist(_client as ISqlClient, config, stream);
             }
         }
 

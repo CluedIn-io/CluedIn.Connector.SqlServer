@@ -16,16 +16,17 @@ namespace CluedIn.Connector.SqlServer.Features
     public class DefaultBuildStoreDataFeature : IBuildStoreDataFeature, IBuildStoreDataForMode
     {
         public IEnumerable<SqlServerConnectorCommand> BuildStoreDataSql(ExecutionContext executionContext,
-            Guid providerDefinitionId, string containerName, IDictionary<string, object> data, IList<string> keys,
+            Guid providerDefinitionId, string schema, string containerName, IDictionary<string, object> data, IList<string> keys,
             ILogger logger)
         {
-            return BuildStoreDataSql(executionContext, providerDefinitionId, containerName, data, keys, StreamMode.Sync,
+            return BuildStoreDataSql(executionContext, providerDefinitionId, schema, containerName, data, keys, StreamMode.Sync,
                 null, DateTimeOffset.Now, VersionChangeType.NotSet, logger);
         }
 
         public virtual IEnumerable<SqlServerConnectorCommand> BuildStoreDataSql(
             ExecutionContext executionContext,
             Guid providerDefinitionId,
+            string schema,
             string containerName,
             IDictionary<string, object> data,
             IList<string> keys,
@@ -62,8 +63,9 @@ namespace CluedIn.Connector.SqlServer.Features
 
                 if (mode == StreamMode.Sync)
                     // need to delete from Codes table
-                    yield return ComposeDelete(codesTable.Name,
-                        new Dictionary<string, object> { ["OriginEntityCode"] = data["OriginEntityCode"] });
+                    yield return ComposeDelete(schema: schema,
+                        tableName: codesTable.Name,
+                        filters: new Dictionary<string, object> { ["OriginEntityCode"] = data["OriginEntityCode"] });
 
                 // need to insert into Codes table
                 var enumerator = codesEnumerable.GetEnumerator();
@@ -78,18 +80,26 @@ namespace CluedIn.Connector.SqlServer.Features
                     if (mode == StreamMode.EventStream)
                         dictionary["CorrelationId"] = correlationId;
 
-                    yield return ComposeInsert(codesTable.Name, dictionary);
+                    yield return ComposeInsert(schema: schema,
+                        tableName: codesTable.Name,
+                        data: dictionary);
                 }
             }
 
             // Primary table
             if (mode == StreamMode.Sync)
-                yield return ComposeUpsert(container.PrimaryTable, data, keys, logger);
+                yield return ComposeUpsert(schema: schema,
+                    tableName: container.PrimaryTable,
+                    data: data,
+                    keys: keys,
+                    logger: logger);
             else
-                yield return ComposeInsert(container.PrimaryTable, data);
+                yield return ComposeInsert(schema: schema,
+                    tableName: container.PrimaryTable,
+                    data: data);
         }
 
-        protected virtual SqlServerConnectorCommand ComposeUpsert(string tableName, IDictionary<string, object> data,
+        protected virtual SqlServerConnectorCommand ComposeUpsert(string schema, string tableName, IDictionary<string, object> data,
             IList<string> keys, ILogger logger)
         {
             var builder = new StringBuilder();
@@ -122,7 +132,7 @@ namespace CluedIn.Connector.SqlServer.Features
             var mergeOnList = keys.Select(n => $"target.[{n}] = source.[{n}]");
             var mergeOn = string.Join(" AND ", mergeOnList);
 
-            builder.AppendLine($"MERGE [{SqlStringSanitizer.Sanitize(tableName)}] AS target");
+            builder.AppendLine($"MERGE [{schema}].[{SqlStringSanitizer.Sanitize(tableName)}] AS target");
             builder.AppendLine(
                 $"USING (SELECT {string.Join(", ", parameters.Select(x => x.ParameterName))}) AS source ({fieldsString})");
             builder.AppendLine($"  ON ({mergeOn})");
@@ -135,13 +145,13 @@ namespace CluedIn.Connector.SqlServer.Features
             return new SqlServerConnectorCommand { Text = builder.ToString(), Parameters = parameters };
         }
 
-        protected virtual SqlServerConnectorCommand ComposeDelete(string tableName, IDictionary<string, object> fields)
+        protected virtual SqlServerConnectorCommand ComposeDelete(string schema, string tableName, IDictionary<string, object> filters)
         {
-            var sqlBuilder = new StringBuilder($"DELETE FROM {SqlStringSanitizer.Sanitize(tableName)} WHERE ");
+            var sqlBuilder = new StringBuilder($"DELETE FROM [{schema}].[{SqlStringSanitizer.Sanitize(tableName)}] WHERE ");
             var clauses = new List<string>();
             var parameters = new List<SqlParameter>();
 
-            foreach (var entry in fields)
+            foreach (var entry in filters)
             {
                 var key = SqlStringSanitizer.Sanitize(entry.Key);
                 clauses.Add($"[{key}] = @{key}");
@@ -154,18 +164,18 @@ namespace CluedIn.Connector.SqlServer.Features
             return new SqlServerConnectorCommand { Text = sqlBuilder.ToString(), Parameters = parameters };
         }
 
-        protected virtual SqlServerConnectorCommand ComposeInsert(string tableName, IDictionary<string, object> fields)
+        protected virtual SqlServerConnectorCommand ComposeInsert(string schema, string tableName, IDictionary<string, object> data)
         {
             var columns = new List<string>();
             var parameters = new List<SqlParameter>();
 
-            foreach (var entry in fields)
+            foreach (var entry in data)
             {
                 columns.Add($"[{entry.Key}]");
                 parameters.Add(new SqlParameter($"@{entry.Key}", entry.Value));
             }
 
-            var sqlBuilder = new StringBuilder($"INSERT INTO [{SqlStringSanitizer.Sanitize(tableName)}] (");
+            var sqlBuilder = new StringBuilder($"INSERT INTO [{schema}].[{SqlStringSanitizer.Sanitize(tableName)}] (");
             sqlBuilder.AppendJoin(",", columns);
             sqlBuilder.Append(") values (");
             sqlBuilder.AppendJoin(",", parameters.Select(x => $"{x.ParameterName}"));

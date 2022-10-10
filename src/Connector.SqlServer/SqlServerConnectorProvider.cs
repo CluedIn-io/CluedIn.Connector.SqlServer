@@ -1,13 +1,12 @@
-using CluedIn.Core;
 using CluedIn.Connector.Common;
-using Microsoft.Extensions.Logging;
-using System.Collections.Generic;
 using CluedIn.Connector.Common.Configurations;
-using System;
-using System.Linq;
-using System.Threading.Tasks;
+using CluedIn.Core;
 using CluedIn.Core.Crawling;
 using CluedIn.Core.Providers;
+using Microsoft.Extensions.Logging;
+using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace CluedIn.Connector.SqlServer
 {
@@ -20,7 +19,7 @@ namespace CluedIn.Connector.SqlServer
         }
 
         protected override IEnumerable<string> ProviderNameParts =>
-            new[] { SqlServerConstants.KeyName.Host, SqlServerConstants.KeyName.DatabaseName };
+            new[] { KeyName.Host, KeyName.DatabaseName };
 
         public override string Schedule(DateTimeOffset relativeDateTime, bool webHooksEnabled)
             => $"{relativeDateTime.Minute} 0/23 * * *";

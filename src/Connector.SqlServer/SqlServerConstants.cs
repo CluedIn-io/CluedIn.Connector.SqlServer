@@ -1,29 +1,21 @@
+using CluedIn.Connector.Common.Configurations;
 using CluedIn.Core.Providers;
 using System;
-using CluedIn.Connector.Common.Configurations;
-using CluedIn.Core;
 
 namespace CluedIn.Connector.SqlServer
 {
     public class SqlServerConstants : ConfigurationConstantsBase, ISqlServerConstants
     {
-        public struct KeyName
-        {
-            public const string Host = "host";
-            public const string DatabaseName = "databaseName";
-            public const string Username = "username";
-            public const string Password = "password";
-            public const string PortNumber = "portNumber";
-        }
+        public static readonly string DefaultSchema = "dbo";
 
-        public SqlServerConstants() : base(Guid.Parse("838E4EA2-80E0-4B60-B1D1-F052BFCD0CAF"),
-            "Sql Server Connector",
-            "SqlServerConnector",
-            "Resources.microsoft-sql-server-logo.svg",
-            "https://www.microsoft.com/en-us/sql-server",
-            "Supports publishing of data to external SQL databases.",
-            SqlServerAuthMethods,
-            "Provides connectivity to a Microsoft Sql Server database")
+        public SqlServerConstants() : base(providerId: Guid.Parse("0040FCBC-011B-408A-94CC-A6A0FBF9459F"),
+            providerName: "Sql Server Connector",
+            componentName: "SqlServerConnector",
+            icon: "Resources.microsoft-sql-server-logo.svg",
+            domain: "https://www.microsoft.com/en-us/sql-server",
+            about: "Supports publishing of data to external SQL databases.",
+            authMethods: SqlServerAuthMethods,
+            guideDetails: "Provides connectivity to a Microsoft Sql Server database")
         {
         }
 
@@ -63,6 +55,13 @@ namespace CluedIn.Connector.SqlServer
                 {
                     name = KeyName.PortNumber,
                     displayName = CommonConfigurationNames.PortNumber.ToDisplayName(),
+                    type = "input",
+                    isRequired = false
+                },
+                new Control
+                {
+                    name = CommonConfigurationNames.Schema,
+                    displayName = CommonConfigurationNames.Schema.ToDisplayName(),
                     type = "input",
                     isRequired = false
                 }
