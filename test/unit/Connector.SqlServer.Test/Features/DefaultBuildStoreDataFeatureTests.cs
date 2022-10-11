@@ -46,8 +46,8 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests.Features
         [InlineAutoData("")]
         [InlineAutoData("\t\t   ")]
         public void BuildStoreDataSql_InvalidContainerName_Throws(
-            string schema,
             string containerName,
+            string schema,
             Guid providerDefinitionId,
             IDictionary<string, object> data,
             string correlationId,
@@ -65,7 +65,7 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests.Features
             string correlationId,
             DateTimeOffset timestamp,
             VersionChangeType changeType)
-        {                        
+        {
             Assert.Throws<InvalidOperationException>(() => _sut.BuildStoreDataSql(_testContext.Context, providerDefinitionId, schema, containerName, null, _defaultKeyFields, StreamMode.Sync, correlationId, timestamp, changeType, _logger.Object).ToList());
         }
 
@@ -108,7 +108,6 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests.Features
             DateTimeOffset timestamp,
             VersionChangeType changeType)
         {
-            var expectedSchemaName = SqlStringSanitizer.Sanitize(schema);
             var expectedContainerName = SqlStringSanitizer.Sanitize(containerName);
             var data = new Dictionary<string, object>
                         {
@@ -122,7 +121,7 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests.Features
             var execContext = _testContext.Context;
             var result = _sut.BuildStoreDataSql(execContext, providerDefinitionId, schema, containerName, data, _defaultKeyFields, StreamMode.Sync, correlationId, timestamp, changeType, _logger.Object);
             var command = result.Single();
-            Assert.Equal($"MERGE [{expectedSchemaName}].[{expectedContainerName}] AS target" + Environment.NewLine +
+            Assert.Equal($"MERGE [{schema}].[{expectedContainerName}] AS target" + Environment.NewLine +
                          "USING (SELECT @Field1, @Field2, @Field3, @Field4, @Field5) AS source ([Field1], [Field2], [Field3], [Field4], [Field5])" + Environment.NewLine +
                          "  ON (target.[OriginEntityCode] = source.[OriginEntityCode])" + Environment.NewLine +
                          "WHEN MATCHED THEN" + Environment.NewLine +
@@ -152,8 +151,7 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests.Features
            string correlationId,
            DateTimeOffset timestamp,
            VersionChangeType changeType)
-        {
-            var expectedSchemaName = SqlStringSanitizer.Sanitize(schema);
+        {            
             var expectedContainerName = SqlStringSanitizer.Sanitize(containerName);
             var data = new Dictionary<string, object>
                         {
@@ -165,7 +163,7 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests.Features
             var execContext = _testContext.Context;
             var result = _sut.BuildStoreDataSql(execContext, providerDefinitionId, schema, containerName, data, _defaultKeyFields, StreamMode.Sync, correlationId, timestamp, changeType, _logger.Object);
             var command = result.Single();
-            Assert.Equal($"MERGE [{expectedSchemaName}].[{expectedContainerName}] AS target" + Environment.NewLine +
+            Assert.Equal($"MERGE [{schema}].[{expectedContainerName}] AS target" + Environment.NewLine +
                          "USING (SELECT @Field1, @Field2, @InvalidField) AS source ([Field1], [Field2], [InvalidField])" + Environment.NewLine +
                          "  ON (target.[OriginEntityCode] = source.[OriginEntityCode])" + Environment.NewLine +
                          "WHEN MATCHED THEN" + Environment.NewLine +
@@ -183,15 +181,16 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests.Features
 
         [Theory, InlineAutoData]
         public void BuildStoreDataSql_ValidDataWithCodes_IsSuccessful(
-           string name,
-           string originEntityCode,
-           string additionalField,
-           Guid providerDefinitionId,
-           string correlationId,
-           DateTimeOffset timestamp,
-           VersionChangeType changeType)
-        {
-            var expectedName = SqlStringSanitizer.Sanitize(name);
+            string schema,
+            string containerName,
+            string originEntityCode,
+            string additionalField,
+            Guid providerDefinitionId,
+            string correlationId,
+            DateTimeOffset timestamp,
+            VersionChangeType changeType)
+        {            
+            var expectedContainerName = SqlStringSanitizer.Sanitize(containerName);
             var codes = new[] { "alpha", "beta", "gamma", "delta" };
 
             var data = new Dictionary<string, object>
@@ -204,7 +203,7 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests.Features
             var keys = _defaultKeyFields;
 
             var execContext = _testContext.Context;
-            var result = _sut.BuildStoreDataSql(execContext, providerDefinitionId, name, data, keys, StreamMode.Sync, correlationId, timestamp, changeType, _logger.Object).ToList();
+            var result = _sut.BuildStoreDataSql(execContext, providerDefinitionId, schema, containerName, data, keys, StreamMode.Sync, correlationId, timestamp, changeType, _logger.Object).ToList();
 
             // codes inserts will delete from table first
             // then insert into codes
@@ -213,7 +212,7 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests.Features
             Assert.Equal(expectedCount, result.Count());
 
             var deleteCodesCommand = result.First();
-            Assert.Equal($"DELETE FROM {expectedName}Codes WHERE [OriginEntityCode] = @OriginEntityCode;", deleteCodesCommand.Text.Trim());
+            Assert.Equal($"DELETE FROM [{schema}].[{expectedContainerName}Codes] WHERE [OriginEntityCode] = @OriginEntityCode;", deleteCodesCommand.Text.Trim());
 
             var deleteCodesParameters = deleteCodesCommand.Parameters.ToList();
             Assert.Single(deleteCodesParameters);
@@ -222,8 +221,8 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests.Features
             for (var x = 0; x < codes.Length; x++)
             {
                 var code = codes[x];
-                var codesCommand = result[x+1];
-                Assert.Equal($"INSERT INTO [{expectedName}Codes] ([OriginEntityCode],[Code]) values (@OriginEntityCode,@Code);", codesCommand.Text.Trim());
+                var codesCommand = result[x + 1];
+                Assert.Equal($"INSERT INTO [{schema}].[{expectedContainerName}Codes] ([OriginEntityCode],[Code]) values (@OriginEntityCode,@Code);", codesCommand.Text.Trim());
 
                 var codesParameters = codesCommand.Parameters.ToList();
                 Assert.Equal(2, codesParameters.Count());
@@ -232,7 +231,7 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests.Features
             }
 
             var mainTableCommand = result.Last();
-            Assert.Equal($"MERGE [{expectedName}] AS target" + Environment.NewLine +
+            Assert.Equal($"MERGE [{schema}].[{expectedContainerName}] AS target" + Environment.NewLine +
                          "USING (SELECT @OriginEntityCode, @AdditionalField) AS source ([OriginEntityCode], [AdditionalField])" + Environment.NewLine +
                          "  ON (target.[OriginEntityCode] = source.[OriginEntityCode])" + Environment.NewLine +
                          "WHEN MATCHED THEN" + Environment.NewLine +
