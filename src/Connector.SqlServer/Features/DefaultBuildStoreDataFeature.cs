@@ -1,5 +1,6 @@
 ﻿using CluedIn.Connector.Common.Helpers;
 using CluedIn.Connector.SqlServer.Connector;
+using CluedIn.Connector.SqlServer.Utility;
 using CluedIn.Core;
 using CluedIn.Core.Data.Parts;
 using CluedIn.Core.Streams.Models;
@@ -16,18 +17,18 @@ namespace CluedIn.Connector.SqlServer.Features
     public class DefaultBuildStoreDataFeature : IBuildStoreDataFeature, IBuildStoreDataForMode
     {
         public IEnumerable<SqlServerConnectorCommand> BuildStoreDataSql(ExecutionContext executionContext,
-            Guid providerDefinitionId, string schema, string containerName, IDictionary<string, object> data, IList<string> keys,
+            Guid providerDefinitionId, SanitizedSqlString schema, SanitizedSqlString tableName, IDictionary<string, object> data, IList<string> keys,
             ILogger logger)
         {
-            return BuildStoreDataSql(executionContext, providerDefinitionId, schema, containerName, data, keys, StreamMode.Sync,
+            return BuildStoreDataSql(executionContext, providerDefinitionId, schema, tableName, data, keys, StreamMode.Sync,
                 null, DateTimeOffset.Now, VersionChangeType.NotSet, logger);
         }
 
         public virtual IEnumerable<SqlServerConnectorCommand> BuildStoreDataSql(
             ExecutionContext executionContext,
             Guid providerDefinitionId,
-            string schema,
-            string containerName,
+            SanitizedSqlString schema,
+            SanitizedSqlString tableName,
             IDictionary<string, object> data,
             IList<string> keys,
             StreamMode mode,
@@ -39,7 +40,7 @@ namespace CluedIn.Connector.SqlServer.Features
             if (executionContext == null)
                 throw new ArgumentNullException(nameof(executionContext));
 
-            if (string.IsNullOrWhiteSpace(containerName))
+            if (string.IsNullOrWhiteSpace(tableName.GetValue()))
                 throw new InvalidOperationException("The containerName must be provided.");
 
             if (data == null || data.Count == 0)
@@ -52,7 +53,7 @@ namespace CluedIn.Connector.SqlServer.Features
                 throw new ArgumentNullException(nameof(logger));
 
             //HACK: we need to pull out Codes into a separate table
-            var container = new Container(containerName, mode);
+            var container = new Container(tableName, mode);
             if (data.TryGetValue("Codes", out var codes) && codes is IEnumerable codesEnumerable)
             {
                 data.Remove("Codes");
@@ -99,7 +100,7 @@ namespace CluedIn.Connector.SqlServer.Features
                     data: data);
         }
 
-        protected virtual SqlServerConnectorCommand ComposeUpsert(string schema, string tableName, IDictionary<string, object> data,
+        protected virtual SqlServerConnectorCommand ComposeUpsert(SanitizedSqlString schema, SanitizedSqlString tableName, IDictionary<string, object> data,
             IList<string> keys, ILogger logger)
         {
             var builder = new StringBuilder();
@@ -132,7 +133,7 @@ namespace CluedIn.Connector.SqlServer.Features
             var mergeOnList = keys.Select(n => $"target.[{n}] = source.[{n}]");
             var mergeOn = string.Join(" AND ", mergeOnList);
 
-            builder.AppendLine($"MERGE [{schema}].[{SqlStringSanitizer.Sanitize(tableName)}] AS target");
+            builder.AppendLine($"MERGE [{schema}].[{tableName}] AS target");
             builder.AppendLine(
                 $"USING (SELECT {string.Join(", ", parameters.Select(x => x.ParameterName))}) AS source ({fieldsString})");
             builder.AppendLine($"  ON ({mergeOn})");
@@ -145,9 +146,9 @@ namespace CluedIn.Connector.SqlServer.Features
             return new SqlServerConnectorCommand { Text = builder.ToString(), Parameters = parameters };
         }
 
-        protected virtual SqlServerConnectorCommand ComposeDelete(string schema, string tableName, IDictionary<string, object> filters)
+        protected virtual SqlServerConnectorCommand ComposeDelete(SanitizedSqlString schema, SanitizedSqlString tableName, IDictionary<string, object> filters)
         {
-            var sqlBuilder = new StringBuilder($"DELETE FROM [{schema}].[{SqlStringSanitizer.Sanitize(tableName)}] WHERE ");
+            var sqlBuilder = new StringBuilder($"DELETE FROM [{schema}].[{tableName}] WHERE ");
             var clauses = new List<string>();
             var parameters = new List<SqlParameter>();
 
@@ -164,7 +165,7 @@ namespace CluedIn.Connector.SqlServer.Features
             return new SqlServerConnectorCommand { Text = sqlBuilder.ToString(), Parameters = parameters };
         }
 
-        protected virtual SqlServerConnectorCommand ComposeInsert(string schema, string tableName, IDictionary<string, object> data)
+        protected virtual SqlServerConnectorCommand ComposeInsert(SanitizedSqlString schema, SanitizedSqlString tableName, IDictionary<string, object> data)
         {
             var columns = new List<string>();
             var parameters = new List<SqlParameter>();
@@ -175,7 +176,7 @@ namespace CluedIn.Connector.SqlServer.Features
                 parameters.Add(new SqlParameter($"@{entry.Key}", entry.Value));
             }
 
-            var sqlBuilder = new StringBuilder($"INSERT INTO [{schema}].[{SqlStringSanitizer.Sanitize(tableName)}] (");
+            var sqlBuilder = new StringBuilder($"INSERT INTO [{schema}].[{tableName}] (");
             sqlBuilder.AppendJoin(",", columns);
             sqlBuilder.Append(") values (");
             sqlBuilder.AppendJoin(",", parameters.Select(x => $"{x.ParameterName}"));

@@ -11,6 +11,7 @@ namespace CluedIn.Connector.SqlServer.Features
     {
         IEnumerable<SqlServerConnectorCommand> BuildCreateIndexSql(ExecutionContext executionContext,
             Guid providerDefinitionId,
+            SanitizedSqlString schema,
             SanitizedSqlString tableName,
             IEnumerable<string> keys,
             ILogger logger);

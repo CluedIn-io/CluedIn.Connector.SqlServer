@@ -12,6 +12,7 @@ namespace CluedIn.Connector.SqlServer.Features
     {
         IEnumerable<SqlServerConnectorCommand> BuildDeleteDataSql(ExecutionContext executionContext,
             Guid providerDefinitionId,
+            SanitizedSqlString schema,
             SanitizedSqlString tableName,
             string originEntityCode,
             IList<IEntityCode> codes,

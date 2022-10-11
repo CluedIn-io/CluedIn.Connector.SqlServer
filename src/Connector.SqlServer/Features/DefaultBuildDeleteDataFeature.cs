@@ -1,5 +1,6 @@
 ﻿using CluedIn.Connector.Common.Helpers;
 using CluedIn.Connector.SqlServer.Connector;
+using CluedIn.Connector.SqlServer.Utility;
 using CluedIn.Core;
 using CluedIn.Core.Data;
 using Microsoft.Data.SqlClient;
@@ -16,7 +17,8 @@ namespace CluedIn.Connector.SqlServer.Features
         public IEnumerable<SqlServerConnectorCommand> BuildDeleteDataSql(
             ExecutionContext executionContext,
             Guid providerDefinitionId,
-            string containerName,
+            SanitizedSqlString schema,
+            SanitizedSqlString tableName,
             string originEntityCode,
             IList<IEntityCode> codes,
             Guid? entityId,
@@ -28,25 +30,25 @@ namespace CluedIn.Connector.SqlServer.Features
             if (logger == null)
                 throw new ArgumentNullException(nameof(logger));
 
-            if (string.IsNullOrWhiteSpace(containerName))
+            if (string.IsNullOrWhiteSpace(tableName.GetValue()))
                 throw new InvalidOperationException("The containerName must be provided.");
 
             if (!string.IsNullOrWhiteSpace(originEntityCode))
-                return ComposeDelete(containerName,
+                return ComposeDelete(schema, tableName,
                     new Dictionary<string, object> { ["OriginEntityCode"] = originEntityCode });
             if (entityId.HasValue)
-                return ComposeDelete(containerName, new Dictionary<string, object> { ["Id"] = entityId.Value });
+                return ComposeDelete(schema, tableName, new Dictionary<string, object> { ["Id"] = entityId.Value });
             if (codes != null)
                 return codes.SelectMany(
-                    x => ComposeDelete(containerName, new Dictionary<string, object> { ["Code"] = x }));
+                    x => ComposeDelete(schema, tableName, new Dictionary<string, object> { ["Code"] = x }));
 
             return Enumerable.Empty<SqlServerConnectorCommand>();
         }
 
-        protected virtual IEnumerable<SqlServerConnectorCommand> ComposeDelete(string tableName,
+        protected virtual IEnumerable<SqlServerConnectorCommand> ComposeDelete(SanitizedSqlString schema, SanitizedSqlString tableName,
             IDictionary<string, object> fields)
         {
-            var sqlBuilder = new StringBuilder($"DELETE FROM {SqlStringSanitizer.Sanitize(tableName)} WHERE ");
+            var sqlBuilder = new StringBuilder($"DELETE FROM [{schema}].[{tableName}] WHERE ");
             var clauses = new List<string>();
             var parameters = new List<SqlParameter>();
 
