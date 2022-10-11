@@ -1,4 +1,5 @@
 ﻿using CluedIn.Connector.SqlServer.Connector;
+using CluedIn.Connector.SqlServer.Utility;
 using CluedIn.Core;
 using Microsoft.Extensions.Logging;
 using System;
@@ -10,8 +11,8 @@ namespace CluedIn.Connector.SqlServer.Features
     {
         IEnumerable<SqlServerConnectorCommand> BuildStoreDataSql(ExecutionContext executionContext,
             Guid providerDefinitionId,
-            string schema,
-            string containerName,
+            SanitizedSqlString schema,
+            SanitizedSqlString tableName,
             IDictionary<string, object> data,
             IList<string> keys,
             ILogger logger);

@@ -1,5 +1,6 @@
 ﻿using CluedIn.Connector.Common.Helpers;
 using CluedIn.Connector.SqlServer.Connector;
+using CluedIn.Connector.SqlServer.Utility;
 using CluedIn.Core;
 using CluedIn.Core.Connectors;
 using CluedIn.Core.Data.Vocabularies;
@@ -16,7 +17,8 @@ namespace CluedIn.Connector.SqlServer.Features
         public virtual IEnumerable<SqlServerConnectorCommand> BuildCreateContainerSql(
             ExecutionContext executionContext,
             Guid providerDefinitionId,
-            string name,
+            SanitizedSqlString schema,
+            SanitizedSqlString tableName,
             IEnumerable<ConnectionDataType> columns,
             IEnumerable<string> keys,
             ILogger logger)
@@ -26,7 +28,7 @@ namespace CluedIn.Connector.SqlServer.Features
             if (executionContext == null)
                 throw new ArgumentNullException(nameof(executionContext));
 
-            if (string.IsNullOrWhiteSpace(name))
+            if (string.IsNullOrWhiteSpace(tableName.GetValue()))
                 throw new InvalidOperationException("The name must be provided.");
 
             var enumeratedColumns = columns as ConnectionDataType[] ?? columns?.ToArray();
@@ -40,8 +42,7 @@ namespace CluedIn.Connector.SqlServer.Features
             var trimmedColumns = enumeratedColumns.Where(x => x.Name != "Codes");
 
             var builder = new StringBuilder();
-            var sanitizedName = SqlStringSanitizer.Sanitize(name);
-            builder.AppendLine($"CREATE TABLE [{sanitizedName}](");
+            builder.AppendLine($"CREATE TABLE {schema}.{tableName}(");
             builder.AppendJoin(", ",
                 trimmedColumns.Select(c => $"[{SqlStringSanitizer.Sanitize(c.Name)}] {GetDbType(c.Type, c.Name)} NULL"));
             builder.AppendLine(") ON[PRIMARY]");

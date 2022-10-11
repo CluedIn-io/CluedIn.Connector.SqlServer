@@ -1,4 +1,4 @@
-﻿namespace CluedIn.Connector.SqlServer
+﻿namespace CluedIn.Connector.SqlServer.Utility
 {
     /// <summary>
     /// LDM: Local Copy-Paste of CluedIn.Connector.Common.Configurations.CommonConfigurationNames. I would vote to remove.

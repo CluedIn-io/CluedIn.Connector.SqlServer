@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using CluedIn.Core.Data.Vocabularies;
 
-namespace CluedIn.Connector.SqlServer.Features
+namespace CluedIn.Connector.SqlServer.Utility
 {
     public class SqlColumnHelper
     {

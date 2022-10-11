@@ -1,4 +1,5 @@
 ﻿using CluedIn.Connector.Common.Clients;
+using CluedIn.Connector.SqlServer.Utility;
 using Microsoft.Data.SqlClient;
 using System.Collections.Generic;
 

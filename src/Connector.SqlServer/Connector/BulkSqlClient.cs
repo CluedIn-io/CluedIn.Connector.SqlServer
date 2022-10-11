@@ -1,6 +1,7 @@
 ﻿using System.Data;
 using System.Threading.Tasks;
 using CluedIn.Connector.Common.Helpers;
+using CluedIn.Connector.SqlServer.Utility;
 using CluedIn.Core.Connectors;
 using Microsoft.Data.SqlClient;
 

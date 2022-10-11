@@ -1,4 +1,5 @@
 using CluedIn.Connector.Common.Configurations;
+using CluedIn.Connector.SqlServer.Utility;
 using CluedIn.Core.Providers;
 using System;
 

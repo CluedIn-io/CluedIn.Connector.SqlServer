@@ -1,19 +1,18 @@
 ﻿using CluedIn.Connector.Common.Configurations;
-using CluedIn.Connector.Common.Helpers;
 using CluedIn.Core.Connectors;
 
-namespace CluedIn.Connector.SqlServer
+namespace CluedIn.Connector.SqlServer.Utility
 {
     public static class IConnectorConnectionExtensions
     {
-        public static string GetSchema(this IConnectorConnection connection)
+        public static SanitizedSqlString GetSchema(this IConnectorConnection connection)
         {
             if (connection.Authentication.TryGetValue(CommonConfigurationNames.Schema, out var obj)
                 && obj is string schema
                 && !string.IsNullOrWhiteSpace(schema))
-                return SqlStringSanitizer.Sanitize(schema);
+                return new SanitizedSqlString(schema);
 
-            return SqlServerConstants.DefaultSchema;
+            return new SanitizedSqlString(SqlServerConstants.DefaultSchema);
         }
     }
 }
