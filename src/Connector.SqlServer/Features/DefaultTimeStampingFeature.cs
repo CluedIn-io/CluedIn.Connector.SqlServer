@@ -27,7 +27,7 @@ namespace CluedIn.Connector.SqlServer.Features
             {
                 var columnName = "TimeStamp";
                 var addTimeStampSql =
-                    $"alter table [{tableName}] add [{columnName}] {SqlConnectorHelper.GetColumnType(VocabularyKeyDataType.DateTime, columnName)}";
+                    $"alter table [{tableName}] add [{columnName}] {SqlColumnHelper.GetColumnType(VocabularyKeyDataType.DateTime, columnName)}";
                 await client.ExecuteCommandAsync(config, addTimeStampSql);
             }
         }

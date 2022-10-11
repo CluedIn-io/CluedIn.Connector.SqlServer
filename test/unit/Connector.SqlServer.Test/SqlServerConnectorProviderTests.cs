@@ -91,11 +91,11 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests
             typedResult.Configurations.Should().Equal(
                 new Dictionary<string, object>
                 {
-                    { SqlServerConstants.KeyName.Username, "user" },
-                    { SqlServerConstants.KeyName.DatabaseName, "database" },
-                    { SqlServerConstants.KeyName.Host, "host" },
-                    { SqlServerConstants.KeyName.Password, "password" },
-                    { SqlServerConstants.KeyName.PortNumber, 1234 }
+                    { KeyName.Username, "user" },
+                    { KeyName.DatabaseName, "database" },
+                    { KeyName.Host, "host" },
+                    { KeyName.Password, "password" },
+                    { KeyName.PortNumber, 1234 }
                 });
         }
 
@@ -160,11 +160,11 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests
             result.Should().Equal(
                 new Dictionary<string, object>
                 {
-                    { SqlServerConstants.KeyName.Username, "user" },
-                    { SqlServerConstants.KeyName.DatabaseName, "database" },
-                    { SqlServerConstants.KeyName.Host, "host" },
-                    { SqlServerConstants.KeyName.Password, "password" },
-                    { SqlServerConstants.KeyName.PortNumber, 1234 }
+                    { KeyName.Username, "user" },
+                    { KeyName.DatabaseName, "database" },
+                    { KeyName.Host, "host" },
+                    { KeyName.Password, "password" },
+                    { KeyName.PortNumber, 1234 }
                 });
         }
 
