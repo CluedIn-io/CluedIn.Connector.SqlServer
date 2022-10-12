@@ -13,16 +13,20 @@ namespace CluedIn.Connector.SqlServer.Utility
             new ConnectionDataType { Name =  "Code", Type = VocabularyKeyDataType.Text }
         };
 
-        private static readonly ConnectionDataType[] _eventStreamCodeEdgeColumns = { new ConnectionDataType { Name = "CorrelationId", Type = VocabularyKeyDataType.Text }, };
+        private static readonly ConnectionDataType[] _eventStreamCodeEdgeColumns = { new ConnectionDataType { Name = "CorrelationId", Type = VocabularyKeyDataType.Text }, };        
 
-        public Container(string containerName) : this(containerName, StreamMode.Sync)
+        public Container(SanitizedSqlString containerName) : this(containerName, StreamMode.Sync)
         {
         }
 
-        public Container(string containerName, StreamMode mode)
+        public Container(string containerName, StreamMode mode) : this(new SanitizedSqlString(containerName), mode)
         {
-            ContainerName = new SanitizedSqlString(containerName);
-            PrimaryTable = new SanitizedSqlString(containerName);
+        }        
+
+        public Container(SanitizedSqlString containerName, StreamMode mode)
+        {
+            ContainerName = containerName;
+            PrimaryTable = containerName;
 
             var columns = _codeEdgeColumns;
 

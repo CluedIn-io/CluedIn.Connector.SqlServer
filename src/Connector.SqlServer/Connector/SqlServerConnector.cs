@@ -256,7 +256,7 @@ namespace CluedIn.Connector.SqlServer.Connector
                         .ToList();
 
                     var indexCommands = _features.GetFeature<IBuildCreateIndexFeature>()
-                        .BuildCreateIndexSql(executionContext, providerDefinitionId, tableName, keys, _logger);
+                        .BuildCreateIndexSql(executionContext, providerDefinitionId, schema, tableName, keys, _logger);
                     commands = commands.Union(indexCommands);
 
                     foreach (var command in commands)
@@ -345,12 +345,23 @@ namespace CluedIn.Connector.SqlServer.Connector
             string id, string newName)
         {
             var config = await base.GetAuthenticationDetails(executionContext, providerDefinitionId);
+            var schema = config.GetSchema();
+            var currentContainer = new Container(id, StreamMode);
+            var updatedContainer = new Container(newName, StreamMode);
 
-            async Task renameTable(string currentName, string updatedName, string context)
+            var tasks = new List<Task>
             {
-                var tempName = SqlStringSanitizer.Sanitize(updatedName);
+                renameTable(currentContainer.PrimaryTable, updatedContainer.PrimaryTable, "Data")
+            };
+            foreach (var current in currentContainer.Tables)
+                if (await CheckTableExists(executionContext, providerDefinitionId, current.Value.Name.GetValue()))
+                    tasks.Add(renameTable(current.Value.Name, updatedContainer.Tables[current.Key].Name, current.Key));
 
-                var sql = BuildRenameContainerSql(currentName, tempName, out var param);
+            await Task.WhenAll(tasks);
+
+            async Task renameTable(SanitizedSqlString currentName, SanitizedSqlString updatedName, string context)
+            {
+                var sql = BuildRenameContainerSql(schema, currentName, updatedName, out var param);
 
                 _logger.LogDebug("Sql Server Connector - Rename Container[{Context}] - Generated query: {sql}", context,
                     sql);
@@ -366,19 +377,6 @@ namespace CluedIn.Connector.SqlServer.Connector
                     throw new CreateContainerException(message);
                 }
             }
-
-            var currentContainer = new Container(id, StreamMode);
-            var updatedContainer = new Container(newName, StreamMode);
-
-            var tasks = new List<Task>
-            {
-                renameTable(currentContainer.PrimaryTable, updatedContainer.PrimaryTable, "Data")
-            };
-            foreach (var current in currentContainer.Tables)
-                if (await CheckTableExists(executionContext, providerDefinitionId, current.Value.Name))
-                    tasks.Add(renameTable(current.Value.Name, updatedContainer.Tables[current.Key].Name, current.Key));
-
-            await Task.WhenAll(tasks);
         }
 
         public override Task StoreData(ExecutionContext executionContext, Guid providerDefinitionId,
@@ -399,10 +397,18 @@ namespace CluedIn.Connector.SqlServer.Connector
             string id)
         {
             var config = await base.GetAuthenticationDetails(executionContext, providerDefinitionId);
+            var schema = config.GetSchema();
+            var container = new Container(id, StreamMode);
+            var tasks = new List<Task> { removeTable(container.PrimaryTable, "Data") };
+            foreach (var table in container.Tables)
+                if (await CheckTableExists(executionContext, providerDefinitionId, table.Value.Name.GetValue()))
+                    tasks.Add(removeTable(table.Value.Name, table.Key));
 
-            async Task removeTable(string name, string context)
+            await Task.WhenAll(tasks);
+
+            async Task removeTable(SanitizedSqlString name, string context)
             {
-                var sql = BuildRemoveContainerSql(name);
+                var sql = BuildRemoveContainerSql(schema, name);
 
                 _logger.LogDebug("Sql Server Connector - Remove Container[{Context}] - Generated query: {sql}", context,
                     sql);
@@ -418,14 +424,6 @@ namespace CluedIn.Connector.SqlServer.Connector
                     throw new CreateContainerException(message);
                 }
             }
-
-            var container = new Container(id, StreamMode);
-            var tasks = new List<Task> { removeTable(container.PrimaryTable, "Data") };
-            foreach (var table in container.Tables)
-                if (await CheckTableExists(executionContext, providerDefinitionId, table.Value.Name))
-                    tasks.Add(removeTable(table.Value.Name, table.Key));
-
-            await Task.WhenAll(tasks);
         }
 
         public override async Task<IEnumerable<IConnectorContainer>> GetContainers(ExecutionContext executionContext,
@@ -484,6 +482,7 @@ namespace CluedIn.Connector.SqlServer.Connector
             IList<IEntityCode> codes,
             Guid entityId)
         {
+            var tableName = new SanitizedSqlString(containerName);
             try
             {
                 if (_bulkSupported)
@@ -492,23 +491,23 @@ namespace CluedIn.Connector.SqlServer.Connector
                     await bulkFeature.BulkTableDelete(
                         executionContext,
                         providerDefinitionId,
-                        containerName,
+                        tableName,
                         originEntityCode,
                         codes,
                         entityId,
                         _bulkInsertThreshold,
                         _bulkClient,
-                        () => base.GetAuthenticationDetails(executionContext, providerDefinitionId),
+                        () => GetAuthenticationDetails(executionContext, providerDefinitionId),
                         _logger);
                 }
                 else
                 {
-                    var config = await base.GetAuthenticationDetails(executionContext, providerDefinitionId);
-
+                    var config = await GetAuthenticationDetails(executionContext, providerDefinitionId);
+                    var schema = config.GetSchema();
                     var container = new Container(containerName, StreamMode);
                     var deleteFeature = _features.GetFeature<IBuildDeleteDataFeature>();
                     var commands = deleteFeature
-                        .BuildDeleteDataSql(executionContext, providerDefinitionId, container.PrimaryTable,
+                        .BuildDeleteDataSql(executionContext, providerDefinitionId, schema, container.PrimaryTable,
                             originEntityCode, codes, entityId, _logger);
 
                     // We need to origin entity code for entities that have been deleted
@@ -530,10 +529,10 @@ namespace CluedIn.Connector.SqlServer.Connector
                     }
 
                     foreach (var table in container.Tables)
-                        if (await CheckTableExists(executionContext, providerDefinitionId, table.Value.Name))
+                        if (await CheckTableExists(executionContext, providerDefinitionId, table.Value.Name.GetValue()))
                             foreach (var entry in lookupOriginCodes)
                                 commands = commands.Concat(deleteFeature
-                                    .BuildDeleteDataSql(executionContext, providerDefinitionId, table.Value.Name, entry,
+                                    .BuildDeleteDataSql(executionContext, providerDefinitionId, schema, table.Value.Name, entry,
                                         null, null, _logger));
 
                     foreach (var command in commands)
@@ -543,7 +542,7 @@ namespace CluedIn.Connector.SqlServer.Connector
             catch (Exception e)
             {
                 var message =
-                    $"Could not delete data from Container '{containerName}' for Connector {providerDefinitionId}";
+                    $"Could not delete data from Container '{tableName}' for Connector {providerDefinitionId}";
                 _logger.LogError(e, message);
                 throw new StoreDataException(message);
             }
@@ -589,7 +588,7 @@ namespace CluedIn.Connector.SqlServer.Connector
         }
 
         private string BuildRenameContainerSql(SanitizedSqlString schema, SanitizedSqlString currentName, SanitizedSqlString newName, out List<SqlParameter> param)
-        {            
+        {
             param = new List<SqlParameter>
             {
                 new SqlParameter("@currentName", SqlDbType.NVarChar) {Value = $"{schema}.{currentName}"},

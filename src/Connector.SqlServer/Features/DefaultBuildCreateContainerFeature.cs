@@ -42,7 +42,7 @@ namespace CluedIn.Connector.SqlServer.Features
             var trimmedColumns = enumeratedColumns.Where(x => x.Name != "Codes");
 
             var builder = new StringBuilder();
-            builder.AppendLine($"CREATE TABLE {schema}.{tableName}(");
+            builder.AppendLine($"CREATE TABLE {schema}.{tableName} (");
             builder.AppendJoin(", ",
                 trimmedColumns.Select(c => $"[{SqlStringSanitizer.Sanitize(c.Name)}] {GetDbType(c.Type, c.Name)} NULL"));
             builder.AppendLine(") ON[PRIMARY]");
