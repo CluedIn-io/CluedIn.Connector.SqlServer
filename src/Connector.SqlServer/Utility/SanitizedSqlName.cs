@@ -3,7 +3,7 @@ using System;
 
 namespace CluedIn.Connector.SqlServer.Utility
 {
-    public class SanitizedSqlString
+    public class SanitizedSqlName
     {
         protected readonly string Source;
         protected string Sanitized;
@@ -13,7 +13,7 @@ namespace CluedIn.Connector.SqlServer.Utility
         /// </summary>
         /// <param name="source"></param>
         /// <exception cref="ArgumentNullException">Source string can't be null</exception>
-        public SanitizedSqlString(string source)
+        public SanitizedSqlName(string source)
         {
             Source = source ?? throw new ArgumentNullException($"{nameof(source)} can't be null");
         }
@@ -33,7 +33,7 @@ namespace CluedIn.Connector.SqlServer.Utility
 
         public override bool Equals(object obj)
         {
-            if (obj == null || obj is SanitizedSqlString target == false)
+            if (obj == null || obj is SanitizedSqlName target == false)
                 return false;
 
             return GetValue() == target.GetValue();

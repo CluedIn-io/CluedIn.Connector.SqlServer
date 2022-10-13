@@ -16,8 +16,8 @@ namespace CluedIn.Connector.SqlServer.Features
         public IEnumerable<SqlServerConnectorCommand> BuildDeleteDataSql(
             ExecutionContext executionContext,
             Guid providerDefinitionId,
-            SanitizedSqlString schema,
-            SanitizedSqlString tableName,
+            SanitizedSqlName schema,
+            SanitizedSqlName tableName,
             string originEntityCode,
             IList<IEntityCode> codes,
             Guid? entityId,
@@ -44,7 +44,7 @@ namespace CluedIn.Connector.SqlServer.Features
             return Enumerable.Empty<SqlServerConnectorCommand>();
         }
 
-        protected virtual IEnumerable<SqlServerConnectorCommand> ComposeDelete(SanitizedSqlString schema, SanitizedSqlString tableName,
+        protected virtual IEnumerable<SqlServerConnectorCommand> ComposeDelete(SanitizedSqlName schema, SanitizedSqlName tableName,
             IDictionary<string, object> fields)
         {
             var sqlBuilder = new StringBuilder($"DELETE FROM [{schema}].[{tableName}] WHERE ");
@@ -53,7 +53,7 @@ namespace CluedIn.Connector.SqlServer.Features
 
             foreach (var entry in fields)
             {
-                var key = new SanitizedSqlString(entry.Key);
+                var key = new SanitizedSqlName(entry.Key);
                 clauses.Add($"[{key}] = @{key}");
                 parameters.Add(new SqlParameter(key.GetValue(), entry.Value));
             }

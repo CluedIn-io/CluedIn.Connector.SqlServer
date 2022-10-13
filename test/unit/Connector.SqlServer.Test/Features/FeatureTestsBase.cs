@@ -18,6 +18,6 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests.Features
             _testContext = new TestContext();
         }
 
-        protected SanitizedSqlString ToSanitized(string source) => new SanitizedSqlString(source);
+        protected SanitizedSqlName ToSanitized(string source) => new SanitizedSqlName(source);
     }
 }

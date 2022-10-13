@@ -1,6 +1,5 @@
 ﻿using AutoFixture.Xunit2;
 using CluedIn.Connector.SqlServer.Features;
-using CluedIn.Connector.SqlServer.Utility;
 using CluedIn.Core.Connectors;
 using System;
 using System.Collections.Generic;
@@ -81,7 +80,7 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests.Features
             var sanitizedSchema = ToSanitized(schema);
             var sanitizedName = ToSanitized(name);
             var expected = new StringBuilder();
-            expected.AppendLine($"CREATE TABLE {sanitizedSchema}.{sanitizedName} (");
+            expected.AppendLine($"CREATE TABLE [{sanitizedSchema}].[{sanitizedName}] (");
             expected.AppendJoin(", ", columns.Select(c => $"[{ToSanitized(c.Name)}] nvarchar(max) NULL"));
             expected.AppendLine(") ON[PRIMARY]");
 

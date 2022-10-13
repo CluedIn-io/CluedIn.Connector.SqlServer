@@ -11,8 +11,8 @@ namespace CluedIn.Connector.SqlServer.Features
     {
         IEnumerable<SqlServerConnectorCommand> BuildStoreDataSql(ExecutionContext executionContext,
             Guid providerDefinitionId,
-            SanitizedSqlString schema,
-            SanitizedSqlString tableName,
+            SanitizedSqlName schema,
+            SanitizedSqlName tableName,
             IDictionary<string, object> data,
             IList<string> keys,
             ILogger logger);

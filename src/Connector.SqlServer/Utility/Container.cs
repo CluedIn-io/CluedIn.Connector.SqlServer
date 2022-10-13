@@ -15,15 +15,15 @@ namespace CluedIn.Connector.SqlServer.Utility
 
         private static readonly ConnectionDataType[] _eventStreamCodeEdgeColumns = { new ConnectionDataType { Name = "CorrelationId", Type = VocabularyKeyDataType.Text }, };        
 
-        public Container(SanitizedSqlString containerName) : this(containerName, StreamMode.Sync)
+        public Container(SanitizedSqlName containerName) : this(containerName, StreamMode.Sync)
         {
         }
 
-        public Container(string containerName, StreamMode mode) : this(new SanitizedSqlString(containerName), mode)
+        public Container(string containerName, StreamMode mode) : this(new SanitizedSqlName(containerName), mode)
         {
         }        
 
-        public Container(SanitizedSqlString containerName, StreamMode mode)
+        public Container(SanitizedSqlName containerName, StreamMode mode)
         {
             ContainerName = containerName;
             PrimaryTable = containerName;
@@ -35,20 +35,20 @@ namespace CluedIn.Connector.SqlServer.Utility
 
             Tables = new Dictionary<string, Table>
             {
-                ["Codes"] = new Table(new SanitizedSqlString($"{ContainerName}Codes"), columns, _codeEdgeColumns.Select(x => x.Name)),
-                ["Edges"] = new Table(new SanitizedSqlString($"{ContainerName}Edges"), columns, _codeEdgeColumns.Select(x => x.Name)),
+                ["Codes"] = new Table(new SanitizedSqlName($"{ContainerName}Codes"), columns, _codeEdgeColumns.Select(x => x.Name)),
+                ["Edges"] = new Table(new SanitizedSqlName($"{ContainerName}Edges"), columns, _codeEdgeColumns.Select(x => x.Name)),
             };
         }
 
-        public SanitizedSqlString PrimaryTable { get; }
-        public SanitizedSqlString ContainerName { get; }
+        public SanitizedSqlName PrimaryTable { get; }
+        public SanitizedSqlName ContainerName { get; }
 
         public IReadOnlyDictionary<string, Table> Tables { get; }
 
         public class Table
         {
             public Table(
-                SanitizedSqlString name,
+                SanitizedSqlName name,
                 IEnumerable<ConnectionDataType> columns,
                 IEnumerable<string> keys)
             {
@@ -57,7 +57,7 @@ namespace CluedIn.Connector.SqlServer.Utility
                 Keys = new List<string>(keys).AsReadOnly();
             }
 
-            public SanitizedSqlString Name { get; }
+            public SanitizedSqlName Name { get; }
 
             public IReadOnlyList<ConnectionDataType> Columns { get; }
 

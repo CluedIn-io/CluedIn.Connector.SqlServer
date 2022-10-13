@@ -15,7 +15,7 @@ namespace CluedIn.Connector.SqlServer.Features
         public Task BulkTableDelete(
             ExecutionContext executionContext,
             Guid providerDefinitionId,
-            SanitizedSqlString tableName,
+            SanitizedSqlName tableName,
             string originEntityCode,
             IList<IEntityCode> codes,
             Guid entityId,

@@ -17,7 +17,7 @@ namespace CluedIn.Connector.SqlServer.Features
         public virtual async Task BulkTableUpdate(
             ExecutionContext executionContext,
             Guid providerDefinitionId,
-            SanitizedSqlString tableName,
+            SanitizedSqlName tableName,
             IDictionary<string, object> data,
             int threshold,
             IBulkSqlClient client,
@@ -44,7 +44,7 @@ namespace CluedIn.Connector.SqlServer.Features
             ExecutionContext executionContext,
             Func<Task<IConnectorConnection>> connectionFactory,
             IBulkSqlClient client,
-            SanitizedSqlString tableName,
+            SanitizedSqlName tableName,
             DataTable table,
             ILogger logger)
         {
@@ -59,7 +59,7 @@ namespace CluedIn.Connector.SqlServer.Features
             logger.LogDebug($"Stream StoreData BulkInsert {table.Rows.Count} rows - {sw.ElapsedMilliseconds}ms");
         }
 
-        private DataTable GetDataTable(ExecutionContext executionContext, SanitizedSqlString tableName,
+        private DataTable GetDataTable(ExecutionContext executionContext, SanitizedSqlName tableName,
             IDictionary<string, object> data)
         {
             var dataTableCacheName = GetDataTableCacheName(tableName);
@@ -68,13 +68,13 @@ namespace CluedIn.Connector.SqlServer.Features
             {
                 var table = new DataTable(tableName.GetValue());
                 foreach (var col in data)
-                    table.Columns.Add(new SanitizedSqlString(col.Key).GetValue(), typeof(string));
+                    table.Columns.Add(new SanitizedSqlName(col.Key).GetValue(), typeof(string));
 
                 return table;
             });
         }
 
-        private static string GetDataTableCacheName(SanitizedSqlString tableName)
+        private static string GetDataTableCacheName(SanitizedSqlName tableName)
         {
             return $"Stream_cache_{tableName}";
         }

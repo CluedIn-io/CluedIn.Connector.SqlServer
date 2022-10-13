@@ -78,7 +78,7 @@ namespace CluedIn.Connector.SqlServer.Connector
             string correlationId, DateTimeOffset timestamp, VersionChangeType changeType,
             IDictionary<string, object> data)
         {
-            var tableName = new SanitizedSqlString(containerName);
+            var tableName = new SanitizedSqlName(containerName);
             var dataToUse = new Dictionary<string, object>(data)
                 {
                     { TimestampFieldName, timestamp }
@@ -156,7 +156,7 @@ namespace CluedIn.Connector.SqlServer.Connector
         {
             try
             {
-                var edgeTableName = new SanitizedSqlString(GetEdgesContainerName(containerName));
+                var edgeTableName = new SanitizedSqlName(GetEdgesContainerName(containerName));
                 if (await CheckTableExists(executionContext, providerDefinitionId, edgeTableName.GetValue()))
                 {
                     var config = await GetAuthenticationDetails(executionContext, providerDefinitionId);
@@ -245,7 +245,7 @@ namespace CluedIn.Connector.SqlServer.Connector
 
             await Task.WhenAll(tasks);
 
-            async Task createTable(SanitizedSqlString tableName, IEnumerable<ConnectionDataType> columns, IEnumerable<string> keys,
+            async Task createTable(SanitizedSqlName tableName, IEnumerable<ConnectionDataType> columns, IEnumerable<string> keys,
                 string context)
             {
                 try
@@ -289,7 +289,7 @@ namespace CluedIn.Connector.SqlServer.Connector
 
             await Task.WhenAll(tasks);
 
-            async Task emptyTable(SanitizedSqlString tableName, string context)
+            async Task emptyTable(SanitizedSqlName tableName, string context)
             {
                 var sql = BuildEmptyContainerSql(schema, tableName);
                 _logger.LogDebug("Sql Server Connector - Empty Container[{Context}] - Generated query: {sql}", context,
@@ -321,9 +321,9 @@ namespace CluedIn.Connector.SqlServer.Connector
 
             await Task.WhenAll(tasks);
 
-            async Task archiveTable(SanitizedSqlString name, string context)
+            async Task archiveTable(SanitizedSqlName name, string context)
             {
-                var newName = new SanitizedSqlString($"{name}{DateTime.Now:yyyyMMddHHmmss}");
+                var newName = new SanitizedSqlName($"{name}{DateTime.Now:yyyyMMddHHmmss}");
                 var sql = BuildRenameContainerSql(schema, name, newName, out var param);
                 _logger.LogDebug("Sql Server Connector - Archive Container[{Context}] - Generated query: {sql}",
                     context, sql);
@@ -359,7 +359,7 @@ namespace CluedIn.Connector.SqlServer.Connector
 
             await Task.WhenAll(tasks);
 
-            async Task renameTable(SanitizedSqlString currentName, SanitizedSqlString updatedName, string context)
+            async Task renameTable(SanitizedSqlName currentName, SanitizedSqlName updatedName, string context)
             {
                 var sql = BuildRenameContainerSql(schema, currentName, updatedName, out var param);
 
@@ -406,7 +406,7 @@ namespace CluedIn.Connector.SqlServer.Connector
 
             await Task.WhenAll(tasks);
 
-            async Task removeTable(SanitizedSqlString name, string context)
+            async Task removeTable(SanitizedSqlName name, string context)
             {
                 var sql = BuildRemoveContainerSql(schema, name);
 
@@ -482,7 +482,7 @@ namespace CluedIn.Connector.SqlServer.Connector
             IList<IEntityCode> codes,
             Guid entityId)
         {
-            var tableName = new SanitizedSqlString(containerName);
+            var tableName = new SanitizedSqlName(containerName);
             try
             {
                 if (_bulkSupported)
@@ -549,7 +549,7 @@ namespace CluedIn.Connector.SqlServer.Connector
         }
 
 
-        public string BuildEdgeStoreDataSql(SanitizedSqlString schema, SanitizedSqlString tableName, string originEntityCode, string correlationId,
+        public string BuildEdgeStoreDataSql(SanitizedSqlName schema, SanitizedSqlName tableName, string originEntityCode, string correlationId,
             IEnumerable<string> edges, out List<SqlParameter> param)
         {
             var originParam = new SqlParameter { ParameterName = "@OriginEntityCode", Value = originEntityCode };
@@ -587,7 +587,7 @@ namespace CluedIn.Connector.SqlServer.Connector
             return builder.ToString();
         }
 
-        private string BuildRenameContainerSql(SanitizedSqlString schema, SanitizedSqlString currentName, SanitizedSqlString newName, out List<SqlParameter> param)
+        private string BuildRenameContainerSql(SanitizedSqlName schema, SanitizedSqlName currentName, SanitizedSqlName newName, out List<SqlParameter> param)
         {
             param = new List<SqlParameter>
             {
@@ -598,12 +598,12 @@ namespace CluedIn.Connector.SqlServer.Connector
             return $"IF EXISTS(SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = '{schema}' AND TABLE_NAME = '{currentName}') EXEC sp_rename @currentName, @newName";
         }
 
-        private string BuildRemoveContainerSql(SanitizedSqlString schema, SanitizedSqlString tableName)
+        private string BuildRemoveContainerSql(SanitizedSqlName schema, SanitizedSqlName tableName)
         {
             return $"DROP TABLE [{schema}].[{tableName}] IF EXISTS";
         }
 
-        protected string BuildEmptyContainerSql(SanitizedSqlString schema, SanitizedSqlString tableName)
+        protected string BuildEmptyContainerSql(SanitizedSqlName schema, SanitizedSqlName tableName)
         {
             return $"TRUNCATE TABLE [{schema}].[{tableName}]";
         }

@@ -12,8 +12,8 @@ namespace CluedIn.Connector.SqlServer.Features
     {
         IEnumerable<SqlServerConnectorCommand> BuildCreateContainerSql(ExecutionContext executionContext,
             Guid providerDefinitionId,
-            SanitizedSqlString schema,
-            SanitizedSqlString tableName,
+            SanitizedSqlName schema,
+            SanitizedSqlName tableName,
             IEnumerable<ConnectionDataType> columns,
             IEnumerable<string> keys,
             ILogger logger);

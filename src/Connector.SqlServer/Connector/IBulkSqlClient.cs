@@ -7,6 +7,6 @@ namespace CluedIn.Connector.SqlServer.Connector
 {
     public interface IBulkSqlClient : ISqlClient
     {
-        Task ExecuteBulkAsync(IConnectorConnection config, DataTable table, SanitizedSqlString tableName);
+        Task ExecuteBulkAsync(IConnectorConnection config, DataTable table, SanitizedSqlName tableName);
     }
 }

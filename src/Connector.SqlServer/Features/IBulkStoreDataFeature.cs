@@ -14,7 +14,7 @@ namespace CluedIn.Connector.SqlServer.Features
         Task BulkTableUpdate(
             ExecutionContext executionContext,
             Guid providerDefinitionId,
-            SanitizedSqlString tableName,
+            SanitizedSqlName tableName,
             IDictionary<string, object> data,
             int threshold,
             IBulkSqlClient client,

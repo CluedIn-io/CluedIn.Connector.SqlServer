@@ -17,7 +17,7 @@ namespace CluedIn.Connector.SqlServer.Features
     public class DefaultBuildStoreDataFeature : IBuildStoreDataFeature, IBuildStoreDataForMode
     {
         public IEnumerable<SqlServerConnectorCommand> BuildStoreDataSql(ExecutionContext executionContext,
-            Guid providerDefinitionId, SanitizedSqlString schema, SanitizedSqlString tableName, IDictionary<string, object> data, IList<string> keys,
+            Guid providerDefinitionId, SanitizedSqlName schema, SanitizedSqlName tableName, IDictionary<string, object> data, IList<string> keys,
             ILogger logger)
         {
             return BuildStoreDataSql(executionContext, providerDefinitionId, schema, tableName, data, keys, StreamMode.Sync,
@@ -27,8 +27,8 @@ namespace CluedIn.Connector.SqlServer.Features
         public virtual IEnumerable<SqlServerConnectorCommand> BuildStoreDataSql(
             ExecutionContext executionContext,
             Guid providerDefinitionId,
-            SanitizedSqlString schema,
-            SanitizedSqlString tableName,
+            SanitizedSqlName schema,
+            SanitizedSqlName tableName,
             IDictionary<string, object> data,
             IList<string> keys,
             StreamMode mode,
@@ -100,7 +100,7 @@ namespace CluedIn.Connector.SqlServer.Features
                     data: data);
         }
 
-        protected virtual SqlServerConnectorCommand ComposeUpsert(SanitizedSqlString schema, SanitizedSqlString tableName, IDictionary<string, object> data,
+        protected virtual SqlServerConnectorCommand ComposeUpsert(SanitizedSqlName schema, SanitizedSqlName tableName, IDictionary<string, object> data,
             IList<string> keys, ILogger logger)
         {
             var builder = new StringBuilder();
@@ -110,7 +110,7 @@ namespace CluedIn.Connector.SqlServer.Features
             var updates = new List<string>();
             foreach (var entry in data)
             {
-                var name = new SanitizedSqlString(entry.Key);
+                var name = new SanitizedSqlName(entry.Key);
                 var param = new SqlParameter($"@{name}", entry.Value ?? DBNull.Value);
                 try
                 {
@@ -146,7 +146,7 @@ namespace CluedIn.Connector.SqlServer.Features
             return new SqlServerConnectorCommand { Text = builder.ToString(), Parameters = parameters };
         }
 
-        protected virtual SqlServerConnectorCommand ComposeDelete(SanitizedSqlString schema, SanitizedSqlString tableName, IDictionary<string, object> filters)
+        protected virtual SqlServerConnectorCommand ComposeDelete(SanitizedSqlName schema, SanitizedSqlName tableName, IDictionary<string, object> filters)
         {
             var sqlBuilder = new StringBuilder($"DELETE FROM [{schema}].[{tableName}] WHERE ");
             var clauses = new List<string>();
@@ -154,7 +154,7 @@ namespace CluedIn.Connector.SqlServer.Features
 
             foreach (var entry in filters)
             {
-                var key = new SanitizedSqlString(entry.Key);
+                var key = new SanitizedSqlName(entry.Key);
                 clauses.Add($"[{key}] = @{key}");
                 parameters.Add(new SqlParameter($"@{key}", entry.Value));
             }
@@ -165,7 +165,7 @@ namespace CluedIn.Connector.SqlServer.Features
             return new SqlServerConnectorCommand { Text = sqlBuilder.ToString(), Parameters = parameters };
         }
 
-        protected virtual SqlServerConnectorCommand ComposeInsert(SanitizedSqlString schema, SanitizedSqlString tableName, IDictionary<string, object> data)
+        protected virtual SqlServerConnectorCommand ComposeInsert(SanitizedSqlName schema, SanitizedSqlName tableName, IDictionary<string, object> data)
         {
             var columns = new List<string>();
             var parameters = new List<SqlParameter>();

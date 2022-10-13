@@ -5,14 +5,14 @@ namespace CluedIn.Connector.SqlServer.Utility
 {
     public static class IConnectorConnectionExtensions
     {
-        public static SanitizedSqlString GetSchema(this IConnectorConnection connection)
+        public static SanitizedSqlName GetSchema(this IConnectorConnection connection)
         {
             if (connection.Authentication.TryGetValue(CommonConfigurationNames.Schema, out var obj)
                 && obj is string schema
                 && !string.IsNullOrWhiteSpace(schema))
-                return new SanitizedSqlString(schema);
+                return new SanitizedSqlName(schema);
 
-            return new SanitizedSqlString(SqlServerConstants.DefaultSchema);
+            return new SanitizedSqlName(SqlServerConstants.DefaultSchema);
         }
     }
 }

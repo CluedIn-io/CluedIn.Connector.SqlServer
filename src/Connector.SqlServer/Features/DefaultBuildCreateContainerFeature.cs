@@ -17,8 +17,8 @@ namespace CluedIn.Connector.SqlServer.Features
         public virtual IEnumerable<SqlServerConnectorCommand> BuildCreateContainerSql(
             ExecutionContext executionContext,
             Guid providerDefinitionId,
-            SanitizedSqlString schema,
-            SanitizedSqlString tableName,
+            SanitizedSqlName schema,
+            SanitizedSqlName tableName,
             IEnumerable<ConnectionDataType> columns,
             IEnumerable<string> keys,
             ILogger logger)
@@ -42,9 +42,9 @@ namespace CluedIn.Connector.SqlServer.Features
             var trimmedColumns = enumeratedColumns.Where(x => x.Name != "Codes");
 
             var builder = new StringBuilder();
-            builder.AppendLine($"CREATE TABLE {schema}.{tableName} (");
+            builder.AppendLine($"CREATE TABLE [{schema}].[{tableName}] (");
             builder.AppendJoin(", ",
-                trimmedColumns.Select(c => $"[{new SanitizedSqlString(c.Name)}] {GetDbType(c.Type, c.Name)} NULL"));
+                trimmedColumns.Select(c => $"[{new SanitizedSqlName(c.Name)}] {GetDbType(c.Type, c.Name)} NULL"));
             builder.AppendLine(") ON[PRIMARY]");
 
             return new[] { new SqlServerConnectorCommand { Text = builder.ToString() } };

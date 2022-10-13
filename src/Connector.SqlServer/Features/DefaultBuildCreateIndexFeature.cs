@@ -13,8 +13,8 @@ namespace CluedIn.Connector.SqlServer.Features
         public virtual IEnumerable<SqlServerConnectorCommand> BuildCreateIndexSql(
             ExecutionContext executionContext,
             Guid providerDefinitionId,
-            SanitizedSqlString schema,
-            SanitizedSqlString tableName,
+            SanitizedSqlName schema,
+            SanitizedSqlName tableName,
             IEnumerable<string> keys,
             ILogger logger)
         {
@@ -27,7 +27,7 @@ namespace CluedIn.Connector.SqlServer.Features
             if (logger == null)
                 throw new ArgumentNullException(nameof(logger));
             
-            var createIndexCommandText = $"CREATE INDEX [idx_{tableName}] ON {schema}.{tableName} ({string.Join(", ", keys)}); ";
+            var createIndexCommandText = $"CREATE INDEX [idx_{tableName}] ON [{schema}].[{tableName}] ({string.Join(", ", keys)}); ";
 
             return new[] { new SqlServerConnectorCommand { Text = createIndexCommandText } };
         }
