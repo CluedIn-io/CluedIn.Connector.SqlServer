@@ -9,7 +9,7 @@ namespace CluedIn.Connector.SqlServer
     {
         public static readonly string DefaultSchema = "dbo";
 
-        public SqlServerConstants() : base(providerId: Guid.Parse("0040FCBC-011B-408A-94CC-A6A0FBF9459F"),
+        public SqlServerConstants() : base(providerId: Guid.Parse("838E4EA2-80E0-4B60-B1D1-F052BFCD0CAF"),
             providerName: "Sql Server Connector",
             componentName: "SqlServerConnector",
             icon: "Resources.microsoft-sql-server-logo.svg",
