@@ -34,7 +34,6 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests.Features
         }
 
         [Theory]
-        [InlineAutoData(null)]
         [InlineAutoData("")]
         [InlineAutoData("\t\t   ")]
         public void BuildStoreDataSql_InvalidContainerName_Throws(

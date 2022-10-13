@@ -1,4 +1,5 @@
 ﻿using CluedIn.Connector.Common.Helpers;
+using System;
 
 namespace CluedIn.Connector.SqlServer.Utility
 {
@@ -7,14 +8,19 @@ namespace CluedIn.Connector.SqlServer.Utility
         protected readonly string Source;
         protected string Sanitized;
 
+        /// <summary>
+        /// String sanitized for use in SQL code
+        /// </summary>
+        /// <param name="source"></param>
+        /// <exception cref="ArgumentNullException">Source string can't be null</exception>
         public SanitizedSqlString(string source)
         {
-            Source = source;
+            Source = source ?? throw new ArgumentNullException($"{nameof(source)} can't be null");
         }
 
         public virtual string GetValue()
         {
-            if (Sanitized == null && Source != null)
+            if (Sanitized == null)
                 Sanitized = SqlStringSanitizer.Sanitize(Source);
 
             return Sanitized;
@@ -30,12 +36,12 @@ namespace CluedIn.Connector.SqlServer.Utility
             if (obj == null || obj is SanitizedSqlString target == false)
                 return false;
 
-            return Sanitized == target.GetValue();
+            return GetValue() == target.GetValue();
         }
 
         public override int GetHashCode()
         {
-            return Sanitized.GetHashCode();
+            return GetValue().GetHashCode();
         }
     }
 }
