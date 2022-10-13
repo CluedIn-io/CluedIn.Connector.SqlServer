@@ -66,7 +66,7 @@ namespace CluedIn.Connector.SqlServer.Features
                     // need to delete from Codes table
                     yield return ComposeDelete(schema: schema,
                         tableName: codesTable.Name,
-                        filters: new Dictionary<string, object> { ["OriginEntityCode"] = data["OriginEntityCode"] });
+                        filters: new Dictionary<string, object> { { "OriginEntityCode", data["OriginEntityCode"] } });
 
                 // need to insert into Codes table
                 var enumerator = codesEnumerable.GetEnumerator();
@@ -110,7 +110,7 @@ namespace CluedIn.Connector.SqlServer.Features
             var updates = new List<string>();
             foreach (var entry in data)
             {
-                var name = SqlStringSanitizer.Sanitize(entry.Key);
+                var name = new SanitizedSqlString(entry.Key);
                 var param = new SqlParameter($"@{name}", entry.Value ?? DBNull.Value);
                 try
                 {
@@ -154,7 +154,7 @@ namespace CluedIn.Connector.SqlServer.Features
 
             foreach (var entry in filters)
             {
-                var key = SqlStringSanitizer.Sanitize(entry.Key);
+                var key = new SanitizedSqlString(entry.Key);
                 clauses.Add($"[{key}] = @{key}");
                 parameters.Add(new SqlParameter($"@{key}", entry.Value));
             }

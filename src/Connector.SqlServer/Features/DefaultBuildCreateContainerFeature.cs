@@ -44,7 +44,7 @@ namespace CluedIn.Connector.SqlServer.Features
             var builder = new StringBuilder();
             builder.AppendLine($"CREATE TABLE {schema}.{tableName} (");
             builder.AppendJoin(", ",
-                trimmedColumns.Select(c => $"[{SqlStringSanitizer.Sanitize(c.Name)}] {GetDbType(c.Type, c.Name)} NULL"));
+                trimmedColumns.Select(c => $"[{new SanitizedSqlString(c.Name)}] {GetDbType(c.Type, c.Name)} NULL"));
             builder.AppendLine(") ON[PRIMARY]");
 
             return new[] { new SqlServerConnectorCommand { Text = builder.ToString() } };

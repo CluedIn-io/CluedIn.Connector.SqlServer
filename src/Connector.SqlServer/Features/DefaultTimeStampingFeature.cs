@@ -17,8 +17,9 @@ namespace CluedIn.Connector.SqlServer.Features
             StreamModel stream)
         {
             //TODO. Check if ContainerName already sanitized.
-            var tableName = SqlStringSanitizer.Sanitize(stream.ContainerName);
-            var tables = await client.GetTableColumns(config.Authentication, tableName);
+            var tableName = new SanitizedSqlString(stream.ContainerName);
+            var schema = config.GetSchema();
+            var tables = await client.GetTableColumns(config.Authentication, tableName.GetValue());
             var result = (from DataRow row in tables.Rows
                           let name = row["COLUMN_NAME"] as string
                           let rawType = row["DATA_TYPE"] as string
@@ -28,7 +29,7 @@ namespace CluedIn.Connector.SqlServer.Features
             {
                 var columnName = "TimeStamp";
                 var addTimeStampSql =
-                    $"alter table [{tableName}] add [{columnName}] {SqlColumnHelper.GetColumnType(VocabularyKeyDataType.DateTime, columnName)}";
+                    $"alter table {schema}.{tableName} add [{columnName}] {SqlColumnHelper.GetColumnType(VocabularyKeyDataType.DateTime, columnName)}";
                 await client.ExecuteCommandAsync(config, addTimeStampSql);
             }
         }

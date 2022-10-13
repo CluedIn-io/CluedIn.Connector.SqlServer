@@ -156,17 +156,17 @@ namespace CluedIn.Connector.SqlServer.Connector
         {
             try
             {
-                var edgeTableName = GetEdgesContainerName(containerName);
-                if (await CheckTableExists(executionContext, providerDefinitionId, edgeTableName))
+                var edgeTableName = new SanitizedSqlString(GetEdgesContainerName(containerName));
+                if (await CheckTableExists(executionContext, providerDefinitionId, edgeTableName.GetValue()))
                 {
-                    var sql = BuildEdgeStoreDataSql(edgeTableName, originEntityCode, correlationId, edges,
+                    var config = await GetAuthenticationDetails(executionContext, providerDefinitionId);
+                    var schema = config.GetSchema();
+                    var sql = BuildEdgeStoreDataSql(schema, edgeTableName, originEntityCode, correlationId, edges,
                         out var param);
 
                     if (!string.IsNullOrWhiteSpace(sql))
                     {
                         _logger.LogDebug($"Sql Server Connector - Store Edge Data - Generated query: {sql}");
-
-                        var config = await base.GetAuthenticationDetails(executionContext, providerDefinitionId);
                         await _client.ExecuteCommandAsync(config, sql, param);
                     }
                 }
@@ -504,7 +504,7 @@ namespace CluedIn.Connector.SqlServer.Connector
                 {
                     var config = await GetAuthenticationDetails(executionContext, providerDefinitionId);
                     var schema = config.GetSchema();
-                    var container = new Container(containerName, StreamMode);
+                    var container = new Container(tableName, StreamMode);
                     var deleteFeature = _features.GetFeature<IBuildDeleteDataFeature>();
                     var commands = deleteFeature
                         .BuildDeleteDataSql(executionContext, providerDefinitionId, schema, container.PrimaryTable,
@@ -549,7 +549,7 @@ namespace CluedIn.Connector.SqlServer.Connector
         }
 
 
-        public string BuildEdgeStoreDataSql(string containerName, string originEntityCode, string correlationId,
+        public string BuildEdgeStoreDataSql(SanitizedSqlString schema, SanitizedSqlString tableName, string originEntityCode, string correlationId,
             IEnumerable<string> edges, out List<SqlParameter> param)
         {
             var originParam = new SqlParameter { ParameterName = "@OriginEntityCode", Value = originEntityCode };
@@ -560,7 +560,7 @@ namespace CluedIn.Connector.SqlServer.Connector
 
             if (StreamMode == StreamMode.Sync && _syncEdgesTable)
                 builder.AppendLine(
-                    $"DELETE FROM [{SqlStringSanitizer.Sanitize(containerName)}] where [OriginEntityCode] = {originParam.ParameterName}");
+                    $"DELETE FROM [{schema}].[{tableName}] where [OriginEntityCode] = {originParam.ParameterName}");
 
             var edgeValues = new List<string>();
             foreach (var edge in edges)
@@ -579,8 +579,8 @@ namespace CluedIn.Connector.SqlServer.Connector
 
             builder.AppendLine(
                 StreamMode == StreamMode.EventStream
-                    ? $"INSERT INTO [{SqlStringSanitizer.Sanitize(containerName)}] ([OriginEntityCode],[CorrelationId],[Code]) values"
-                    : $"INSERT INTO [{SqlStringSanitizer.Sanitize(containerName)}] ([OriginEntityCode],[Code]) values");
+                    ? $"INSERT INTO [{schema}].[{tableName}] ([OriginEntityCode],[CorrelationId],[Code]) values"
+                    : $"INSERT INTO [{schema}].[{tableName}] ([OriginEntityCode],[Code]) values");
 
             builder.AppendJoin(", ", edgeValues);
 

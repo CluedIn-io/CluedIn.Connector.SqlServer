@@ -35,7 +35,7 @@ namespace CluedIn.Connector.SqlServer.Features
         {
             var row = table.NewRow();
             foreach (var item in data)
-                row[SqlStringSanitizer.Sanitize(item.Key)] = item.Value;
+                row[item.Key] = item.Value;
 
             table.Rows.Add(row);
         }
@@ -68,7 +68,7 @@ namespace CluedIn.Connector.SqlServer.Features
             {
                 var table = new DataTable(tableName.GetValue());
                 foreach (var col in data)
-                    table.Columns.Add(SqlStringSanitizer.Sanitize(col.Key), typeof(string));
+                    table.Columns.Add(new SanitizedSqlString(col.Key).GetValue(), typeof(string));
 
                 return table;
             });

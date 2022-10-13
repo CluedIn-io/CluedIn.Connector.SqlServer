@@ -1,5 +1,4 @@
-﻿using CluedIn.Connector.Common.Helpers;
-using CluedIn.Connector.SqlServer.Connector;
+﻿using CluedIn.Connector.SqlServer.Connector;
 using CluedIn.Connector.SqlServer.Utility;
 using CluedIn.Core;
 using CluedIn.Core.Data;
@@ -35,12 +34,12 @@ namespace CluedIn.Connector.SqlServer.Features
 
             if (!string.IsNullOrWhiteSpace(originEntityCode))
                 return ComposeDelete(schema, tableName,
-                    new Dictionary<string, object> { ["OriginEntityCode"] = originEntityCode });
+                    new Dictionary<string, object> { { "OriginEntityCode", originEntityCode } });
             if (entityId.HasValue)
-                return ComposeDelete(schema, tableName, new Dictionary<string, object> { ["Id"] = entityId.Value });
+                return ComposeDelete(schema, tableName, new Dictionary<string, object> { { "Id", entityId.Value } });
             if (codes != null)
                 return codes.SelectMany(
-                    x => ComposeDelete(schema, tableName, new Dictionary<string, object> { ["Code"] = x }));
+                    x => ComposeDelete(schema, tableName, new Dictionary<string, object> { { "Code", x } }));
 
             return Enumerable.Empty<SqlServerConnectorCommand>();
         }
@@ -54,9 +53,9 @@ namespace CluedIn.Connector.SqlServer.Features
 
             foreach (var entry in fields)
             {
-                var key = SqlStringSanitizer.Sanitize(entry.Key);
+                var key = new SanitizedSqlString(entry.Key);
                 clauses.Add($"[{key}] = @{key}");
-                parameters.Add(new SqlParameter(key, entry.Value));
+                parameters.Add(new SqlParameter(key.GetValue(), entry.Value));
             }
 
             sqlBuilder.AppendJoin(" AND ", clauses);
