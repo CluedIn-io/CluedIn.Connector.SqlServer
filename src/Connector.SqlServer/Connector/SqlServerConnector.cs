@@ -1,6 +1,5 @@
 ﻿using CluedIn.Connector.Common.Connectors;
 using CluedIn.Connector.Common.Features;
-using CluedIn.Connector.Common.Helpers;
 using CluedIn.Connector.SqlServer.Features;
 using CluedIn.Connector.SqlServer.Utility;
 using CluedIn.Core;
