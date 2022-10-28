@@ -31,7 +31,7 @@ namespace CluedIn.Connector.SqlServer
 
         private static Control ConnectionStringControl = new Control
         {
-            name = KeyName.Host,
+            name = KeyName.ConnectionString,
             displayName = "Connection String",
             type = "input",
             isRequired = false
