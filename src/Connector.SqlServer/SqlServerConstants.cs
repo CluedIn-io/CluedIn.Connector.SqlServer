@@ -9,6 +9,8 @@ namespace CluedIn.Connector.SqlServer
     {
         public struct KeyName
         {
+            public const string ConnectionString = "connectionString";
+
             public const string Host = "host";
             public const string DatabaseName = "databaseName";
             public const string Username = "username";
@@ -27,37 +29,50 @@ namespace CluedIn.Connector.SqlServer
         {
         }
 
+        private static Control ConnectionStringControl = new Control
+        {
+            name = KeyName.Host,
+            displayName = "Connection String",
+            type = "input",
+            isRequired = false
+        };
+
         private static AuthMethods SqlServerAuthMethods => new AuthMethods
         {
+            credentials = new[] // Front-end supports only token auth method :( 
+            {
+                ConnectionStringControl 
+            },
             token = new[]
             {
+                ConnectionStringControl,
                 new Control
                 {
                     name = KeyName.Host,
                     displayName = CommonConfigurationNames.Host.ToDisplayName(),
                     type = "input",
-                    isRequired = true
+                    isRequired = false
                 },
                 new Control
                 {
                     name = KeyName.DatabaseName,
                     displayName = CommonConfigurationNames.DatabaseName.ToDisplayName(),
                     type = "input",
-                    isRequired = true
+                    isRequired = false
                 },
                 new Control
                 {
                     name = KeyName.Username,
                     displayName = CommonConfigurationNames.Username.ToDisplayName(),
                     type = "input",
-                    isRequired = true
+                    isRequired = false
                 },
                 new Control
                 {
                     name = KeyName.Password,
                     displayName = CommonConfigurationNames.Password.ToDisplayName(),
                     type = "password",
-                    isRequired = true
+                    isRequired = false
                 },
                 new Control
                 {

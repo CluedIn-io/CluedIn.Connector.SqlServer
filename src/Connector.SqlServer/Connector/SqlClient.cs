@@ -1,5 +1,6 @@
 ﻿using CluedIn.Connector.Common.Clients;
 using CluedIn.Connector.Common.Configurations;
+using CluedIn.Core;
 using Microsoft.Data.SqlClient;
 using System.Collections.Generic;
 
@@ -11,6 +12,10 @@ namespace CluedIn.Connector.SqlServer.Connector
 
         public override string BuildConnectionString(IDictionary<string, object> config)
         {
+            var connectionString = config.GetValue(SqlServerConstants.KeyName.ConnectionString)?.ToString();
+            if (!string.IsNullOrWhiteSpace(connectionString))
+                return connectionString;
+
             var connectionStringBuilder = new SqlConnectionStringBuilder
             {
                 Authentication = SqlAuthenticationMethod.SqlPassword,

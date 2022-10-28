@@ -8,6 +8,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using CluedIn.Core.Crawling;
 using CluedIn.Core.Providers;
+using Microsoft.Data.SqlClient;
 
 namespace CluedIn.Connector.SqlServer
 {
@@ -51,6 +52,13 @@ namespace CluedIn.Connector.SqlServer
             var account = string.Join('.', partsFound);
             if (string.IsNullOrEmpty(account))
                 account = ".";
+
+            var connectionString = dataWrapper.Configurations.GetValue(SqlServerConstants.KeyName.ConnectionString)?.ToString();
+            if (!string.IsNullOrWhiteSpace(connectionString))
+            {
+                var sqlConnectionStringBuilder = new SqlConnectionStringBuilder(connectionString);
+                account = $"{sqlConnectionStringBuilder.DataSource}.{sqlConnectionStringBuilder.InitialCatalog}";
+            }
 
             return Task.FromResult(new AccountInformation(account, account));
 
