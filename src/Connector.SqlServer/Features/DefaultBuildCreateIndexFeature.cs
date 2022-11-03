@@ -4,6 +4,7 @@ using CluedIn.Core;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace CluedIn.Connector.SqlServer.Features
 {
@@ -27,6 +28,7 @@ namespace CluedIn.Connector.SqlServer.Features
 
             var sanitizedName = SqlStringSanitizer.Sanitize(containerName);
             var createIndexCommandText = $"CREATE INDEX [idx_{sanitizedName}] ON [{sanitizedName}]({string.Join(", ", keys)}); ";
+
 
             return new[] { new SqlServerConnectorCommand { Text = createIndexCommandText } };
         }
