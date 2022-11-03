@@ -28,7 +28,6 @@ namespace CluedIn.Connector.SqlServer.Features
             var sanitizedName = SqlStringSanitizer.Sanitize(containerName);
             var createIndexCommandText = $"CREATE INDEX [idx_{sanitizedName}] ON [{sanitizedName}]({string.Join(", ", keys)}); ";
 
-
             return new[] { new SqlServerConnectorCommand { Text = createIndexCommandText } };
         }
     }
