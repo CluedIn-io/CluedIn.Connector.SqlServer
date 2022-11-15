@@ -32,7 +32,7 @@ namespace CluedIn.Connector.SqlServer.Connector
         private readonly int _bulkInsertThreshold;
         private readonly bool _bulkSupported;
         private readonly bool _syncEdgesTable;
-        private readonly IList<string> _defaultKeyFields = new List<string> { "OriginEntityCode" };
+        private readonly IList<string> _defaultKeyFields = new List<string> { "Id", "OriginEntityCode" };
 
         private readonly IFeatureStore _features;
 

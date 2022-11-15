@@ -26,7 +26,11 @@ namespace CluedIn.Connector.SqlServer.Features
                 throw new ArgumentNullException(nameof(logger));
 
             var sanitizedName = SqlStringSanitizer.Sanitize(containerName);
-            var createIndexCommandText = $"CREATE INDEX [idx_{sanitizedName}] ON [{sanitizedName}]({string.Join(", ", keys)}); ";
+
+            //LDM. Added here for fast track. But properly would be to manage it as method parameter.
+            var createNonUniqueIndex = sanitizedName.EndsWith("Codes") || sanitizedName.EndsWith("Edges");
+
+            var createIndexCommandText = $"CREATE {(createNonUniqueIndex ? string.Empty : "UNIQUE")} INDEX [idx_{sanitizedName}] ON [{sanitizedName}]({string.Join(", ", keys)}); ";
 
             return new[] { new SqlServerConnectorCommand { Text = createIndexCommandText } };
         }
