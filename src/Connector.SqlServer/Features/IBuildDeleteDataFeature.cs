@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using CluedIn.Connector.SqlServer.Connector;
+using CluedIn.Connector.SqlServer.Utils;
 using CluedIn.Core;
 using CluedIn.Core.Data;
 using Microsoft.Extensions.Logging;
@@ -11,7 +12,7 @@ namespace CluedIn.Connector.SqlServer.Features
     {
         IEnumerable<SqlServerConnectorCommand> BuildDeleteDataSql(ExecutionContext executionContext,
             Guid providerDefinitionId,
-            string containerName,
+            SqlTableName tableName,
             string originEntityCode,
             IList<IEntityCode> codes,
             Guid? entityId,

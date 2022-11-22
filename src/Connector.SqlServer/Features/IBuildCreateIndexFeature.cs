@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using CluedIn.Connector.SqlServer.Connector;
+using CluedIn.Connector.SqlServer.Utils;
 using CluedIn.Core;
 using Microsoft.Extensions.Logging;
 
@@ -10,7 +11,7 @@ namespace CluedIn.Connector.SqlServer.Features
     {
         IEnumerable<SqlServerConnectorCommand> BuildCreateIndexSql(ExecutionContext executionContext,
             Guid providerDefinitionId,
-            string containerName,
+            SqlTableName tableName,
             IEnumerable<string> keys,
             ILogger logger);
     }
