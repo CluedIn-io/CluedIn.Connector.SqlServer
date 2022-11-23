@@ -171,10 +171,10 @@ namespace CluedIn.Connector.SqlServer.Connector
         {
             if (stream.ConnectorProviderDefinitionId.HasValue)
             {
-                var upgrade = _features.GetFeature<IUpgradeExistingSchemaFeature>();
+                var upgrade = _features.GetFeature<IUpgradeTimeStampingFeature>();
                 var config = await base.GetAuthenticationDetails(executionContext, stream.ConnectorProviderDefinitionId.Value);
 
-                await upgrade.VerifyExistingContainer(_client as ISqlClient, config, stream);
+                await upgrade.VerifyTimeStampColumnExist(_client as ISqlClient, config, stream);
             }
         }
 

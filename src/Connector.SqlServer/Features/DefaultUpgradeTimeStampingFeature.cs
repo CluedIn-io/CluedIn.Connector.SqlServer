@@ -10,9 +10,9 @@ using System.Threading.Tasks;
 
 namespace CluedIn.Connector.SqlServer.Features
 {
-    public class DefaultUpgradeExistingSchemaFeature : IUpgradeExistingSchemaFeature
+    public class DefaultUpgradeTimeStampingFeature : IUpgradeTimeStampingFeature
     {
-        public virtual async Task VerifyExistingContainer(ISqlClient client, IConnectorConnection config, StreamModel stream)
+        public virtual async Task VerifyTimeStampColumnExist(ISqlClient client, IConnectorConnection config, StreamModel stream)
         {
             var tableName = SqlTableName.FromUnsafeName(stream.ContainerName, config);
             var tables = await client.GetTableColumns(config.Authentication, tableName: tableName.LocalName, schema: tableName.Schema);
