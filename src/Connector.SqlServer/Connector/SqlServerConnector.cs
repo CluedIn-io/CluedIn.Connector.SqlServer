@@ -28,7 +28,6 @@ namespace CluedIn.Connector.SqlServer.Connector
         private const string ChangeTypeFieldName = "ChangeType";
         private const string CorrelationIdFieldName = "CorrelationId";
         private readonly IBulkSqlClient _bulkClient;
-        private readonly ISqlClient _sqlClient;
         private readonly int _bulkDeleteThreshold;
         private readonly int _bulkInsertThreshold;
         private readonly bool _bulkSupported;
@@ -50,7 +49,6 @@ namespace CluedIn.Connector.SqlServer.Connector
                 ConfigurationManagerEx.AppSettings.GetValue("Streams.SqlConnector.BulkInsertRecordCount", 0);
             _bulkDeleteThreshold =
                 ConfigurationManagerEx.AppSettings.GetValue("Streams.SqlConnector.BulkDeleteRecordCount", 0);
-            _sqlClient = client;
             _bulkClient = client as IBulkSqlClient;
             _bulkSupported = _bulkInsertThreshold > 0 && _bulkClient != null;
             _logger.LogInformation($"{nameof(SqlServerConnector)} - bulk insert support enabled {{enabled}}",
@@ -628,7 +626,7 @@ namespace CluedIn.Connector.SqlServer.Connector
         {
             try
             {
-                var tables = await _sqlClient.GetTables(config.Authentication, name: tableName.LocalName, schema: tableName.Schema);
+                var tables = await _client.GetTables(config.Authentication, name: tableName.LocalName, schema: tableName.Schema);
 
                 return tables.Rows.Count > 0;
             }
