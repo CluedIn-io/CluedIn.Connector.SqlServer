@@ -1,5 +1,4 @@
-﻿using CluedIn.Connector.Common.Helpers;
-using CluedIn.Connector.SqlServer.Connector;
+﻿using CluedIn.Connector.SqlServer.Connector;
 using CluedIn.Connector.SqlServer.Utils;
 using CluedIn.Core.Connectors;
 using CluedIn.Core.Data.Vocabularies;
@@ -13,8 +12,7 @@ namespace CluedIn.Connector.SqlServer.Features
 {
     public class DefaultUpgradeExistingSchemaFeature : IUpgradeExistingSchemaFeature
     {
-        public virtual async Task VerifyExistingContainer(ISqlClient client, IConnectorConnection config,
-            StreamModel stream)
+        public virtual async Task VerifyExistingContainer(ISqlClient client, IConnectorConnection config, StreamModel stream)
         {
             var tableName = SqlTableName.FromUnsafeName(stream.ContainerName, config);
             var tables = await client.GetTableColumns(config.Authentication, tableName: tableName.LocalName, schema: tableName.Schema);

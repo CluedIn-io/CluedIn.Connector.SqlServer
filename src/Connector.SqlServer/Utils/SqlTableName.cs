@@ -1,6 +1,4 @@
-﻿using CluedIn.Connector.Common.Helpers;
-using CluedIn.Core.Connectors;
-using System;
+﻿using CluedIn.Core.Connectors;
 
 #nullable enable
 
@@ -13,18 +11,9 @@ namespace CluedIn.Connector.SqlServer.Utils
         /// <summary>
         /// Creates sanitized table name from unsafe name
         /// </summary>
-        public static SqlTableName FromUnsafeName(string rawTableName, string sanitizedSchema)
+        public static SqlTableName FromUnsafeName(string rawTableName, SqlName schema)
         {
-            if (string.IsNullOrEmpty(rawTableName)) throw new ArgumentException("Value cannot be null or empty.", nameof(rawTableName));
-            if (string.IsNullOrEmpty(sanitizedSchema)) throw new ArgumentException("Value cannot be null or empty.", nameof(sanitizedSchema));
-
-            var sanitizedName = rawTableName.ToSanitizedSqlName();
-            if (string.IsNullOrEmpty(sanitizedName))
-            {
-                throw new ArgumentException("Table name cannot be empty after being sanitized", nameof(sanitizedSchema));
-            }
-
-            return new SqlTableName(sanitizedName, sanitizedSchema);
+            return new SqlTableName(SqlName.FromUnsafe(rawTableName), schema);
         }
 
         /// <summary>
@@ -33,20 +22,20 @@ namespace CluedIn.Connector.SqlServer.Utils
         public static SqlTableName FromUnsafeName(string rawTableName, IConnectorConnection config) =>
             FromUnsafeName(rawTableName, config.GetSchema());
 
-        public string Schema { get; }
+        public SqlName Schema { get; }
 
         /// <summary>
         /// Returns value in [Schema].[Name] format, which is suitable for query embedding
         /// </summary>
         public string FullyQualifiedName { get; }
 
-        public string LocalName { get; }
+        public SqlName LocalName { get; }
 
-        private SqlTableName(string sanitizedName, string schema)
+        public SqlTableName(SqlName localName, SqlName schema)
         {
             Schema = schema;
-            LocalName = sanitizedName;
-            FullyQualifiedName = $"[{schema}].[{sanitizedName}]";
+            LocalName = localName;
+            FullyQualifiedName = $"[{schema}].[{localName}]";
         }
 
         public override string ToString() => FullyQualifiedName;

@@ -1,6 +1,5 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
-using CluedIn.Connector.Common.Helpers;
 using CluedIn.Connector.SqlServer.Utils;
 using CluedIn.Core.Connectors;
 using CluedIn.Core.Data.Vocabularies;
@@ -19,11 +18,11 @@ namespace CluedIn.Connector.SqlServer.Connector
 
         public Container(string containerName) : this(containerName, StreamMode.Sync)
         {
-            
         }
+
         public Container(string containerName, StreamMode mode)
         {
-            PrimaryTable = containerName.ToSanitizedSqlName();
+            PrimaryTable = SqlName.FromUnsafe(containerName);
             var columns = _codeEdgeColumns;
 
             if (mode == StreamMode.EventStream)
@@ -38,7 +37,7 @@ namespace CluedIn.Connector.SqlServer.Connector
             };
         }
 
-        public string PrimaryTable { get; }
+        public SqlName PrimaryTable { get; }
 
         public IReadOnlyDictionary<string, Table> Tables { get; }
 
@@ -49,12 +48,12 @@ namespace CluedIn.Connector.SqlServer.Connector
                 IEnumerable<ConnectionDataType> columns,
                 IEnumerable<string> keys)
             {
-                Name = name.ToSanitizedSqlName();
+                Name = SqlName.FromUnsafe(name);
                 Columns = new List<ConnectionDataType>(columns).AsReadOnly();
                 Keys = new List<string>(keys).AsReadOnly();
             }
 
-            public string Name { get; }
+            public SqlName Name { get; }
 
             public IReadOnlyList<ConnectionDataType> Columns { get; }
 

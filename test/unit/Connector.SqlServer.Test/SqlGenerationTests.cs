@@ -34,7 +34,7 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests
         [InlineAutoData("tableName")]
         public void StoreEdgeDataWorks(string name, string originEntityCode, string correlationId, List<string> edges)
         {
-            var tableName = SqlTableName.FromUnsafeName(name, SqlTableName.DefaultSchema);
+            var tableName = SqlTableName.FromUnsafeName(name, SqlName.FromSanitized(SqlTableName.DefaultSchema));
             var result = Sut.BuildEdgeStoreDataSql(tableName, originEntityCode, correlationId, edges, out var param);
             Assert.Equal(edges.Count + 2, param.Count()); // params will also include origin entity code
             Assert.Contains(param, p => p.ParameterName == "@OriginEntityCode" && p.Value.Equals(originEntityCode));
@@ -58,7 +58,7 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests
         [InlineAutoData("tableName")]
         public void StoreEdgeData_NoEdges_Works(string name, string originEntityCode, string correlationId)
         {
-            var tableName = SqlTableName.FromUnsafeName(name, SqlTableName.DefaultSchema);
+            var tableName = SqlTableName.FromUnsafeName(name, SqlName.FromSanitized(SqlTableName.DefaultSchema));
             var edges = new List<string>();
             var result = Sut.BuildEdgeStoreDataSql(tableName, originEntityCode, correlationId, edges, out var param);
             Assert.Equal(2, param.Count()); // params will also include origin entity code and correlationid

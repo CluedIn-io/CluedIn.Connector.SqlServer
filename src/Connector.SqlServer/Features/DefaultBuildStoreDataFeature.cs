@@ -48,6 +48,8 @@ namespace CluedIn.Connector.SqlServer.Features
             if (logger == null)
                 throw new ArgumentNullException(nameof(logger));
 
+            var schema = tableName.Schema;
+
             //HACK: we need to pull out Codes into a separate table
             var container = new Container(tableName.LocalName, mode);
             if (data.TryGetValue("Codes", out var codes) && codes is IEnumerable codesEnumerable)
@@ -60,7 +62,7 @@ namespace CluedIn.Connector.SqlServer.Features
 
                 if (mode == StreamMode.Sync)
                     // need to delete from Codes table
-                    yield return ComposeDelete(BuildTableName(codesTable.Name),
+                    yield return ComposeDelete(codesTable.Name.ToTableName(schema),
                         new Dictionary<string, object> { ["OriginEntityCode"] = data["OriginEntityCode"] });
 
                 // need to insert into Codes table
@@ -76,17 +78,15 @@ namespace CluedIn.Connector.SqlServer.Features
                     if (mode == StreamMode.EventStream)
                         dictionary["CorrelationId"] = correlationId;
 
-                    yield return ComposeInsert(BuildTableName(codesTable.Name), dictionary);
+                    yield return ComposeInsert(codesTable.Name.ToTableName(schema), dictionary);
                 }
             }
 
             // Primary table
             if (mode == StreamMode.Sync)
-                yield return ComposeUpsert(BuildTableName(container.PrimaryTable), data, keys, logger);
+                yield return ComposeUpsert(container.PrimaryTable.ToTableName(schema), data, keys, logger);
             else
-                yield return ComposeInsert(BuildTableName(container.PrimaryTable), data);
-
-            SqlTableName BuildTableName(string name) => SqlTableName.FromUnsafeName(name, tableName.Schema);
+                yield return ComposeInsert(container.PrimaryTable.ToTableName(schema), data);
         }
 
         protected virtual SqlServerConnectorCommand ComposeUpsert(SqlTableName tableName, IDictionary<string, object> data,

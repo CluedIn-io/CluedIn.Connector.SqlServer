@@ -14,7 +14,7 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests.Utils
         [InlineAutoData("")]
         [InlineAutoData("\t\t   ")]
         public void FromUnsafeName_ShouldThrowForInvalidName_WhenUseStringOverload(string tableName,
-            string schema)
+            SqlName schema)
         {
             // arrange
             Action action = () => SqlTableName.FromUnsafeName(tableName, schema);
