@@ -1,5 +1,5 @@
-﻿using CluedIn.Connector.Common.Helpers;
-using CluedIn.Connector.SqlServer.Connector;
+﻿using CluedIn.Connector.SqlServer.Connector;
+using CluedIn.Connector.SqlServer.Utils;
 using CluedIn.Core;
 using Microsoft.Extensions.Logging;
 using System;
@@ -12,21 +12,17 @@ namespace CluedIn.Connector.SqlServer.Features
         public virtual IEnumerable<SqlServerConnectorCommand> BuildCreateIndexSql(
             ExecutionContext executionContext,
             Guid providerDefinitionId,
-            string containerName,
+            SqlTableName tableName,
             IEnumerable<string> keys,
             ILogger logger)
         {
             if (executionContext == null)
                 throw new ArgumentNullException(nameof(executionContext));
 
-            if (string.IsNullOrWhiteSpace(containerName))
-                throw new InvalidOperationException("The Container Name must be provided.");
-
             if (logger == null)
                 throw new ArgumentNullException(nameof(logger));
 
-            var sanitizedName = SqlStringSanitizer.Sanitize(containerName);
-            var createIndexCommandText = $"CREATE INDEX [idx_{sanitizedName}] ON [{sanitizedName}]({string.Join(", ", keys)}); ";
+            var createIndexCommandText = $"CREATE INDEX [idx_{tableName.Schema}_{tableName.LocalName}] ON {tableName.FullyQualifiedName}({string.Join(", ", keys)}); ";
 
             return new[] { new SqlServerConnectorCommand { Text = createIndexCommandText } };
         }

@@ -1,5 +1,5 @@
-﻿using CluedIn.Connector.Common.Helpers;
-using CluedIn.Connector.SqlServer.Connector;
+﻿using CluedIn.Connector.SqlServer.Connector;
+using CluedIn.Connector.SqlServer.Utils;
 using CluedIn.Core.Connectors;
 using CluedIn.Core.Data.Vocabularies;
 using CluedIn.Core.Streams.Models;
@@ -12,12 +12,10 @@ namespace CluedIn.Connector.SqlServer.Features
 {
     public class DefaultUpgradeExistingSchemaFeature : IUpgradeExistingSchemaFeature
     {
-        public virtual async Task VerifyExistingContainer(ISqlClient client, IConnectorConnection config,
-            StreamModel stream)
+        public virtual async Task VerifyExistingContainer(ISqlClient client, IConnectorConnection config, StreamModel stream)
         {
-            //TODO. Check if ContainerName already sanitized.
-            var tableName = SqlStringSanitizer.Sanitize(stream.ContainerName);
-            var tables = await client.GetTableColumns(config.Authentication, tableName);
+            var tableName = SqlTableName.FromUnsafeName(stream.ContainerName, config);
+            var tables = await client.GetTableColumns(config.Authentication, tableName: tableName.LocalName, schema: tableName.Schema);
             var result = (from DataRow row in tables.Rows
                           let name = row["COLUMN_NAME"] as string
                           let rawType = row["DATA_TYPE"] as string
@@ -27,7 +25,7 @@ namespace CluedIn.Connector.SqlServer.Features
             {
                 var columnName = "TimeStamp";
                 var addTimeStampSql =
-                    $"alter table [{tableName}] add [{columnName}] {SqlColumnHelper.GetColumnType(VocabularyKeyDataType.DateTime, columnName)}";
+                    $"alter table {tableName.FullyQualifiedName} add [{columnName}] {SqlColumnHelper.GetColumnType(VocabularyKeyDataType.DateTime, columnName)}";
                 await client.ExecuteCommandAsync(config, addTimeStampSql);
             }
         }

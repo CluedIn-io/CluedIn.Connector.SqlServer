@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using CluedIn.Connector.SqlServer.Connector;
+using CluedIn.Connector.SqlServer.Utils;
 using CluedIn.Core;
 using CluedIn.Core.Connectors;
 using CluedIn.Core.Data;
@@ -13,13 +14,13 @@ namespace CluedIn.Connector.SqlServer.Features
     {
         Task BulkTableDelete(ExecutionContext executionContext,
             Guid providerDefinitionId,
-            string containerName,
+            SqlTableName tableName,
             string originEntityCode,
             IList<IEntityCode> codes,
             Guid entityId,
             int threshold,
             IBulkSqlClient client,
-            Func<Task<IConnectorConnection>> connectionFactory,
+            IConnectorConnection config,
             ILogger logger);
     }
 }

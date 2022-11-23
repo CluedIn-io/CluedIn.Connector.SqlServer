@@ -4,6 +4,7 @@ using System.Linq;
 using AutoFixture.Xunit2;
 using CluedIn.Connector.Common.Helpers;
 using CluedIn.Connector.SqlServer.Features;
+using CluedIn.Connector.SqlServer.Utils;
 using CluedIn.Core.Data;
 using Microsoft.Extensions.Logging;
 using Moq;
@@ -33,48 +34,34 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests.Features
         [Theory, InlineAutoData]
         public void BuildDeleteDataSql_NullContext_Throws(
             Guid providerDefinitionId,
-            string containerName,
+            SqlTableName tableName,
             string originEntityCode,
             Guid entityId)
         {
-            Assert.Throws<ArgumentNullException>("executionContext", () => _sut.BuildDeleteDataSql(null, providerDefinitionId, containerName, originEntityCode, _codes, entityId, _logger.Object));
-        }
-
-        [Theory]
-        [InlineAutoData(null)]
-        [InlineAutoData("")]
-        [InlineAutoData("\t\t   ")]
-        public void BuildDeleteDataSql_InvalidContainerName_Throws(
-            string containerName,
-            Guid providerDefinitionId,
-            string originEntityCode,
-            Guid entityId)
-        {
-            Assert.Throws<InvalidOperationException>(() => _sut.BuildDeleteDataSql(_testContext.Context, providerDefinitionId, containerName, originEntityCode, _codes, entityId, _logger.Object));
+            Assert.Throws<ArgumentNullException>("executionContext", () => _sut.BuildDeleteDataSql(null, providerDefinitionId, tableName, originEntityCode, _codes, entityId, _logger.Object));
         }
 
         [Theory, InlineAutoData]
         public void BuildDeleteDataSql_NullLogger_Throws(
             Guid providerDefinitionId,
-            string containerName,
+            SqlTableName tableName,
             string originEntityCode,
             Guid entityId)
         {
-            Assert.Throws<ArgumentNullException>("logger", () => _sut.BuildDeleteDataSql(_testContext.Context, providerDefinitionId, containerName, originEntityCode, _codes, entityId, null));
+            Assert.Throws<ArgumentNullException>("logger", () => _sut.BuildDeleteDataSql(_testContext.Context, providerDefinitionId, tableName, originEntityCode, _codes, entityId, null));
         }
 
         [Theory, InlineAutoData]
         public void BuildDeleteDataSql_WithOriginEntityCode_IsSuccessful(
             Guid providerDefinitionId,
-            string containerName,
+            SqlTableName tableName,
             string originEntityCode)
         {
-            var expectedContainerName = SqlStringSanitizer.Sanitize(containerName);
             var execContext = _testContext.Context;
-            var result = _sut.BuildDeleteDataSql(execContext, providerDefinitionId, containerName, originEntityCode, null, null, _logger.Object);
+            var result = _sut.BuildDeleteDataSql(execContext, providerDefinitionId, tableName, originEntityCode, null, null, _logger.Object);
             var command = result.Single();
 
-            Assert.Equal($"DELETE FROM {expectedContainerName} WHERE [OriginEntityCode] = @OriginEntityCode;", command.Text.Trim());
+            Assert.Equal($"DELETE FROM [{tableName.Schema}].[{tableName.LocalName}] WHERE [OriginEntityCode] = @OriginEntityCode;", command.Text.Trim());
             Assert.Single(command.Parameters);
 
             var parameter = command.Parameters.First();
@@ -85,15 +72,14 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests.Features
         [Theory, InlineAutoData]
         public void BuildDeleteDataSql_WithEntityId_IsSuccessful(
             Guid providerDefinitionId,
-            string containerName,
+            SqlTableName tableName,
             Guid entityId)
         {
-            var expectedContainerName = SqlStringSanitizer.Sanitize(containerName);
             var execContext = _testContext.Context;
-            var result = _sut.BuildDeleteDataSql(execContext, providerDefinitionId, containerName, null, null, entityId, _logger.Object);
+            var result = _sut.BuildDeleteDataSql(execContext, providerDefinitionId, tableName, null, null, entityId, _logger.Object);
             var command = result.Single();
 
-            Assert.Equal($"DELETE FROM {expectedContainerName} WHERE [Id] = @Id;", command.Text.Trim());
+            Assert.Equal($"DELETE FROM [{tableName.Schema}].[{tableName.LocalName}] WHERE [Id] = @Id;", command.Text.Trim());
             Assert.Single(command.Parameters);
 
             var parameter = command.Parameters.First();
@@ -104,17 +90,16 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests.Features
         [Theory, InlineAutoData]
         public void BuildDeleteDataSql_WithCodes_IsSuccessful(
             Guid providerDefinitionId,
-            string containerName)
+            SqlTableName tableName)
         {
-            var expectedContainerName = SqlStringSanitizer.Sanitize(containerName);
             var execContext = _testContext.Context;
-            var result = _sut.BuildDeleteDataSql(execContext, providerDefinitionId, containerName, null, _codes, null, _logger.Object).ToList();
+            var result = _sut.BuildDeleteDataSql(execContext, providerDefinitionId, tableName, null, _codes, null, _logger.Object).ToList();
             Assert.Equal(result.Count(), _codes.Count);
 
             for(var x = 0; x < result.Count(); x++)
             {
                 var command = result[x];
-                Assert.Equal($"DELETE FROM {expectedContainerName} WHERE [Code] = @Code;", command.Text.Trim());
+                Assert.Equal($"DELETE FROM [{tableName.Schema}].[{tableName.LocalName}] WHERE [Code] = @Code;", command.Text.Trim());
                 Assert.Single(command.Parameters);
                 var parameter = command.Parameters.First();
                 Assert.Equal(_codes[x], parameter.Value);

@@ -1,4 +1,5 @@
 ﻿using AutoFixture.Xunit2;
+using CluedIn.Connector.SqlServer.Utils;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -33,7 +34,8 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests
         [InlineAutoData("tableName")]
         public void StoreEdgeDataWorks(string name, string originEntityCode, string correlationId, List<string> edges)
         {
-            var result = Sut.BuildEdgeStoreDataSql(name, originEntityCode, correlationId, edges, out var param);
+            var tableName = SqlTableName.FromUnsafeName(name, SqlName.FromSanitized(SqlTableName.DefaultSchema));
+            var result = Sut.BuildEdgeStoreDataSql(tableName, originEntityCode, correlationId, edges, out var param);
             Assert.Equal(edges.Count + 2, param.Count()); // params will also include origin entity code
             Assert.Contains(param, p => p.ParameterName == "@OriginEntityCode" && p.Value.Equals(originEntityCode));
             for (var index = 0; index < edges.Count; index++)
@@ -43,8 +45,8 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests
 
             var expectedLines = new List<string>
             {
-                $"DELETE FROM [{name}] where [OriginEntityCode] = @OriginEntityCode",
-                $"INSERT INTO [{name}] ([OriginEntityCode],[Code]) values",
+                $"DELETE FROM [{tableName.Schema}].[{tableName.LocalName}] where [OriginEntityCode] = @OriginEntityCode",
+                $"INSERT INTO [{tableName.Schema}].[{tableName.LocalName}] ([OriginEntityCode],[Code]) values",
                 string.Join(", ", Enumerable.Range(0, edges.Count).Select(i => $"(@OriginEntityCode, @{i})"))
             };
 
@@ -56,11 +58,12 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests
         [InlineAutoData("tableName")]
         public void StoreEdgeData_NoEdges_Works(string name, string originEntityCode, string correlationId)
         {
+            var tableName = SqlTableName.FromUnsafeName(name, SqlName.FromSanitized(SqlTableName.DefaultSchema));
             var edges = new List<string>();
-            var result = Sut.BuildEdgeStoreDataSql(name, originEntityCode, correlationId, edges, out var param);
+            var result = Sut.BuildEdgeStoreDataSql(tableName, originEntityCode, correlationId, edges, out var param);
             Assert.Equal(2, param.Count()); // params will also include origin entity code and correlationid
             Assert.Contains(param, p => p.ParameterName == "@OriginEntityCode" && p.Value.Equals(originEntityCode));
-            Assert.Equal($"DELETE FROM [{name}] where [OriginEntityCode] = @OriginEntityCode", result.Trim());
+            Assert.Equal($"DELETE FROM [{tableName.Schema}].[{tableName.LocalName}] where [OriginEntityCode] = @OriginEntityCode", result.Trim());
         }
     }
 }

@@ -1,17 +1,15 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using AutoFixture.Xunit2;
-using CluedIn.Connector.Common.Helpers;
 using CluedIn.Connector.SqlServer.Features;
+using CluedIn.Connector.SqlServer.Utils;
 using CluedIn.Core;
 using CluedIn.Core.Data.Parts;
 using CluedIn.Core.Streams.Models;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace CluedIn.Connector.SqlServer.Unit.Tests.Features
 {
@@ -31,69 +29,54 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests.Features
 
         [Theory, InlineAutoData]
         public void BuildStoreDataSql_NullContext_Throws(Guid providerDefinitionId,
-            string containerName,
+            SqlTableName tableName,
             IDictionary<string, object> data,
             string correlationId,
             DateTimeOffset timestamp,
             VersionChangeType changeType)
         {
-            Assert.Throws<ArgumentNullException>("executionContext", () => _sut.BuildStoreDataSql(null, providerDefinitionId, containerName, data, _defaultKeyFields, StreamMode.Sync, correlationId, timestamp, changeType, _logger.Object).ToList());
-        }
-
-        [Theory]
-        [InlineAutoData(null)]
-        [InlineAutoData("")]
-        [InlineAutoData("\t\t   ")]
-        public void BuildStoreDataSql_InvalidContainerName_Throws(
-            string containerName,
-            Guid providerDefinitionId,
-            IDictionary<string, object> data,
-            string correlationId,
-            DateTimeOffset timestamp,
-            VersionChangeType changeType)
-        {
-            Assert.Throws<InvalidOperationException>(() => _sut.BuildStoreDataSql(_testContext.Context, providerDefinitionId, containerName, data, _defaultKeyFields, StreamMode.Sync, correlationId, timestamp, changeType, _logger.Object).ToList());
+            Assert.Throws<ArgumentNullException>("executionContext", () => _sut.BuildStoreDataSql(null, providerDefinitionId, tableName, data, _defaultKeyFields, StreamMode.Sync, correlationId, timestamp, changeType, _logger.Object).ToList());
         }
 
         [Theory, InlineAutoData]
         public void BuildStoreDataSql_NullData_Throws(
             Guid providerDefinitionId,
-            string containerName,
+            SqlTableName tableName,
             string correlationId,
             DateTimeOffset timestamp,
             VersionChangeType changeType)
         {
 
-            _sut.BuildStoreDataSql(_testContext.Context, providerDefinitionId, containerName, null, _defaultKeyFields, StreamMode.Sync, correlationId, timestamp, changeType, _logger.Object);
-            Assert.Throws<InvalidOperationException>(() => _sut.BuildStoreDataSql(_testContext.Context, providerDefinitionId, containerName, null, _defaultKeyFields, StreamMode.Sync, correlationId, timestamp, changeType, _logger.Object).ToList());
+            _sut.BuildStoreDataSql(_testContext.Context, providerDefinitionId, tableName, null, _defaultKeyFields, StreamMode.Sync, correlationId, timestamp, changeType, _logger.Object);
+            Assert.Throws<InvalidOperationException>(() => _sut.BuildStoreDataSql(_testContext.Context, providerDefinitionId, tableName, null, _defaultKeyFields, StreamMode.Sync, correlationId, timestamp, changeType, _logger.Object).ToList());
         }
 
         [Theory, InlineAutoData]
         public void BuildStoreDataSql_EmptyData_Throws(
             Guid providerDefinitionId,
-            string containerName,
+            SqlTableName tableName,
             string correlationId,
             DateTimeOffset timestamp,
             VersionChangeType changeType)
         {
-            Assert.Throws<InvalidOperationException>(() => _sut.BuildStoreDataSql(_testContext.Context, providerDefinitionId, containerName, new Dictionary<string, object>(), _defaultKeyFields, StreamMode.Sync, correlationId, timestamp, changeType, _logger.Object).ToList());
+            Assert.Throws<InvalidOperationException>(() => _sut.BuildStoreDataSql(_testContext.Context, providerDefinitionId, tableName, new Dictionary<string, object>(), _defaultKeyFields, StreamMode.Sync, correlationId, timestamp, changeType, _logger.Object).ToList());
         }
 
         [Theory, InlineAutoData]
         public void BuildStoreDataSql_NullLogger_Throws(
             Guid providerDefinitionId,
-            string containerName,
+            SqlTableName tableName,
             IDictionary<string, object> data,
             string correlationId,
             DateTimeOffset timestamp,
             VersionChangeType changeType)
         {
-            Assert.Throws<ArgumentNullException>("logger", () => _sut.BuildStoreDataSql(_testContext.Context, providerDefinitionId, containerName, data, _defaultKeyFields, StreamMode.Sync, correlationId, timestamp, changeType, null).ToList());
+            Assert.Throws<ArgumentNullException>("logger", () => _sut.BuildStoreDataSql(_testContext.Context, providerDefinitionId, tableName, data, _defaultKeyFields, StreamMode.Sync, correlationId, timestamp, changeType, null).ToList());
         }
 
         [Theory, InlineAutoData]
         public void BuildStoreDataSql_ValidData_IsSuccessful(
-            string name,
+            SqlTableName tableName,
             int field1,
             string field2,
             DateTime field3,
@@ -104,7 +87,6 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests.Features
             DateTimeOffset timestamp,
             VersionChangeType changeType)
         {
-            var expectedName = SqlStringSanitizer.Sanitize(name);
             var data = new Dictionary<string, object>
                         {
                              { "Field1", field1   },
@@ -115,9 +97,9 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests.Features
                         };
 
             var execContext = _testContext.Context;
-            var result = _sut.BuildStoreDataSql(execContext, providerDefinitionId, name, data, _defaultKeyFields, StreamMode.Sync, correlationId, timestamp, changeType, _logger.Object);
+            var result = _sut.BuildStoreDataSql(execContext, providerDefinitionId, tableName, data, _defaultKeyFields, StreamMode.Sync, correlationId, timestamp, changeType, _logger.Object);
             var command = result.Single();
-            Assert.Equal($"MERGE [{expectedName}] AS target" + Environment.NewLine +
+            Assert.Equal($"MERGE [{tableName.Schema}].[{tableName.LocalName}] AS target" + Environment.NewLine +
                          "USING (SELECT @Field1, @Field2, @Field3, @Field4, @Field5) AS source ([Field1], [Field2], [Field3], [Field4], [Field5])" + Environment.NewLine +
                          "  ON (target.[OriginEntityCode] = source.[OriginEntityCode])" + Environment.NewLine +
                          "WHEN MATCHED THEN" + Environment.NewLine +
@@ -138,7 +120,7 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests.Features
 
         [Theory, InlineAutoData]
         public void BuildStoreDataSql_InvalidData_SetsValueAsString(
-           string name,
+           SqlTableName tableName,
            int field1,
            string field2,
            string[] invalidField,
@@ -147,7 +129,6 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests.Features
            DateTimeOffset timestamp,
            VersionChangeType changeType)
         {
-            var expectedName = SqlStringSanitizer.Sanitize(name);
             var data = new Dictionary<string, object>
                         {
                              { "Field1", field1   },
@@ -156,9 +137,9 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests.Features
                         };
 
             var execContext = _testContext.Context;
-            var result = _sut.BuildStoreDataSql(execContext, providerDefinitionId, name, data, _defaultKeyFields, StreamMode.Sync, correlationId, timestamp, changeType, _logger.Object);
+            var result = _sut.BuildStoreDataSql(execContext, providerDefinitionId, tableName, data, _defaultKeyFields, StreamMode.Sync, correlationId, timestamp, changeType, _logger.Object);
             var command = result.Single();
-            Assert.Equal($"MERGE [{expectedName}] AS target" + Environment.NewLine +
+            Assert.Equal($"MERGE [{tableName.Schema}].[{tableName.LocalName}] AS target" + Environment.NewLine +
                          "USING (SELECT @Field1, @Field2, @InvalidField) AS source ([Field1], [Field2], [InvalidField])" + Environment.NewLine +
                          "  ON (target.[OriginEntityCode] = source.[OriginEntityCode])" + Environment.NewLine +
                          "WHEN MATCHED THEN" + Environment.NewLine +
@@ -176,7 +157,7 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests.Features
 
         [Theory, InlineAutoData]
         public void BuildStoreDataSql_ValidDataWithCodes_IsSuccessful(
-           string name,
+           SqlTableName tableName,
            string originEntityCode,
            string additionalField,
            Guid providerDefinitionId,
@@ -184,7 +165,6 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests.Features
            DateTimeOffset timestamp,
            VersionChangeType changeType)
         {
-            var expectedName = SqlStringSanitizer.Sanitize(name);
             var codes = new[] { "alpha", "beta", "gamma", "delta" };
 
             var data = new Dictionary<string, object>
@@ -197,7 +177,7 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests.Features
             var keys = _defaultKeyFields;
 
             var execContext = _testContext.Context;
-            var result = _sut.BuildStoreDataSql(execContext, providerDefinitionId, name, data, keys, StreamMode.Sync, correlationId, timestamp, changeType, _logger.Object).ToList();
+            var result = _sut.BuildStoreDataSql(execContext, providerDefinitionId, tableName, data, keys, StreamMode.Sync, correlationId, timestamp, changeType, _logger.Object).ToList();
 
             // codes inserts will delete from table first
             // then insert into codes
@@ -206,7 +186,7 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests.Features
             Assert.Equal(expectedCount, result.Count());
 
             var deleteCodesCommand = result.First();
-            Assert.Equal($"DELETE FROM {expectedName}Codes WHERE [OriginEntityCode] = @OriginEntityCode;", deleteCodesCommand.Text.Trim());
+            Assert.Equal($"DELETE FROM [{tableName.Schema}].[{tableName.LocalName}Codes] WHERE [OriginEntityCode] = @OriginEntityCode;", deleteCodesCommand.Text.Trim());
 
             var deleteCodesParameters = deleteCodesCommand.Parameters.ToList();
             Assert.Single(deleteCodesParameters);
@@ -216,7 +196,7 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests.Features
             {
                 var code = codes[x];
                 var codesCommand = result[x+1];
-                Assert.Equal($"INSERT INTO [{expectedName}Codes] ([OriginEntityCode],[Code]) values (@OriginEntityCode,@Code);", codesCommand.Text.Trim());
+                Assert.Equal($"INSERT INTO [{tableName.Schema}].[{tableName.LocalName}Codes] ([OriginEntityCode],[Code]) values (@OriginEntityCode,@Code);", codesCommand.Text.Trim());
 
                 var codesParameters = codesCommand.Parameters.ToList();
                 Assert.Equal(2, codesParameters.Count());
@@ -225,7 +205,7 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests.Features
             }
 
             var mainTableCommand = result.Last();
-            Assert.Equal($"MERGE [{expectedName}] AS target" + Environment.NewLine +
+            Assert.Equal($"MERGE [{tableName.Schema}].[{tableName.LocalName}] AS target" + Environment.NewLine +
                          "USING (SELECT @OriginEntityCode, @AdditionalField) AS source ([OriginEntityCode], [AdditionalField])" + Environment.NewLine +
                          "  ON (target.[OriginEntityCode] = source.[OriginEntityCode])" + Environment.NewLine +
                          "WHEN MATCHED THEN" + Environment.NewLine +
