@@ -17,7 +17,7 @@ namespace CluedIn.Connector.SqlServer.Utils
             if (string.IsNullOrEmpty(value)) throw new ArgumentException("Value cannot be null or empty.", nameof(value));
 
             var sanitizedValue = value.ToSanitizedSqlName();
-            if (string.IsNullOrEmpty(sanitizedValue))
+            if (string.IsNullOrEmpty(sanitizedValue)) 
             {
                 throw new ArgumentException("Name cannot be empty after being sanitized", nameof(value));
             }
@@ -25,7 +25,7 @@ namespace CluedIn.Connector.SqlServer.Utils
             return new SqlName(sanitizedValue);
         }
 
-        public static SqlName FromSanitized(string value)
+        public static SqlName FromSanitized(string value) 
         {
             if (string.IsNullOrEmpty(value)) throw new ArgumentException("Value cannot be null or empty.", nameof(value));
 

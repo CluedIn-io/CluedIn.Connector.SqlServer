@@ -14,7 +14,8 @@ namespace CluedIn.Connector.SqlServer.Features
             Guid providerDefinitionId,
             SqlTableName tableName,
             IEnumerable<string> keys,
-            ILogger logger)
+            ILogger logger,
+            bool useUniqueIndex)
         {
             if (executionContext == null)
                 throw new ArgumentNullException(nameof(executionContext));
@@ -22,7 +23,7 @@ namespace CluedIn.Connector.SqlServer.Features
             if (logger == null)
                 throw new ArgumentNullException(nameof(logger));
 
-            var createIndexCommandText = $"CREATE INDEX [idx_{tableName.Schema}_{tableName.LocalName}] ON {tableName.FullyQualifiedName}({string.Join(", ", keys)}); ";
+            var createIndexCommandText = $"CREATE {(useUniqueIndex ? "UNIQUE" : string.Empty)} INDEX [idx_{tableName.Schema}_{tableName.LocalName}] ON {tableName.FullyQualifiedName}({string.Join(", ", keys)}); ";
 
             return new[] { new SqlServerConnectorCommand { Text = createIndexCommandText } };
         }

@@ -32,7 +32,7 @@ namespace CluedIn.Connector.SqlServer.Connector
         private readonly int _bulkInsertThreshold;
         private readonly bool _bulkSupported;
         private readonly bool _syncEdgesTable;
-        private readonly IList<string> _defaultKeyFields = new List<string> { "OriginEntityCode" };
+        private readonly IList<string> _defaultKeyFields = new List<string> { "Id", "OriginEntityCode" };
 
         private readonly IFeatureStore _features;
 
@@ -183,7 +183,7 @@ namespace CluedIn.Connector.SqlServer.Connector
             var config = await base.GetAuthenticationDetails(executionContext, providerDefinitionId);
             var schema = config.GetSchema();
 
-            async Task CreateTable(SqlTableName tableName, IEnumerable<ConnectionDataType> columns, IEnumerable<string> keys, string context)
+            async Task CreateTable(SqlTableName tableName, IEnumerable<ConnectionDataType> columns, IEnumerable<string> keys, string context, bool useUniqueIndex)
             {
                 try
                 {
@@ -193,7 +193,7 @@ namespace CluedIn.Connector.SqlServer.Connector
                         .ToList();
 
                     var indexCommands = _features.GetFeature<IBuildCreateIndexFeature>()
-                        .BuildCreateIndexSql(executionContext, providerDefinitionId, tableName, keys, _logger);
+                        .BuildCreateIndexSql(executionContext, providerDefinitionId, tableName, keys, _logger, useUniqueIndex);
                     commands = commands.Union(indexCommands);
 
                     foreach (var command in commands)
@@ -244,17 +244,17 @@ namespace CluedIn.Connector.SqlServer.Connector
             var tasks = new List<Task>
             {
                 // Primary table
-                CreateTable(container.PrimaryTable.ToTableName(schema), connectionDataTypes, _defaultKeyFields, "Data"),
+                CreateTable(container.PrimaryTable.ToTableName(schema), connectionDataTypes, _defaultKeyFields, "Data", true),
 
                 // Codes table
-                CreateTable(codesTable.Name.ToTableName(schema), codesTable.Columns, codesTable.Keys, "Codes")
+                CreateTable(codesTable.Name.ToTableName(schema), codesTable.Columns, codesTable.Keys, "Codes", false)
             };
 
             // We optionally build an edges table
             if (model.CreateEdgeTable)
             {
                 var edgesTable = container.Tables["Edges"];
-                tasks.Add(CreateTable(edgesTable.Name.ToTableName(schema), edgesTable.Columns, edgesTable.Keys, "Edges"));
+                tasks.Add(CreateTable(edgesTable.Name.ToTableName(schema), edgesTable.Columns, edgesTable.Keys, "Edges", false));
             }
 
             await Task.WhenAll(tasks);

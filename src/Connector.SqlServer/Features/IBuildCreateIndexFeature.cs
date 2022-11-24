@@ -13,6 +13,7 @@ namespace CluedIn.Connector.SqlServer.Features
             Guid providerDefinitionId,
             SqlTableName tableName,
             IEnumerable<string> keys,
-            ILogger logger);
+            ILogger logger,
+            bool useUniqueIndex);
     }
 }
