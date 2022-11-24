@@ -14,7 +14,7 @@ namespace CluedIn.Connector.SqlServer.Features
             [typeof(IBuildDeleteDataFeature)] = new DefaultBuildDeleteDataFeature(),
             [typeof(IBulkStoreDataFeature)] = new DefaultBulkStoreDataFeature(),
             [typeof(IBulkDeleteDataFeature)] = new DefaultBulkDeleteDataFeature(),
-            [typeof(IUpgradeExistingSchemaFeature)] = new DefaultUpgradeExistingSchemaFeature()
+            [typeof(IUpgradeTimeStampingFeature)] = new DefaultUpgradeTimeStampingFeature()
         };
 
         public T GetFeature<T>()
