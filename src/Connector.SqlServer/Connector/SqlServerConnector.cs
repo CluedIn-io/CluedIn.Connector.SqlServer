@@ -32,7 +32,7 @@ namespace CluedIn.Connector.SqlServer.Connector
         private readonly int _bulkInsertThreshold;
         private readonly bool _bulkSupported;
         private readonly bool _syncEdgesTable;
-        private readonly IList<string> _defaultKeyFields = new List<string> { "OriginEntityCode" };
+        private readonly IList<string> _defaultKeyFields = new List<string> { "Id", "OriginEntityCode" };
 
         private readonly IFeatureStore _features;
 
@@ -43,7 +43,7 @@ namespace CluedIn.Connector.SqlServer.Connector
             IFeatureStore features,
             ISqlServerConstants constants) : base(repository, logger, client, constants.ProviderId)
         {
-            _features = features ?? throw new ArgumentNullException(nameof(logger));
+            _features = features ?? throw new ArgumentNullException(nameof(features));
 
             _bulkInsertThreshold =
                 ConfigurationManagerEx.AppSettings.GetValue("Streams.SqlConnector.BulkInsertRecordCount", 0);
@@ -173,8 +173,13 @@ namespace CluedIn.Connector.SqlServer.Connector
             {
                 var upgrade = _features.GetFeature<IUpgradeTimeStampingFeature>();
                 var config = await base.GetAuthenticationDetails(executionContext, stream.ConnectorProviderDefinitionId.Value);
-
                 await upgrade.VerifyTimeStampColumnExist(_client as ISqlClient, config, stream);
+
+                var buildIndexFeature = _features.GetFeature<IBuildCreateIndexFeature>();
+                var verifyUniqueIndexFeature = _features.GetFeature<VerifyUniqueIndexFeature>();
+                var tableName = SqlTableName.FromUnsafeName(stream.ContainerName, config.GetSchema());
+                var verifyUniqueIndexCommand = verifyUniqueIndexFeature.GetVerifyUniqueIndexCommand(buildIndexFeature, tableName, _defaultKeyFields);
+                await _client.ExecuteCommandAsync(config, verifyUniqueIndexCommand);
             }
         }
 
@@ -183,18 +188,18 @@ namespace CluedIn.Connector.SqlServer.Connector
             var config = await base.GetAuthenticationDetails(executionContext, providerDefinitionId);
             var schema = config.GetSchema();
 
-            async Task CreateTable(SqlTableName tableName, IEnumerable<ConnectionDataType> columns, IEnumerable<string> keys, string context)
+            async Task CreateTable(SqlTableName tableName, IEnumerable<ConnectionDataType> columns, IEnumerable<string> keys, string context, bool useUniqueIndex)
             {
                 try
                 {
-                    IEnumerable<SqlServerConnectorCommand> commands = _features
+                    var commands = _features
                         .GetFeature<IBuildCreateContainerFeature>()
                         .BuildCreateContainerSql(executionContext, providerDefinitionId, tableName, columns, keys, _logger)
                         .ToList();
 
-                    var indexCommands = _features.GetFeature<IBuildCreateIndexFeature>()
-                        .BuildCreateIndexSql(executionContext, providerDefinitionId, tableName, keys, _logger);
-                    commands = commands.Union(indexCommands);
+                    var indexCommand = _features.GetFeature<IBuildCreateIndexFeature>()
+                        .BuildCreateIndexSql(tableName, keys, useUniqueIndex);
+                    commands.Add(indexCommand);
 
                     foreach (var command in commands)
                     {
@@ -244,17 +249,17 @@ namespace CluedIn.Connector.SqlServer.Connector
             var tasks = new List<Task>
             {
                 // Primary table
-                CreateTable(container.PrimaryTable.ToTableName(schema), connectionDataTypes, _defaultKeyFields, "Data"),
+                CreateTable(container.PrimaryTable.ToTableName(schema), connectionDataTypes, _defaultKeyFields, "Data", true),
 
                 // Codes table
-                CreateTable(codesTable.Name.ToTableName(schema), codesTable.Columns, codesTable.Keys, "Codes")
+                CreateTable(codesTable.Name.ToTableName(schema), codesTable.Columns, codesTable.Keys, "Codes", false)
             };
 
             // We optionally build an edges table
             if (model.CreateEdgeTable)
             {
                 var edgesTable = container.Tables["Edges"];
-                tasks.Add(CreateTable(edgesTable.Name.ToTableName(schema), edgesTable.Columns, edgesTable.Keys, "Edges"));
+                tasks.Add(CreateTable(edgesTable.Name.ToTableName(schema), edgesTable.Columns, edgesTable.Keys, "Edges", false));
             }
 
             await Task.WhenAll(tasks);
