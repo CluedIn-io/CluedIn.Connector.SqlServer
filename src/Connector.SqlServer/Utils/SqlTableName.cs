@@ -13,7 +13,7 @@ namespace CluedIn.Connector.SqlServer.Utils
         /// </summary>
         public static SqlTableName FromUnsafeName(string rawTableName, SqlName schema)
         {
-            return new SqlTableName(SqlName.FromUnsafe(rawTableName), schema); 
+            return new SqlTableName(SqlName.FromUnsafe(rawTableName), schema);
         }
 
         /// <summary>
