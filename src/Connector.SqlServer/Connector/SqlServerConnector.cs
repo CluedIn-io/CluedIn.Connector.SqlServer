@@ -43,7 +43,7 @@ namespace CluedIn.Connector.SqlServer.Connector
             IFeatureStore features,
             ISqlServerConstants constants) : base(repository, logger, client, constants.ProviderId)
         {
-            _features = features ?? throw new ArgumentNullException(nameof(logger));
+            _features = features ?? throw new ArgumentNullException(nameof(features));
 
             _bulkInsertThreshold =
                 ConfigurationManagerEx.AppSettings.GetValue("Streams.SqlConnector.BulkInsertRecordCount", 0);
