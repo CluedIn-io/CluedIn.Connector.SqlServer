@@ -173,8 +173,13 @@ namespace CluedIn.Connector.SqlServer.Connector
             {
                 var upgrade = _features.GetFeature<IUpgradeTimeStampingFeature>();
                 var config = await base.GetAuthenticationDetails(executionContext, stream.ConnectorProviderDefinitionId.Value);
-
                 await upgrade.VerifyTimeStampColumnExist(_client as ISqlClient, config, stream);
+
+                var buildIndexFeature = _features.GetFeature<IBuildCreateIndexFeature>();
+                var verifyUniqueIndexFeature = _features.GetFeature<VerifyUniqueIndexFeature>();
+                var tableName = SqlTableName.FromUnsafeName(stream.ContainerName, config.GetSchema());
+                var verifyUniqueIndexCommand = verifyUniqueIndexFeature.GetVerifyUniqueIndexCommand(buildIndexFeature, tableName, _defaultKeyFields);
+                await _client.ExecuteCommandAsync(config, verifyUniqueIndexCommand);
             }
         }
 
@@ -187,14 +192,14 @@ namespace CluedIn.Connector.SqlServer.Connector
             {
                 try
                 {
-                    IEnumerable<SqlServerConnectorCommand> commands = _features
+                    var commands = _features
                         .GetFeature<IBuildCreateContainerFeature>()
                         .BuildCreateContainerSql(executionContext, providerDefinitionId, tableName, columns, keys, _logger)
                         .ToList();
 
-                    var indexCommands = _features.GetFeature<IBuildCreateIndexFeature>()
-                        .BuildCreateIndexSql(executionContext, providerDefinitionId, tableName, keys, _logger, useUniqueIndex);
-                    commands = commands.Union(indexCommands);
+                    var indexCommand = _features.GetFeature<IBuildCreateIndexFeature>()
+                        .BuildCreateIndexSql(tableName, keys, useUniqueIndex);
+                    commands.Add(indexCommand);
 
                     foreach (var command in commands)
                     {
@@ -609,7 +614,7 @@ namespace CluedIn.Connector.SqlServer.Connector
 
             };
 
-            return "IF EXISTS(SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = @tableOldName AND TABLE_SCHEMA = @schema) EXEC sp_rename @tableOldFQName, @newTableName";
+            return " IF EXISTS(SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = @tableOldName AND TABLE_SCHEMA = @schema) EXEC sp_rename @tableOldFQName, @newTableName";
         }
 
         private string BuildRemoveContainerSql(SqlTableName tableName)
