@@ -614,7 +614,7 @@ namespace CluedIn.Connector.SqlServer.Connector
 
             };
 
-            return " IF EXISTS(SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = @tableOldName AND TABLE_SCHEMA = @schema) EXEC sp_rename @tableOldFQName, @newTableName";
+            return "IF EXISTS(SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = @tableOldName AND TABLE_SCHEMA = @schema) EXEC sp_rename @tableOldFQName, @newTableName";
         }
 
         private string BuildRemoveContainerSql(SqlTableName tableName)
