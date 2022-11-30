@@ -125,7 +125,7 @@ namespace CluedIn.Connector.SqlServer.Connector
                             dataToUse, _defaultKeyFields, _logger);
 
                     foreach (var command in commands)
-                        await _client.ExecuteCommandAsync(config, command.Text, command.Parameters);
+                        await ExecuteCommandWithRetryAsync(() => _client.ExecuteCommandAsync(config, command.Text, command.Parameters));
                 }
             }
             catch (Exception e)
@@ -155,7 +155,7 @@ namespace CluedIn.Connector.SqlServer.Connector
                     {
                         _logger.LogDebug($"Sql Server Connector - Store Edge Data - Generated query: {sql}");
 
-                        await _client.ExecuteCommandAsync(config, sql, param);
+                        await ExecuteCommandWithRetryAsync(() => _client.ExecuteCommandAsync(config, sql, param));
                     }
                 }
             }
@@ -201,7 +201,7 @@ namespace CluedIn.Connector.SqlServer.Connector
                         _logger.LogDebug("Sql Server Connector - Create Container[{Context}] - Generated query: {sql}",
                             context, command.Text);
 
-                        await _client.ExecuteCommandAsync(config, command.Text, command.Parameters);
+                        await ExecuteCommandWithRetryAsync(() => _client.ExecuteCommandAsync(config, command.Text, command.Parameters));
                     }
                 }
                 catch (Exception e)
@@ -272,7 +272,7 @@ namespace CluedIn.Connector.SqlServer.Connector
 
                 try
                 {
-                    await _client.ExecuteCommandAsync(config, sql);
+                    await ExecuteCommandWithRetryAsync(() => _client.ExecuteCommandAsync(config, sql));
                 }
                 catch (Exception e)
                 {
@@ -311,7 +311,7 @@ namespace CluedIn.Connector.SqlServer.Connector
 
                 try
                 {
-                    await _client.ExecuteCommandAsync(config, sql, param);
+                    await ExecuteCommandWithRetryAsync(() => _client.ExecuteCommandAsync(config, sql, param));
                 }
                 catch (Exception e)
                 {
@@ -349,7 +349,7 @@ namespace CluedIn.Connector.SqlServer.Connector
 
                 try
                 {
-                    await _client.ExecuteCommandAsync(config, sql, param);
+                    await ExecuteCommandWithRetryAsync(() => _client.ExecuteCommandAsync(config, sql, param));
                 }
                 catch (Exception e)
                 {
@@ -406,7 +406,7 @@ namespace CluedIn.Connector.SqlServer.Connector
 
                 try
                 {
-                    await _client.ExecuteCommandAsync(config, sql);
+                    await ExecuteCommandWithRetryAsync(() => _client.ExecuteCommandAsync(config, sql));
                 }
                 catch (Exception e)
                 {
@@ -436,7 +436,7 @@ namespace CluedIn.Connector.SqlServer.Connector
             try
             {
                 var config = await base.GetAuthenticationDetails(executionContext, providerDefinitionId);
-                var tables = await _client.GetTables(config.Authentication, schema: config.GetSchema());
+                var tables = await ExecuteResultCommandWithRetryAsync(() => _client.GetTables(config.Authentication, schema: config.GetSchema()));
 
                 var result = from DataRow row in tables.Rows
                              select row["TABLE_NAME"] as string
@@ -458,7 +458,7 @@ namespace CluedIn.Connector.SqlServer.Connector
             try
             {
                 var config = await base.GetAuthenticationDetails(executionContext, providerDefinitionId);
-                var tables = await _client.GetTableColumns(config.Authentication, containerId, schema: config.GetSchema());
+                var tables = await ExecuteResultCommandWithRetryAsync(() => _client.GetTableColumns(config.Authentication, containerId, schema: config.GetSchema()));
 
                 var result = from DataRow row in tables.Rows
                              let name = row["COLUMN_NAME"] as string
@@ -519,13 +519,13 @@ namespace CluedIn.Connector.SqlServer.Connector
                     // see if we need to delete linked tables
                     // do look up of OriginEntityCode from current table data
                     var lookupOriginCodes = new List<string>();
-                    await using (var connection = await _client.GetConnection(config.Authentication))
+                    await using (var connection = await ExecuteResultCommandWithRetryAsync(() => _client.GetConnection(config.Authentication)))
                     {
                         var cmd = connection.CreateCommand();
                         cmd.CommandText = $"SELECT DISTINCT OriginEntityCode FROM {container.PrimaryTable.ToTableName(schema).FullyQualifiedName} WHERE [Id] = @Id;";
                         cmd.Parameters.Add(new SqlParameter("Id", entityId));
 
-                        await using var resp = await cmd.ExecuteReaderAsync();
+                        await using var resp = await ExecuteResultCommandWithRetryAsync(() => cmd.ExecuteReaderAsync());
                         if (resp.HasRows)
                         {
                             while (await resp.ReadAsync())
@@ -549,7 +549,7 @@ namespace CluedIn.Connector.SqlServer.Connector
                     }
 
                     foreach (var command in commands)
-                        await _client.ExecuteCommandAsync(config, command.Text, command.Parameters);
+                        await ExecuteCommandWithRetryAsync(() => _client.ExecuteCommandAsync(config, command.Text, command.Parameters));
                 }
             }
             catch (Exception e)
@@ -626,7 +626,7 @@ namespace CluedIn.Connector.SqlServer.Connector
         {
             try
             {
-                var tables = await _client.GetTables(config.Authentication, name: tableName.LocalName, schema: tableName.Schema);
+                var tables = await ExecuteResultCommandWithRetryAsync(() => _client.GetTables(config.Authentication, name: tableName.LocalName, schema: tableName.Schema));
 
                 return tables.Rows.Count > 0;
             }
@@ -643,6 +643,16 @@ namespace CluedIn.Connector.SqlServer.Connector
             var tableName = SqlTableName.FromUnsafeName(name, config);
 
             return await CheckTableExists(config, tableName);
+        }
+
+        private static async Task ExecuteCommandWithRetryAsync(Func<Task> command)
+        {
+            await command.ExecuteWithRetryAsync(isTransient: ExceptionExtensions.IsTransient);
+        }
+
+        private static async Task<T> ExecuteResultCommandWithRetryAsync<T>(Func<Task<T>> command)
+        {
+            return await command.ExecuteWithRetryAsync(isTransient: ExceptionExtensions.IsTransient);
         }
     }
 }
