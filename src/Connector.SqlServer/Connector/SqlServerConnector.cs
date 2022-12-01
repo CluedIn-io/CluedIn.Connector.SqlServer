@@ -173,13 +173,13 @@ namespace CluedIn.Connector.SqlServer.Connector
             {
                 var upgrade = _features.GetFeature<IUpgradeTimeStampingFeature>();
                 var config = await base.GetAuthenticationDetails(executionContext, stream.ConnectorProviderDefinitionId.Value);
-                await upgrade.VerifyTimeStampColumnExist(_client as ISqlClient, config, stream);
+                await ExecuteCommandWithRetryAsync(() => upgrade.VerifyTimeStampColumnExist(_client as ISqlClient, config, stream));
 
                 var buildIndexFeature = _features.GetFeature<IBuildCreateIndexFeature>();
                 var verifyUniqueIndexFeature = _features.GetFeature<VerifyUniqueIndexFeature>();
                 var tableName = SqlTableName.FromUnsafeName(stream.ContainerName, config.GetSchema());
                 var verifyUniqueIndexCommand = verifyUniqueIndexFeature.GetVerifyUniqueIndexCommand(buildIndexFeature, tableName, _defaultKeyFields);
-                await _client.ExecuteCommandAsync(config, verifyUniqueIndexCommand);
+                await ExecuteCommandWithRetryAsync(() => _client.ExecuteCommandAsync(config, verifyUniqueIndexCommand));
             }
         }
 
