@@ -169,17 +169,31 @@ namespace CluedIn.Connector.SqlServer.Connector
 
         public async Task VerifyExistingContainer(ExecutionContext executionContext, StreamModel stream)
         {
-            if (stream.ConnectorProviderDefinitionId.HasValue)
+            if (stream.ConnectorProviderDefinitionId.HasValue && stream.Mode is StreamMode.Sync)
             {
+                var log = executionContext.ApplicationContext.Container.Resolve<ILogger<SqlServerConnector>>();
+                log.LogInformation("Verifying that necessary columns and indexes exist for provider: {ProviderDefinitionId}", stream.ConnectorProviderDefinitionId);
+
                 var upgrade = _features.GetFeature<IUpgradeTimeStampingFeature>();
                 var config = await base.GetAuthenticationDetails(executionContext, stream.ConnectorProviderDefinitionId.Value);
                 await ExecuteCommandWithRetryAsync(() => upgrade.VerifyTimeStampColumnExist(_client as ISqlClient, config, stream));
 
-                var buildIndexFeature = _features.GetFeature<IBuildCreateIndexFeature>();
-                var verifyUniqueIndexFeature = _features.GetFeature<VerifyUniqueIndexFeature>();
-                var tableName = SqlTableName.FromUnsafeName(stream.ContainerName, config.GetSchema());
-                var verifyUniqueIndexCommand = verifyUniqueIndexFeature.GetVerifyUniqueIndexCommand(buildIndexFeature, tableName, _defaultKeyFields);
-                await ExecuteCommandWithRetryAsync(() => _client.ExecuteCommandAsync(config, verifyUniqueIndexCommand));
+                await using (var connection = await ExecuteResultCommandWithRetryAsync(() => _client.GetConnection(config.Authentication)))
+                {
+                    var buildIndexFeature = _features.GetFeature<IBuildCreateIndexFeature>();
+                    var verifyUniqueIndexFeature = _features.GetFeature<VerifyUniqueIndexFeature>();
+                    var tableName = SqlTableName.FromUnsafeName(stream.ContainerName, config.GetSchema());
+                    var verifyUniqueIndexCommand = verifyUniqueIndexFeature.GetVerifyUniqueIndexCommand(buildIndexFeature, tableName, _defaultKeyFields);
+
+                    var command = connection.CreateCommand();
+                    command.CommandText = verifyUniqueIndexCommand;
+
+                    var response = await ExecuteResultCommandWithRetryAsync(() => command.ExecuteScalarAsync());
+                    if (response is int result && result == 0)
+                    {
+                        log.LogError("Could not add unique index on id, since there were duplicates in the table. To resolve, see upgrade notes");
+                    }
+                }
             }
         }
 

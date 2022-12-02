@@ -14,17 +14,36 @@ namespace CluedIn.Connector.SqlServer.Features
             return verifyUniqueIndexCommand;
         }
 
-        private string BuildVerifyIndexCommand(string indexName, SqlTableName tableName, string createIndexCommand)
+        private static string BuildVerifyIndexCommand(string indexName, SqlTableName tableName, string createIndexCommand)
         {
-            return
- $@"IF EXISTS 
-	(SELECT * 
-	FROM sys.indexes 
-	WHERE name = '{indexName}' AND is_unique = 'false') 
-BEGIN
-	DROP INDEX [{indexName}] ON {tableName.FullyQualifiedName}
+            return $@"
+Declare @EntitiesWithDuplicatesExists AS BIT
+SET @EntitiesWithDuplicatesExists = 0
 
+IF EXISTS (
+SELECT TOP(1) [Id]
+   FROM {tableName}
+   GROUP BY [Id]
+   HAVING COUNT(Id) > 1)
+BEGIN
+  SET @EntitiesWithDuplicatesExists = 1
+END
+
+If @EntitiesWithDuplicatesExists = 1
+BEGIN
+  PRINT 'Cannot add unique index, since duplicates exist'
+  SELECT 0
+END
+ELSE
+BEGIN
+  IF EXISTS (SELECT * FROM sys.indexes WHERE name = '{indexName}' AND is_unique = 'false')
+  BEGIN
+    PRINT 'Adding index'
+	DROP INDEX {indexName} ON {tableName}
 	{createIndexCommand}
+  END
+
+  SELECT 1
 END";
         }
     }
