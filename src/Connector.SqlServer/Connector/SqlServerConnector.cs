@@ -129,7 +129,7 @@ namespace CluedIn.Connector.SqlServer.Connector
                             providerDefinitionId,
                             tableName,
                             dataToUse,
-                            keys: _defaultIndexFields.SelectMany(index => index.columns).ToArray(),
+                            uniqueColumns: _defaultIndexFields.Where(index => index.isUnique).SelectMany(index => index.columns).ToArray(),
                             StreamMode,
                             correlationId,
                             timestamp,
@@ -143,7 +143,7 @@ namespace CluedIn.Connector.SqlServer.Connector
                             providerDefinitionId,
                             tableName,
                             dataToUse,
-                            keys: _defaultIndexFields.SelectMany(index => index.columns).ToArray(),
+                            uniqueColumns: _defaultIndexFields.Where(index => index.isUnique).SelectMany(index => index.columns).ToArray(),
                             _logger);
                     }
 

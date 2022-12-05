@@ -17,10 +17,10 @@ namespace CluedIn.Connector.SqlServer.Features
     public class DefaultBuildStoreDataFeature : IBuildStoreDataFeature, IBuildStoreDataForMode
     {
         public IEnumerable<SqlServerConnectorCommand> BuildStoreDataSql(ExecutionContext executionContext,
-            Guid providerDefinitionId, SqlTableName tableName, IDictionary<string, object> data, IList<string> keys,
+            Guid providerDefinitionId, SqlTableName tableName, IDictionary<string, object> data, IList<string> uniqueColumns,
             ILogger logger)
         {
-            return BuildStoreDataSql(executionContext, providerDefinitionId, tableName, data, keys, StreamMode.Sync,
+            return BuildStoreDataSql(executionContext, providerDefinitionId, tableName, data, uniqueColumns, StreamMode.Sync,
                 null, DateTimeOffset.Now, VersionChangeType.NotSet, logger);
         }
 
@@ -29,7 +29,7 @@ namespace CluedIn.Connector.SqlServer.Features
             Guid providerDefinitionId,
             SqlTableName tableName,
             IDictionary<string, object> data,
-            IList<string> keys,
+            IList<string> uniqueColumns,
             StreamMode mode,
             string correlationId,
             DateTimeOffset timestamp,
@@ -42,9 +42,6 @@ namespace CluedIn.Connector.SqlServer.Features
             if (data == null || data.Count == 0)
                 throw new InvalidOperationException("The data to specify columns must be provided.");
 
-            if (keys == null || !keys.Any())
-                throw new InvalidOperationException("No Key Fields have been specified");
-
             if (logger == null)
                 throw new ArgumentNullException(nameof(logger));
 
@@ -55,7 +52,6 @@ namespace CluedIn.Connector.SqlServer.Features
             if (data.TryGetValue("Codes", out var codes) && codes is IEnumerable codesEnumerable)
             {
                 data.Remove("Codes");
-                keys.Remove("Codes");
 
                 // HACK need a better way to source origin entity code
                 var codesTable = container.Tables["Codes"];
@@ -84,13 +80,13 @@ namespace CluedIn.Connector.SqlServer.Features
 
             // Primary table
             if (mode == StreamMode.Sync)
-                yield return ComposeUpsert(container.PrimaryTable.ToTableName(schema), data, keys, logger);
+                yield return ComposeUpsert(container.PrimaryTable.ToTableName(schema), data, uniqueColumns, logger);
             else
                 yield return ComposeInsert(container.PrimaryTable.ToTableName(schema), data);
         }
 
         protected virtual SqlServerConnectorCommand ComposeUpsert(SqlTableName tableName, IDictionary<string, object> data,
-            IList<string> keys, ILogger logger)
+            IList<string> columnsToMergeOn, ILogger logger)
         {
             var builder = new StringBuilder();
             var parameters = new List<SqlParameter>();
@@ -119,7 +115,7 @@ namespace CluedIn.Connector.SqlServer.Features
             }
 
             var fieldsString = string.Join(", ", fields);
-            var mergeOnList = keys.Select(n => $"target.[{n}] = source.[{n}]");
+            var mergeOnList = columnsToMergeOn.Select(n => $"target.[{n}] = source.[{n}]");
             var mergeOn = string.Join(" AND ", mergeOnList);
 
             builder.AppendLine($"MERGE {tableName.FullyQualifiedName} AS target");

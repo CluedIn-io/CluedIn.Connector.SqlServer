@@ -18,7 +18,7 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests.Features
         private readonly TestContext _testContext;
         private readonly Mock<ILogger> _logger;
         private readonly DefaultBuildStoreDataFeature _sut;
-        private readonly IList<string> _defaultKeyFields = new List<string> { "OriginEntityCode" };
+        private readonly IList<string> _defaultKeyFields = new List<string>() {"Id", "OriginEntityCode"} ;
 
         public DefaultBuildStoreDataFeatureTests()
         {
@@ -101,7 +101,7 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests.Features
             var command = result.Single();
             Assert.Equal($"MERGE [{tableName.Schema}].[{tableName.LocalName}] AS target" + Environment.NewLine +
                          "USING (SELECT @Field1, @Field2, @Field3, @Field4, @Field5) AS source ([Field1], [Field2], [Field3], [Field4], [Field5])" + Environment.NewLine +
-                         "  ON (target.[OriginEntityCode] = source.[OriginEntityCode])" + Environment.NewLine +
+                         "  ON (target.[Id] = source.[Id] AND target.[OriginEntityCode] = source.[OriginEntityCode])" + Environment.NewLine +
                          "WHEN MATCHED THEN" + Environment.NewLine +
                          "  UPDATE SET target.[Field1] = source.[Field1], target.[Field2] = source.[Field2], target.[Field3] = source.[Field3], target.[Field4] = source.[Field4], target.[Field5] = source.[Field5]" + Environment.NewLine +
                          "WHEN NOT MATCHED THEN" + Environment.NewLine +
@@ -141,7 +141,7 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests.Features
             var command = result.Single();
             Assert.Equal($"MERGE [{tableName.Schema}].[{tableName.LocalName}] AS target" + Environment.NewLine +
                          "USING (SELECT @Field1, @Field2, @InvalidField) AS source ([Field1], [Field2], [InvalidField])" + Environment.NewLine +
-                         "  ON (target.[OriginEntityCode] = source.[OriginEntityCode])" + Environment.NewLine +
+                         "  ON (target.[Id] = source.[Id] AND target.[OriginEntityCode] = source.[OriginEntityCode])" + Environment.NewLine +
                          "WHEN MATCHED THEN" + Environment.NewLine +
                          "  UPDATE SET target.[Field1] = source.[Field1], target.[Field2] = source.[Field2], target.[InvalidField] = source.[InvalidField]" + Environment.NewLine +
                          "WHEN NOT MATCHED THEN" + Environment.NewLine +
@@ -207,7 +207,7 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests.Features
             var mainTableCommand = result.Last();
             Assert.Equal($"MERGE [{tableName.Schema}].[{tableName.LocalName}] AS target" + Environment.NewLine +
                          "USING (SELECT @OriginEntityCode, @AdditionalField) AS source ([OriginEntityCode], [AdditionalField])" + Environment.NewLine +
-                         "  ON (target.[OriginEntityCode] = source.[OriginEntityCode])" + Environment.NewLine +
+                         "  ON (target.[Id] = source.[Id] AND target.[OriginEntityCode] = source.[OriginEntityCode])" + Environment.NewLine +
                          "WHEN MATCHED THEN" + Environment.NewLine +
                          "  UPDATE SET target.[OriginEntityCode] = source.[OriginEntityCode], target.[AdditionalField] = source.[AdditionalField]" + Environment.NewLine +
                          "WHEN NOT MATCHED THEN" + Environment.NewLine +
