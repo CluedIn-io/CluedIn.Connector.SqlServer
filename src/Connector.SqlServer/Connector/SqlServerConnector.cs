@@ -32,7 +32,12 @@ namespace CluedIn.Connector.SqlServer.Connector
         private readonly int _bulkInsertThreshold;
         private readonly bool _bulkSupported;
         private readonly bool _syncEdgesTable;
-        private readonly IList<string> _defaultKeyFields = new List<string> { "Id", "OriginEntityCode" };
+
+        private readonly IList<(string name, bool isUnique)> _defaultIndexFields = new List<(string, bool)>
+        {
+            ("Id", true),
+            ("OriginEntityCode", false)
+        };
 
         private readonly IFeatureStore _features;
 
@@ -118,11 +123,29 @@ namespace CluedIn.Connector.SqlServer.Connector
                     var feature = _features.GetFeature<IBuildStoreDataFeature>();
                     IEnumerable<SqlServerConnectorCommand> commands;
                     if (feature is IBuildStoreDataForMode modeFeature)
-                        commands = modeFeature.BuildStoreDataSql(executionContext, providerDefinitionId, tableName,
-                            dataToUse, _defaultKeyFields, StreamMode, correlationId, timestamp, changeType, _logger);
+                    {
+                        commands = modeFeature.BuildStoreDataSql(
+                            executionContext,
+                            providerDefinitionId,
+                            tableName,
+                            dataToUse,
+                            keys: _defaultIndexFields.Select(index => index.name).ToArray(),
+                            StreamMode,
+                            correlationId,
+                            timestamp,
+                            changeType,
+                            _logger);
+                    }
                     else
-                        commands = feature.BuildStoreDataSql(executionContext, providerDefinitionId, tableName,
-                            dataToUse, _defaultKeyFields, _logger);
+                    {
+                        commands = feature.BuildStoreDataSql(
+                            executionContext,
+                            providerDefinitionId,
+                            tableName,
+                            dataToUse,
+                            keys: _defaultIndexFields.Select(index => index.name).ToArray(),
+                            _logger);
+                    }
 
                     foreach (var command in commands)
                         await ExecuteCommandWithRetryAsync(() => _client.ExecuteCommandAsync(config, command.Text, command.Parameters));
@@ -183,7 +206,7 @@ namespace CluedIn.Connector.SqlServer.Connector
                     var buildIndexFeature = _features.GetFeature<IBuildCreateIndexFeature>();
                     var verifyUniqueIndexFeature = _features.GetFeature<VerifyUniqueIndexFeature>();
                     var tableName = SqlTableName.FromUnsafeName(stream.ContainerName, config.GetSchema());
-                    var verifyUniqueIndexCommand = verifyUniqueIndexFeature.GetVerifyUniqueIndexCommand(buildIndexFeature, tableName, _defaultKeyFields);
+                    var verifyUniqueIndexCommand = verifyUniqueIndexFeature.GetVerifyUniqueIndexCommand(buildIndexFeature, tableName, _defaultIndexFields);
 
                     var command = connection.CreateCommand();
                     command.CommandText = verifyUniqueIndexCommand;
@@ -202,18 +225,21 @@ namespace CluedIn.Connector.SqlServer.Connector
             var config = await base.GetAuthenticationDetails(executionContext, providerDefinitionId);
             var schema = config.GetSchema();
 
-            async Task CreateTable(SqlTableName tableName, IEnumerable<ConnectionDataType> columns, IEnumerable<string> keys, string context, bool useUniqueIndex)
+            async Task CreateTable(SqlTableName tableName, IEnumerable<ConnectionDataType> columns, IEnumerable<(string name, bool isUnique)> indexKeys, string context)
             {
                 try
                 {
                     var commands = _features
                         .GetFeature<IBuildCreateContainerFeature>()
-                        .BuildCreateContainerSql(executionContext, providerDefinitionId, tableName, columns, keys, _logger)
+                        .BuildCreateContainerSql(executionContext, providerDefinitionId, tableName, columns, Array.Empty<string>(), _logger)
                         .ToList();
 
-                    var indexCommand = _features.GetFeature<IBuildCreateIndexFeature>()
-                        .BuildCreateIndexSql(tableName, keys, useUniqueIndex);
-                    commands.Add(indexCommand);
+                    var createIndexFeature = _features.GetFeature<IBuildCreateIndexFeature>();
+                    var indexCommandText = string.Join(
+                        Environment.NewLine,
+                        indexKeys.Select(key => createIndexFeature.GetCreateIndexCommandText(tableName, new[] { key.name }, key.isUnique)));
+
+                    commands.Add(new SqlServerConnectorCommand() {Text = indexCommandText});
 
                     foreach (var command in commands)
                     {
@@ -263,17 +289,17 @@ namespace CluedIn.Connector.SqlServer.Connector
             var tasks = new List<Task>
             {
                 // Primary table
-                CreateTable(container.PrimaryTable.ToTableName(schema), connectionDataTypes, _defaultKeyFields, "Data", true),
+                CreateTable(container.PrimaryTable.ToTableName(schema), connectionDataTypes, _defaultIndexFields, "Data"),
 
                 // Codes table
-                CreateTable(codesTable.Name.ToTableName(schema), codesTable.Columns, codesTable.Keys, "Codes", false)
+                CreateTable(codesTable.Name.ToTableName(schema), codesTable.Columns, codesTable.Keys.Select(key => (key, false)), "Codes")
             };
 
             // We optionally build an edges table
             if (model.CreateEdgeTable)
             {
                 var edgesTable = container.Tables["Edges"];
-                tasks.Add(CreateTable(edgesTable.Name.ToTableName(schema), edgesTable.Columns, edgesTable.Keys, "Edges", false));
+                tasks.Add(CreateTable(edgesTable.Name.ToTableName(schema), edgesTable.Columns, codesTable.Keys.Select(key => (key, false)), "Edges"));
             }
 
             await Task.WhenAll(tasks);

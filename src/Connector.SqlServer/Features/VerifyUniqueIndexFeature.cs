@@ -1,15 +1,19 @@
 ﻿using CluedIn.Connector.SqlServer.Utils;
+using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace CluedIn.Connector.SqlServer.Features
 {
     internal sealed class VerifyUniqueIndexFeature
     {
-        public string GetVerifyUniqueIndexCommand(IBuildCreateIndexFeature createIndexFeature, SqlTableName tableName, IEnumerable<string> indexKeys)
+        public string GetVerifyUniqueIndexCommand(IBuildCreateIndexFeature createIndexFeature, SqlTableName tableName, IEnumerable<(string name, bool isUnique)> indexKeys)
         {
             var indexName = createIndexFeature.GetIndexName(tableName);
-            var createIndexCommand = createIndexFeature.GetCreateIndexCommandText(tableName, indexKeys, true);
-            var verifyUniqueIndexCommand = BuildVerifyIndexCommand(indexName, tableName, createIndexCommand);
+            var createIndexCommands = string.Join(
+                Environment.NewLine,
+                indexKeys.Select(key => createIndexFeature.GetCreateIndexCommandText(tableName, new[] { key.name }, key.isUnique)));
+            var verifyUniqueIndexCommand = BuildVerifyIndexCommand(indexName, tableName, createIndexCommands);
 
             return verifyUniqueIndexCommand;
         }

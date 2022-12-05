@@ -14,7 +14,8 @@ namespace CluedIn.Connector.SqlServer.Features
 
         public string GetCreateIndexCommandText(SqlTableName tableName, IEnumerable<string> keys, bool useUniqueIndex)
         {
-            var indexName = GetIndexName(tableName);
+            var concatenatedKeys = string.Join('_', keys);
+            var indexName = $"IX_{tableName.LocalName}_{concatenatedKeys}";
             return $"CREATE {(useUniqueIndex ? "UNIQUE" : string.Empty)} INDEX [{indexName}] ON {tableName.FullyQualifiedName}({string.Join(", ", keys)}); ";
         }
 
