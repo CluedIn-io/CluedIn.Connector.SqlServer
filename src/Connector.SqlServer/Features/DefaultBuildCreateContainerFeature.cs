@@ -14,6 +14,7 @@ namespace CluedIn.Connector.SqlServer.Features
 {
     public class DefaultBuildCreateContainerFeature : IBuildCreateContainerFeature
     {
+        /// TODO LDM: Looks like IEnumerable is not needed, returns single object. Also class could be sealed? 
         public virtual IEnumerable<SqlServerConnectorCommand> BuildCreateContainerSql(
             ExecutionContext executionContext,
             Guid providerDefinitionId,

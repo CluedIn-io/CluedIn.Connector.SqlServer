@@ -15,7 +15,7 @@ namespace CluedIn.Connector.SqlServer.Features
             Guid providerDefinitionId,
             SqlTableName tableName,
             IDictionary<string, object> data,
-            IList<string> keys,
+            IList<string> uniqueColumns,
             StreamMode mode,
             string correlationId,
             DateTimeOffset timestamp,
