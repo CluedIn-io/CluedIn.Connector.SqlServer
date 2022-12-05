@@ -7,12 +7,12 @@ namespace CluedIn.Connector.SqlServer.Features
 {
     internal sealed class VerifyUniqueIndexFeature
     {
-        public string GetVerifyUniqueIndexCommand(IBuildCreateIndexFeature createIndexFeature, SqlTableName tableName, IEnumerable<(string name, bool isUnique)> indexKeys)
+        public string GetVerifyUniqueIndexCommand(IBuildCreateIndexFeature createIndexFeature, SqlTableName tableName, IEnumerable<(string[] columns, bool isUnique)> indexKeys)
         {
             var indexName = createIndexFeature.GetIndexName(tableName);
             var createIndexCommands = string.Join(
                 Environment.NewLine,
-                indexKeys.Select(key => createIndexFeature.GetCreateIndexCommandText(tableName, new[] { key.name }, key.isUnique)));
+                indexKeys.Select(key => createIndexFeature.GetCreateIndexCommandText(tableName, key.columns, key.isUnique)));
             var verifyUniqueIndexCommand = BuildVerifyIndexCommand(indexName, tableName, createIndexCommands);
 
             return verifyUniqueIndexCommand;

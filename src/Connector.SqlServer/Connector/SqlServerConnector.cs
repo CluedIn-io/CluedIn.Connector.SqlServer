@@ -33,10 +33,10 @@ namespace CluedIn.Connector.SqlServer.Connector
         private readonly bool _bulkSupported;
         private readonly bool _syncEdgesTable;
 
-        private readonly IList<(string name, bool isUnique)> _defaultIndexFields = new List<(string, bool)>
+        private readonly IList<(string[] columns, bool isUnique)> _defaultIndexFields = new List<(string[], bool)>
         {
-            ("Id", true),
-            ("OriginEntityCode", false)
+            (new[] {"Id"}, true),
+            (new[] {"OriginEntityCode"}, false)
         };
 
         private readonly IFeatureStore _features;
@@ -129,7 +129,7 @@ namespace CluedIn.Connector.SqlServer.Connector
                             providerDefinitionId,
                             tableName,
                             dataToUse,
-                            keys: _defaultIndexFields.Select(index => index.name).ToArray(),
+                            keys: _defaultIndexFields.SelectMany(index => index.columns).ToArray(),
                             StreamMode,
                             correlationId,
                             timestamp,
@@ -143,7 +143,7 @@ namespace CluedIn.Connector.SqlServer.Connector
                             providerDefinitionId,
                             tableName,
                             dataToUse,
-                            keys: _defaultIndexFields.Select(index => index.name).ToArray(),
+                            keys: _defaultIndexFields.SelectMany(index => index.columns).ToArray(),
                             _logger);
                     }
 
@@ -225,7 +225,7 @@ namespace CluedIn.Connector.SqlServer.Connector
             var config = await base.GetAuthenticationDetails(executionContext, providerDefinitionId);
             var schema = config.GetSchema();
 
-            async Task CreateTable(SqlTableName tableName, IEnumerable<ConnectionDataType> columns, IEnumerable<(string name, bool isUnique)> indexKeys, string context)
+            async Task CreateTable(SqlTableName tableName, IEnumerable<ConnectionDataType> columns, IEnumerable<(string[] columns, bool isUnique)> indexKeys, string context)
             {
                 try
                 {
@@ -237,7 +237,7 @@ namespace CluedIn.Connector.SqlServer.Connector
                     var createIndexFeature = _features.GetFeature<IBuildCreateIndexFeature>();
                     var indexCommandText = string.Join(
                         Environment.NewLine,
-                        indexKeys.Select(key => createIndexFeature.GetCreateIndexCommandText(tableName, new[] { key.name }, key.isUnique)));
+                        indexKeys.Select(key => createIndexFeature.GetCreateIndexCommandText(tableName, key.columns, key.isUnique)));
 
                     commands.Add(new SqlServerConnectorCommand() {Text = indexCommandText});
 
@@ -292,14 +292,14 @@ namespace CluedIn.Connector.SqlServer.Connector
                 CreateTable(container.PrimaryTable.ToTableName(schema), connectionDataTypes, _defaultIndexFields, "Data"),
 
                 // Codes table
-                CreateTable(codesTable.Name.ToTableName(schema), codesTable.Columns, codesTable.Keys.Select(key => (key, false)), "Codes")
+                CreateTable(codesTable.Name.ToTableName(schema), codesTable.Columns, new [] {(codesTable.Keys.ToArray(), false)}, "Codes")
             };
 
             // We optionally build an edges table
             if (model.CreateEdgeTable)
             {
                 var edgesTable = container.Tables["Edges"];
-                tasks.Add(CreateTable(edgesTable.Name.ToTableName(schema), edgesTable.Columns, codesTable.Keys.Select(key => (key, false)), "Edges"));
+                tasks.Add(CreateTable(edgesTable.Name.ToTableName(schema), edgesTable.Columns, new[] { (codesTable.Keys.ToArray(), false) }, "Edges"));
             }
 
             await Task.WhenAll(tasks);
