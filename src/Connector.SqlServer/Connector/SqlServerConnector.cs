@@ -197,15 +197,23 @@ namespace CluedIn.Connector.SqlServer.Connector
                 var log = executionContext.ApplicationContext.Container.Resolve<ILogger<SqlServerConnector>>();
                 log.LogInformation("Verifying that necessary columns and indexes exist for provider: {ProviderDefinitionId}", stream.ConnectorProviderDefinitionId);
 
-                var upgrade = _features.GetFeature<IUpgradeTimeStampingFeature>();
                 var config = await base.GetAuthenticationDetails(executionContext, stream.ConnectorProviderDefinitionId.Value);
+                var tableName = SqlTableName.FromUnsafeName(stream.ContainerName, config.GetSchema());
+                if (!await CheckTableExists(executionContext, stream.ConnectorProviderDefinitionId.Value, tableName.LocalName))
+                {
+                    // We should really be returning a message that we can't verify the existing container,
+                    // but the interface doesn't allow for this, at this point.
+                    log.LogInformation("Attempted to verify tables: `{tableName}`, but it did not exist", tableName);
+                    return;
+                }
+
+                var upgrade = _features.GetFeature<IUpgradeTimeStampingFeature>();
                 await ExecuteCommandWithRetryAsync(() => upgrade.VerifyTimeStampColumnExist(_client as ISqlClient, config, stream));
 
                 await using (var connection = await ExecuteResultCommandWithRetryAsync(() => _client.GetConnection(config.Authentication)))
                 {
                     var buildIndexFeature = _features.GetFeature<IBuildCreateIndexFeature>();
                     var verifyUniqueIndexFeature = _features.GetFeature<VerifyUniqueIndexFeature>();
-                    var tableName = SqlTableName.FromUnsafeName(stream.ContainerName, config.GetSchema());
                     var verifyUniqueIndexCommand = verifyUniqueIndexFeature.GetVerifyUniqueIndexCommand(buildIndexFeature, tableName, _defaultIndexFields);
 
                     var command = connection.CreateCommand();
