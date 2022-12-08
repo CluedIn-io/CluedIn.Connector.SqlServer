@@ -24,12 +24,18 @@ namespace CluedIn.Connector.SqlServer.Connector
                 {
                     return ExecuteCommandAsyncInt(config, commandText, param);
                 }
-                catch
+                catch(Exception ex)
                 {
-                    if (i++ > 10)
+                    if (DateTime.Now.Subtract(d).TotalHours > 4)
                         throw;
 
-                    if(DateTime.Now.Subtract(d).TotalHours > 4)
+                    if (ex.ToString().Contains("deadlocked"))
+                    {
+                        Task.Delay(30000);
+                        continue; // unlimited attempts if deadlocked
+                    }
+
+                    if (i++ > 10)
                         throw;
 
                     Task.Delay(30000);
