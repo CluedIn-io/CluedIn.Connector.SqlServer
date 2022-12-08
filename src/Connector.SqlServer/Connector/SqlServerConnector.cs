@@ -174,7 +174,7 @@ namespace CluedIn.Connector.SqlServer.Connector
             var config = await base.GetAuthenticationDetails(executionContext, providerDefinitionId);
 
             async Task createTable(string name, IEnumerable<ConnectionDataType> columns, IEnumerable<string> keys,
-                string context)
+                string context, IEnumerable<(string[] keys, string[] includes)> surrogateKeys = null)
             {
                 try
                 {
@@ -184,7 +184,7 @@ namespace CluedIn.Connector.SqlServer.Connector
                         .ToList();
 
                     var indexCommands = _features.GetFeature<IBuildCreateIndexFeature>()
-                        .BuildCreateIndexSql(executionContext, providerDefinitionId, name, keys, _logger);
+                        .BuildCreateIndexSql(executionContext, providerDefinitionId, name, keys, surrogateKeys, _logger);
                     commands = commands.Union(indexCommands);
 
                     foreach (var command in commands)
@@ -235,7 +235,7 @@ namespace CluedIn.Connector.SqlServer.Connector
             var tasks = new List<Task>
             {
                 // Primary table
-                createTable(container.PrimaryTable, connectionDataTypes, _defaultKeyFields, "Data"),
+                createTable(container.PrimaryTable, connectionDataTypes, _defaultKeyFields, "Data", new []{ (new[] {"Id"}, new[] { "OriginEntityCode" })}), // here
 
                 // Codes table
                 createTable(codesTable.Name, codesTable.Columns, codesTable.Keys, "Codes")
@@ -532,6 +532,7 @@ namespace CluedIn.Connector.SqlServer.Connector
 
             var originParam = new SqlParameter { ParameterName = "@OriginEntityCode", Value = originEntityCode };
 
+            // TODO deleting all the edges and recreating them will be slow and will create unnecessary records in the SQL transaction log. Rather than do this we should send all the data up to a temp table and then merge
             if (StreamMode == StreamMode.Sync)
                 yield return ($"DELETE FROM [{SqlStringSanitizer.Sanitize(containerName)}] where [OriginEntityCode] = {originParam.ParameterName}", new []{ originParam });
 

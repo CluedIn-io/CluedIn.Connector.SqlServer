@@ -30,6 +30,25 @@ namespace CluedIn.Connector.SqlServer.Features
                     $"alter table [{tableName}] add [{columnName}] {SqlColumnHelper.GetColumnType(VocabularyKeyDataType.DateTime, columnName)}";
                 await client.ExecuteCommandAsync(config, addTimeStampSql);
             }
+
+            if (result.Any(x => x.Name.Equals("Id", StringComparison.OrdinalIgnoreCase)))
+            {
+                var sql =
+$@"IF ((SELECT DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = '{tableName}' AND  COLUMN_NAME = 'Id') <> 'uniqueidentifier')
+    ALTER TABLE [{tableName}] ALTER COLUMN Id UNIQUEIDENTIFIER
+
+";
+                
+
+                if (result.Any(x => x.Name.Equals("OriginEntityCode", StringComparison.OrdinalIgnoreCase)))
+                {
+                    sql +=
+@$"IF NOT EXISTS(SELECT * FROM sys.indexes WHERE object_id = object_id('{tableName}') AND NAME ='idx_{tableName}2')
+    CREATE INDEX [idx_{tableName}2] ON [{tableName}] (Id) INCLUDE (OriginEntityCode)";
+                }
+
+                await client.ExecuteCommandAsync(config, sql);
+            }
         }
     }
 }

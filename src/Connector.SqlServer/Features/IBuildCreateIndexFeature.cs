@@ -12,6 +12,7 @@ namespace CluedIn.Connector.SqlServer.Features
             Guid providerDefinitionId,
             string containerName,
             IEnumerable<string> keys,
+            IEnumerable<(string[] keys, string[] includes)> surrogateKeys,
             ILogger logger);
     }
 }

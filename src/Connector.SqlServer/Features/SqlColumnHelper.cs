@@ -8,6 +8,7 @@ namespace CluedIn.Connector.SqlServer.Features
     {
         private static readonly IDictionary<string, string> _knownColumnTypes = new Dictionary<string, string>(StringComparer.InvariantCultureIgnoreCase)
         {
+            {"id", "uniqueidentifier"},
             {"originentitycode", "nvarchar(1024)"},
             {"codes", "nvarchar(1024)"},
             {"code", "nvarchar(1024)"},  // used in edges table
