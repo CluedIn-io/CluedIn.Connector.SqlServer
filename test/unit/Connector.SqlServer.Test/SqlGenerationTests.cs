@@ -29,38 +29,38 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests
         //     Assert.Equal($"CREATE TABLE [{name}]( [Field1] bigint NULL, [Field2] nvarchar(max) NULL, [Field3] datetime2 NULL, [Field4] decimal(18,4) NULL, [Field5] nvarchar(max) NULL) ON[PRIMARY]", result.Trim().Replace(Environment.NewLine, " "));
         // }
 
-        [Theory]
-        [InlineAutoData("tableName")]
-        public void StoreEdgeDataWorks(string name, string originEntityCode, string correlationId, List<string> edges)
-        {
-            var result = Sut.BuildEdgeStoreDataSql(name, originEntityCode, correlationId, edges, out var param);
-            Assert.Equal(edges.Count + 2, param.Count()); // params will also include origin entity code
-            Assert.Contains(param, p => p.ParameterName == "@OriginEntityCode" && p.Value.Equals(originEntityCode));
-            for (var index = 0; index < edges.Count; index++)
-            {
-                Assert.Contains(param, p => p.ParameterName == $"@{index}" && p.Value.Equals(edges[index]));
-            }
+        //[Theory]
+        //[InlineAutoData("tableName")]
+        //public void StoreEdgeDataWorks(string name, string originEntityCode, string correlationId, List<string> edges)
+        //{
+        //    var result = Sut.BuildEdgeStoreDataSql(name, originEntityCode, correlationId, edges, out var param);
+        //    Assert.Equal(edges.Count + 2, param.Count()); // params will also include origin entity code
+        //    Assert.Contains(param, p => p.ParameterName == "@OriginEntityCode" && p.Value.Equals(originEntityCode));
+        //    for (var index = 0; index < edges.Count; index++)
+        //    {
+        //        Assert.Contains(param, p => p.ParameterName == $"@{index}" && p.Value.Equals(edges[index]));
+        //    }
 
-            var expectedLines = new List<string>
-            {
-                $"DELETE FROM [{name}] where [OriginEntityCode] = @OriginEntityCode",
-                $"INSERT INTO [{name}] ([OriginEntityCode],[Code]) values",
-                string.Join(", ", Enumerable.Range(0, edges.Count).Select(i => $"(@OriginEntityCode, @{i})"))
-            };
+        //    var expectedLines = new List<string>
+        //    {
+        //        $"DELETE FROM [{name}] where [OriginEntityCode] = @OriginEntityCode",
+        //        $"INSERT INTO [{name}] ([OriginEntityCode],[Code]) values",
+        //        string.Join(", ", Enumerable.Range(0, edges.Count).Select(i => $"(@OriginEntityCode, @{i})"))
+        //    };
 
-            var expectedSql = string.Join(Environment.NewLine, expectedLines);
-            Assert.Equal(expectedSql, result.Trim());
-        }
+        //    var expectedSql = string.Join(Environment.NewLine, expectedLines);
+        //    Assert.Equal(expectedSql, result.Trim());
+        //}
 
-        [Theory]
-        [InlineAutoData("tableName")]
-        public void StoreEdgeData_NoEdges_Works(string name, string originEntityCode, string correlationId)
-        {
-            var edges = new List<string>();
-            var result = Sut.BuildEdgeStoreDataSql(name, originEntityCode, correlationId, edges, out var param);
-            Assert.Equal(2, param.Count()); // params will also include origin entity code and correlationid
-            Assert.Contains(param, p => p.ParameterName == "@OriginEntityCode" && p.Value.Equals(originEntityCode));
-            Assert.Equal($"DELETE FROM [{name}] where [OriginEntityCode] = @OriginEntityCode", result.Trim());
-        }
+        //[Theory]
+        //[InlineAutoData("tableName")]
+        //public void StoreEdgeData_NoEdges_Works(string name, string originEntityCode, string correlationId)
+        //{
+        //    var edges = new List<string>();
+        //    var result = Sut.BuildEdgeStoreDataSql(name, originEntityCode, correlationId, edges, out var param);
+        //    Assert.Equal(2, param.Count()); // params will also include origin entity code and correlationid
+        //    Assert.Contains(param, p => p.ParameterName == "@OriginEntityCode" && p.Value.Equals(originEntityCode));
+        //    Assert.Equal($"DELETE FROM [{name}] where [OriginEntityCode] = @OriginEntityCode", result.Trim());
+        //}
     }
 }

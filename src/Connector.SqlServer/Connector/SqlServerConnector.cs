@@ -136,15 +136,14 @@ namespace CluedIn.Connector.SqlServer.Connector
                 var edgeTableName = GetEdgesContainerName(containerName);
                 if (await CheckTableExists(executionContext, providerDefinitionId, edgeTableName))
                 {
-                    var sql = BuildEdgeStoreDataSql(edgeTableName, originEntityCode, correlationId, edges,
-                        out var param);
+                    var sqlBatches = BuildEdgeStoreDataSql(edgeTableName, originEntityCode, correlationId, edges);
 
-                    if (!string.IsNullOrWhiteSpace(sql))
+                    foreach (var b in sqlBatches)
                     {
-                        _logger.LogDebug($"Sql Server Connector - Store Edge Data - Generated query: {sql}");
+                        _logger.LogDebug($"Sql Server Connector - Store Edge Data - Generated query: {b.sql}");
 
                         var config = await base.GetAuthenticationDetails(executionContext, providerDefinitionId);
-                        await _client.ExecuteCommandAsync(config, sql, param);
+                        await _client.ExecuteCommandAsync(config, b.sql, b.param);
                     }
                 }
             }
@@ -526,43 +525,59 @@ namespace CluedIn.Connector.SqlServer.Connector
             }
         }
 
-
-        public string BuildEdgeStoreDataSql(string containerName, string originEntityCode, string correlationId,
-            IEnumerable<string> edges, out List<SqlParameter> param)
+        private IEnumerable<(string sql, IEnumerable<SqlParameter> param)> BuildEdgeStoreDataSql(string containerName,
+            string originEntityCode, string correlationId, IEnumerable<string> edges)
         {
-            var originParam = new SqlParameter { ParameterName = "@OriginEntityCode", Value = originEntityCode };
-            var correlationParam = new SqlParameter { ParameterName = "@CorrelationId", Value = correlationId };
-            param = new List<SqlParameter> { originParam, correlationParam };
+            int batchSize = 100;
 
-            var builder = new StringBuilder();
+            var originParam = new SqlParameter { ParameterName = "@OriginEntityCode", Value = originEntityCode };
 
             if (StreamMode == StreamMode.Sync)
-                builder.AppendLine(
-                    $"DELETE FROM [{SqlStringSanitizer.Sanitize(containerName)}] where [OriginEntityCode] = {originParam.ParameterName}");
+                yield return ($"DELETE FROM [{SqlStringSanitizer.Sanitize(containerName)}] where [OriginEntityCode] = {originParam.ParameterName}", new []{ originParam });
 
-            var edgeValues = new List<string>();
-            foreach (var edge in edges)
+            var en = edges.GetEnumerator();
+
+            while (true)
             {
-                var edgeParam = new SqlParameter { ParameterName = $"@{edgeValues.Count}", Value = edge };
-                param.Add(edgeParam);
+                originParam = new SqlParameter { ParameterName = "@OriginEntityCode", Value = originEntityCode };
+                var correlationParam = new SqlParameter { ParameterName = "@CorrelationId", Value = correlationId };
 
-                if (StreamMode == StreamMode.EventStream)
-                    edgeValues.Add($"(@OriginEntityCode, @CorrelationId, {edgeParam.ParameterName})");
-                else
-                    edgeValues.Add($"(@OriginEntityCode, {edgeParam.ParameterName})");
+                var batch = new List<string>();
+                var i = 0;
+                while (en.MoveNext() && i++ < batchSize)
+                {
+                    batch.Add(en.Current);
+                }
+
+                if (batch.Count == 0)
+                    yield break;
+
+                var param = new List<SqlParameter> { originParam, correlationParam };
+
+                var builder = new StringBuilder();
+
+                var edgeValues = new List<string>();
+                foreach (var edge in batch)
+                {
+                    var edgeParam = new SqlParameter { ParameterName = $"@{edgeValues.Count}", Value = edge };
+                    param.Add(edgeParam);
+
+                    if (StreamMode == StreamMode.EventStream)
+                        edgeValues.Add($"(@OriginEntityCode, @CorrelationId, {edgeParam.ParameterName})");
+                    else
+                        edgeValues.Add($"(@OriginEntityCode, {edgeParam.ParameterName})");
+                }
+
+
+                builder.AppendLine(
+                    StreamMode == StreamMode.EventStream
+                        ? $"INSERT INTO [{SqlStringSanitizer.Sanitize(containerName)}] ([OriginEntityCode],[CorrelationId],[Code]) values"
+                        : $"INSERT INTO [{SqlStringSanitizer.Sanitize(containerName)}] ([OriginEntityCode],[Code]) values");
+
+                builder.AppendJoin(", ", edgeValues);
+
+                yield return (builder.ToString(), param);
             }
-
-            if (edgeValues.Count <= 0)
-                return builder.ToString();
-
-            builder.AppendLine(
-                StreamMode == StreamMode.EventStream
-                    ? $"INSERT INTO [{SqlStringSanitizer.Sanitize(containerName)}] ([OriginEntityCode],[CorrelationId],[Code]) values"
-                    : $"INSERT INTO [{SqlStringSanitizer.Sanitize(containerName)}] ([OriginEntityCode],[Code]) values");
-
-            builder.AppendJoin(", ", edgeValues);
-
-            return builder.ToString();
         }
 
         private string BuildRenameContainerSql(string id, string newName, out List<SqlParameter> param)
