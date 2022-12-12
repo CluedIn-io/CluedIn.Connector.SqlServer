@@ -744,9 +744,21 @@ namespace CluedIn.Connector.SqlServer.Connector
         {
             try
             {
-                var tables = await _client.GetTables(transaction, name: tableName.LocalName, schema: tableName.Schema);
+                // Adapted from the command that Microsoft SQL client uses to get tables with name
+                var sqlCommandText = $@"
+select count(*)
+from INFORMATION_SCHEMA.TABLES
+where
+(TABLE_SCHEMA = @Owner or (@Owner is null)) and
+(TABLE_NAME = @Name or (@Name is null))";
+                var command = transaction.Connection.CreateCommand();
+                command.Transaction = transaction;
+                command.CommandText = sqlCommandText;
+                command.Parameters.AddWithValue("@Owner", tableName.Schema.Value);
+                command.Parameters.AddWithValue("@Name", tableName.LocalName.Value);
 
-                return tables.Rows.Count > 0;
+                var tablesCount = await command.ExecuteScalarAsync();
+                return tablesCount is int count && count > 0;
             }
             catch (Exception e)
             {
