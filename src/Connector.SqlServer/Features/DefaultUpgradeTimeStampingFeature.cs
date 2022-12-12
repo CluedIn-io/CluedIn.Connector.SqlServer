@@ -3,6 +3,7 @@ using CluedIn.Connector.SqlServer.Utils;
 using CluedIn.Core.Connectors;
 using CluedIn.Core.Data.Vocabularies;
 using CluedIn.Core.Streams.Models;
+using Microsoft.Data.SqlClient;
 using System;
 using System.Data;
 using System.Linq;
@@ -12,10 +13,10 @@ namespace CluedIn.Connector.SqlServer.Features
 {
     public class DefaultUpgradeTimeStampingFeature : IUpgradeTimeStampingFeature
     {
-        public virtual async Task VerifyTimeStampColumnExist(ISqlClient client, IConnectorConnection config, StreamModel stream)
+        public virtual async Task VerifyTimeStampColumnExist(ISqlClient client, IConnectorConnection config, SqlTransaction transaction, StreamModel stream)
         {
             var tableName = SqlTableName.FromUnsafeName(stream.ContainerName, config);
-            var tables = await client.GetTableColumns(config.Authentication, tableName: tableName.LocalName, schema: tableName.Schema);
+            var tables = await client.GetTableColumns(transaction, tableName: tableName.LocalName, schema: tableName.Schema);
             var result = (from DataRow row in tables.Rows
                           let name = row["COLUMN_NAME"] as string
                           let rawType = row["DATA_TYPE"] as string
@@ -26,7 +27,7 @@ namespace CluedIn.Connector.SqlServer.Features
                 var columnName = "TimeStamp";
                 var addTimeStampSql =
                     $"alter table {tableName.FullyQualifiedName} add [{columnName}] {SqlColumnHelper.GetColumnType(VocabularyKeyDataType.DateTime, columnName)}";
-                await client.ExecuteCommandAsync(config, addTimeStampSql);
+                await client.ExecuteCommandInTransactionAsync(transaction, addTimeStampSql);
             }
         }
     }

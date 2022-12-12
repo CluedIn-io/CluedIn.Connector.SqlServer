@@ -5,7 +5,7 @@ using System.Collections.Generic;
 
 namespace CluedIn.Connector.SqlServer.Connector
 {
-    public class SqlClient : ClientBase<SqlConnection, SqlParameter>, ISqlClient
+    public class SqlClient : TransactionalClientBase<SqlConnection, SqlTransaction, SqlParameter>, ISqlClient
     {
         private readonly int _defaultPort = 1433;
 

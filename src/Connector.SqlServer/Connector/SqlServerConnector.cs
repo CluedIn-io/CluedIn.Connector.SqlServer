@@ -21,13 +21,13 @@ using System.Threading.Tasks;
 
 namespace CluedIn.Connector.SqlServer.Connector
 {
-    public class SqlServerConnector : SqlConnectorBase<SqlServerConnector, SqlConnection, SqlParameter>, IConnectorStreamModeSupport,
-        IConnectorUpgrade
+    public class SqlServerConnector : SqlConnectorBase, IConnectorStreamModeSupport, IConnectorUpgrade
     {
         private const string TimestampFieldName = "TimeStamp";
         private const string ChangeTypeFieldName = "ChangeType";
         private const string CorrelationIdFieldName = "CorrelationId";
         private readonly IBulkSqlClient _bulkClient;
+        private readonly ISqlClient _client;
         private readonly int _bulkDeleteThreshold;
         private readonly int _bulkInsertThreshold;
         private readonly bool _bulkSupported;
@@ -48,6 +48,7 @@ namespace CluedIn.Connector.SqlServer.Connector
             IFeatureStore features,
             ISqlServerConstants constants) : base(repository, logger, client, constants.ProviderId)
         {
+            _client = client;
             _features = features ?? throw new ArgumentNullException(nameof(features));
 
             _bulkInsertThreshold =
@@ -88,348 +89,393 @@ namespace CluedIn.Connector.SqlServer.Connector
             VersionChangeType changeType,
             IDictionary<string, object> data)
         {
-            try
+            await ExecuteWithRetryAsync(async () =>
             {
-                // If we are in Event Stream mode, append extra fields
-                var dataToUse = new Dictionary<string, object>(data);
-                if (StreamMode == StreamMode.EventStream)
-                {
-                    dataToUse.Add(TimestampFieldName, timestamp);
-                    dataToUse.Add(ChangeTypeFieldName, changeType);
-                    dataToUse.Add(CorrelationIdFieldName, correlationId);
-                }
-                else
-                    dataToUse.Add(TimestampFieldName, timestamp);
-
                 var config = await base.GetAuthenticationDetails(executionContext, providerDefinitionId);
+                await using var transaction = await _client.BeginTransaction(config.Authentication);
 
-                var tableName = SqlTableName.FromUnsafeName(containerName, config);
-
-                if (_bulkSupported)
+                try
                 {
-                    var bulkFeature = _features.GetFeature<IBulkStoreDataFeature>();
-                    await bulkFeature.BulkTableUpdate(
-                        executionContext,
-                        providerDefinitionId,
-                        tableName,
-                        dataToUse,
-                        _bulkInsertThreshold,
-                        _bulkClient,
-                        config,
-                        _logger);
-                }
-                else
-                {
-                    var feature = _features.GetFeature<IBuildStoreDataFeature>();
-                    IEnumerable<SqlServerConnectorCommand> commands;
-                    if (feature is IBuildStoreDataForMode modeFeature)
+                    // If we are in Event Stream mode, append extra fields
+                    var dataToUse = new Dictionary<string, object>(data);
+                    if (StreamMode == StreamMode.EventStream)
                     {
-                        commands = modeFeature.BuildStoreDataSql(
+                        dataToUse.Add(TimestampFieldName, timestamp);
+                        dataToUse.Add(ChangeTypeFieldName, changeType);
+                        dataToUse.Add(CorrelationIdFieldName, correlationId);
+                    }
+                    else
+                        dataToUse.Add(TimestampFieldName, timestamp);
+
+                    var tableName = SqlTableName.FromUnsafeName(containerName, config);
+
+                    if (_bulkSupported)
+                    {
+                        var bulkFeature = _features.GetFeature<IBulkStoreDataFeature>();
+                        await bulkFeature.BulkTableUpdate(
                             executionContext,
                             providerDefinitionId,
                             tableName,
                             dataToUse,
-                            uniqueColumns: _defaultIndexFields.Where(index => index.isUnique).SelectMany(index => index.columns).ToArray(),
-                            StreamMode,
-                            correlationId,
-                            timestamp,
-                            changeType,
+                            _bulkInsertThreshold,
+                            _bulkClient,
+                            config,
                             _logger);
                     }
                     else
                     {
-                        commands = feature.BuildStoreDataSql(
-                            executionContext,
-                            providerDefinitionId,
-                            tableName,
-                            dataToUse,
-                            uniqueColumns: _defaultIndexFields.Where(index => index.isUnique).SelectMany(index => index.columns).ToArray(),
-                            _logger);
-                    }
+                        var feature = _features.GetFeature<IBuildStoreDataFeature>();
+                        IEnumerable<SqlServerConnectorCommand> commands;
+                        if (feature is IBuildStoreDataForMode modeFeature)
+                        {
+                            commands = modeFeature.BuildStoreDataSql(
+                                executionContext,
+                                providerDefinitionId,
+                                tableName,
+                                dataToUse,
+                                uniqueColumns: _defaultIndexFields
+                                    .Where(index => index.isUnique)
+                                    .SelectMany(index => index.columns)
+                                    .ToArray(),
+                                StreamMode,
+                                correlationId,
+                                timestamp,
+                                changeType,
+                                _logger);
+                        }
+                        else
+                        {
+                            commands = feature.BuildStoreDataSql(
+                                executionContext,
+                                providerDefinitionId,
+                                tableName,
+                                dataToUse,
+                                uniqueColumns: _defaultIndexFields
+                                    .Where(index => index.isUnique)
+                                    .SelectMany(index => index.columns)
+                                    .ToArray(),
+                                _logger);
+                        }
 
-                    foreach (var command in commands)
-                        await ExecuteCommandWithRetryAsync(() => _client.ExecuteCommandAsync(config, command.Text, command.Parameters));
+                        foreach (var command in commands)
+                        {
+                            await _client.ExecuteCommandInTransactionAsync(transaction, command.Text, command.Parameters);
+                        }
+                    }
                 }
-            }
-            catch (Exception e)
-            {
-                var message =
-                    $"Could not store data into Container '{containerName}' for Connector {providerDefinitionId}";
-                _logger.LogError(e, message);
-                throw new StoreDataException(message);
-            }
+                catch (Exception e)
+                {
+                    var message = $"Could not store data into Container '{containerName}' for Connector {providerDefinitionId}";
+                    _logger.LogError(e, message);
+                    await transaction.RollbackAsync();
+                    throw new StoreDataException(message);
+                }
+
+                await transaction.CommitAsync();
+            });
         }
 
         public async Task StoreEdgeData(ExecutionContext executionContext, Guid providerDefinitionId,
             string containerName, string originEntityCode, string correlationId, DateTimeOffset timestamp,
             VersionChangeType changeType, IEnumerable<string> edges)
         {
-            try
+            await ExecuteWithRetryAsync(async () =>
             {
                 var config = await base.GetAuthenticationDetails(executionContext, providerDefinitionId);
+                await using var transaction = await _client.BeginTransaction(config.Authentication);
 
-                var edgeTableName = SqlTableName.FromUnsafeName(GetEdgesContainerName(containerName), config);
-
-                if (await CheckTableExists(config, edgeTableName))
+                try
                 {
-                    var sql = BuildEdgeStoreDataSql(edgeTableName, originEntityCode, correlationId, edges, out var param);
+                    var edgeTableName = SqlTableName.FromUnsafeName(GetEdgesContainerName(containerName), config);
 
-                    if (!string.IsNullOrWhiteSpace(sql))
+                    if (await CheckTableExists(transaction, edgeTableName))
                     {
-                        _logger.LogDebug($"Sql Server Connector - Store Edge Data - Generated query: {sql}");
+                        var sql = BuildEdgeStoreDataSql(edgeTableName, originEntityCode, correlationId, edges, out var param);
 
-                        await ExecuteCommandWithRetryAsync(() => _client.ExecuteCommandAsync(config, sql, param));
+                        if (!string.IsNullOrWhiteSpace(sql))
+                        {
+                            _logger.LogDebug($"Sql Server Connector - Store Edge Data - Generated query: {sql}");
+
+                            await _client.ExecuteCommandInTransactionAsync(transaction, sql, param);
+                        }
                     }
                 }
-            }
-            catch (Exception e)
-            {
-                var message = $"Could not store edge data into Container '{containerName}' for Connector {providerDefinitionId}";
-                _logger.LogError(e, message);
-                throw new StoreDataException(message);
-            }
+                catch (Exception e)
+                {
+                    var message = $"Could not store edge data into Container '{containerName}' for Connector {providerDefinitionId}";
+                    _logger.LogError(e, message);
+                    await transaction.RollbackAsync();
+                    throw new StoreDataException(message);
+                }
+
+                await transaction.CommitAsync();
+            });
         }
 
         public async Task VerifyExistingContainer(ExecutionContext executionContext, StreamModel stream)
         {
-            if (stream.ConnectorProviderDefinitionId.HasValue && stream.Mode is StreamMode.Sync)
+            await ExecuteWithRetryAsync(async () =>
             {
-                var log = executionContext.ApplicationContext.Container.Resolve<ILogger<SqlServerConnector>>();
-                log.LogInformation("Verifying that necessary columns and indexes exist for provider: {ProviderDefinitionId}", stream.ConnectorProviderDefinitionId);
-
                 var config = await base.GetAuthenticationDetails(executionContext, stream.ConnectorProviderDefinitionId.Value);
-                var tableName = SqlTableName.FromUnsafeName(stream.ContainerName, config.GetSchema());
-                if (!await CheckTableExists(executionContext, stream.ConnectorProviderDefinitionId.Value, tableName.LocalName))
-                {
-                    // We should really be returning a message that we can't verify the existing container,
-                    // but the interface doesn't allow for this, at this point.
-                    log.LogInformation("Attempted to verify tables: `{tableName}`, but it did not exist", tableName);
-                    return;
-                }
+                var transaction = await _client.BeginTransaction(config.Authentication);
 
-                var upgrade = _features.GetFeature<IUpgradeTimeStampingFeature>();
-                await ExecuteCommandWithRetryAsync(() => upgrade.VerifyTimeStampColumnExist(_client as ISqlClient, config, stream));
-
-                await using (var connection = await ExecuteResultCommandWithRetryAsync(() => _client.GetConnection(config.Authentication)))
+                if (stream.ConnectorProviderDefinitionId.HasValue && stream.Mode is StreamMode.Sync)
                 {
+                    var log = executionContext.ApplicationContext.Container.Resolve<ILogger<SqlServerConnector>>();
+                    log.LogInformation("Verifying that necessary columns and indexes exist for provider: {ProviderDefinitionId}", stream.ConnectorProviderDefinitionId);
+
+                    var tableName = SqlTableName.FromUnsafeName(stream.ContainerName, config.GetSchema());
+                    if (!await CheckTableExists(transaction, tableName))
+                    {
+                        // We should really be returning a message that we can't verify the existing container,
+                        // but the interface doesn't allow for this, at this point.
+                        log.LogInformation("Attempted to verify tables: `{tableName}`, but it did not exist", tableName);
+                        await transaction.CommitAsync();
+                        return;
+                    }
+
+                    var upgrade = _features.GetFeature<IUpgradeTimeStampingFeature>();
+                    await upgrade.VerifyTimeStampColumnExist(_client, config, transaction, stream);
+
+
                     var buildIndexFeature = _features.GetFeature<IBuildCreateIndexFeature>();
                     var verifyUniqueIndexFeature = _features.GetFeature<VerifyUniqueIndexFeature>();
                     var verifyUniqueIndexCommand = verifyUniqueIndexFeature.GetVerifyUniqueIndexCommand(buildIndexFeature, tableName, _defaultIndexFields);
 
-                    var command = connection.CreateCommand();
+                    var command = transaction.Connection.CreateCommand();
                     command.CommandText = verifyUniqueIndexCommand;
+                    command.Transaction = transaction;
 
-                    var response = await ExecuteResultCommandWithRetryAsync(() => command.ExecuteScalarAsync());
+                    var response = await command.ExecuteScalarAsync();
                     if (response is int result && result == 0)
                     {
                         log.LogError("Could not add unique index on id, since there were duplicates in the table. To resolve, see upgrade notes");
                     }
                 }
-            }
+
+                await transaction.CommitAsync();
+            });
         }
 
         public override async Task CreateContainer(ExecutionContext executionContext, Guid providerDefinitionId, CreateContainerModel model)
         {
-            var config = await base.GetAuthenticationDetails(executionContext, providerDefinitionId);
-            var schema = config.GetSchema();
-
-            async Task CreateTable(SqlTableName tableName, IEnumerable<ConnectionDataType> columns, IEnumerable<(string[] columns, bool isUnique)> indexKeys, string context)
+            await ExecuteWithRetryAsync(async () =>
             {
-                try
+                var config = await base.GetAuthenticationDetails(executionContext, providerDefinitionId);
+                var schema = config.GetSchema();
+                var transaction = await _client.BeginTransaction(config.Authentication);
+
+                async Task CreateTable(SqlTableName tableName, IEnumerable<ConnectionDataType> columns, IEnumerable<(string[] columns, bool isUnique)> indexKeys, string context)
                 {
-                    var commands = _features
-                        .GetFeature<IBuildCreateContainerFeature>()
-                        .BuildCreateContainerSql(executionContext, providerDefinitionId, tableName, columns, Array.Empty<string>(), _logger)
-                        .ToList();
-
-                    var createIndexFeature = _features.GetFeature<IBuildCreateIndexFeature>();
-                    var indexCommandText = string.Join(
-                        Environment.NewLine,
-                        indexKeys.Select(key => createIndexFeature.GetCreateIndexCommandText(tableName, key.columns, key.isUnique)));
-
-                    commands.Add(new SqlServerConnectorCommand() {Text = indexCommandText});
-
-                    foreach (var command in commands)
+                    try
                     {
-                        _logger.LogDebug("Sql Server Connector - Create Container[{Context}] - Generated query: {sql}",
-                            context, command.Text);
+                        var commands = _features
+                            .GetFeature<IBuildCreateContainerFeature>()
+                            .BuildCreateContainerSql(executionContext, providerDefinitionId, tableName, columns, Array.Empty<string>(), _logger)
+                            .ToList();
 
-                        await ExecuteCommandWithRetryAsync(() => _client.ExecuteCommandAsync(config, command.Text, command.Parameters));
+                        var createIndexFeature = _features.GetFeature<IBuildCreateIndexFeature>();
+                        var indexCommandText = string.Join(Environment.NewLine, indexKeys.Select(key => createIndexFeature.GetCreateIndexCommandText(tableName, key.columns, key.isUnique)));
+
+                        commands.Add(new SqlServerConnectorCommand() { Text = indexCommandText });
+
+                        foreach (var command in commands)
+                        {
+                            _logger.LogDebug("Sql Server Connector - Create Container[{Context}] - Generated query: {sql}", context, command.Text);
+
+                            await _client.ExecuteCommandInTransactionAsync(transaction, command.Text, command.Parameters);
+                        }
+                    }
+                    catch (Exception e)
+                    {
+                        var message =
+                            $"Could not create Container {tableName.FullyQualifiedName} for Connector {providerDefinitionId}";
+                        _logger.LogError(e, message);
+                        throw new CreateContainerException(message);
                     }
                 }
-                catch (Exception e)
+
+                var container = new Container(model.Name, StreamMode);
+                var codesTable = container.Tables["Codes"];
+
+                var connectionDataTypes = model.DataTypes;
+                if (StreamMode == StreamMode.EventStream)
                 {
-                    var message = $"Could not create Container {tableName.FullyQualifiedName} for Connector {providerDefinitionId}";
-                    _logger.LogError(e, message);
-                    throw new CreateContainerException(message);
+                    connectionDataTypes.Add(new ConnectionDataType
+                    {
+                        Name = TimestampFieldName, Type = VocabularyKeyDataType.DateTime
+                    });
+                    connectionDataTypes.Add(new ConnectionDataType
+                    {
+                        Name = ChangeTypeFieldName, Type = VocabularyKeyDataType.Text
+                    });
+                    connectionDataTypes.Add(new ConnectionDataType
+                    {
+                        Name = CorrelationIdFieldName, Type = VocabularyKeyDataType.Text
+                    });
                 }
-            }
-
-            var container = new Container(model.Name, StreamMode);
-            var codesTable = container.Tables["Codes"];
-
-            var connectionDataTypes = model.DataTypes;
-            if (StreamMode == StreamMode.EventStream)
-            {
-                connectionDataTypes.Add(new ConnectionDataType
+                else
                 {
-                    Name = TimestampFieldName,
-                    Type = VocabularyKeyDataType.DateTime
-                });
-                connectionDataTypes.Add(new ConnectionDataType
+                    connectionDataTypes.Add(new ConnectionDataType
+                    {
+                        Name = TimestampFieldName,
+                        Type = VocabularyKeyDataType.DateTime
+                    });
+                }
+
+                var tasks = new List<Task>
                 {
-                    Name = ChangeTypeFieldName,
-                    Type = VocabularyKeyDataType.Text
-                });
-                connectionDataTypes.Add(new ConnectionDataType
+                    // Primary table
+                    CreateTable(container.PrimaryTable.ToTableName(schema), connectionDataTypes, _defaultIndexFields, "Data"),
+
+                    // Codes table
+                    CreateTable(codesTable.Name.ToTableName(schema), codesTable.Columns, new[] { (codesTable.Keys.ToArray(), false) }, "Codes")
+                };
+
+                // We optionally build an edges table
+                if (model.CreateEdgeTable)
                 {
-                    Name = CorrelationIdFieldName,
-                    Type = VocabularyKeyDataType.Text
-                });
-            }
-            else
-                connectionDataTypes.Add(new ConnectionDataType
-                {
-                    Name = TimestampFieldName,
-                    Type = VocabularyKeyDataType.DateTime
-                });
+                    var edgesTable = container.Tables["Edges"];
+                    tasks.Add(CreateTable(edgesTable.Name.ToTableName(schema), edgesTable.Columns, new[] { (codesTable.Keys.ToArray(), false) }, "Edges"));
+                }
 
-            var tasks = new List<Task>
-            {
-                // Primary table
-                CreateTable(container.PrimaryTable.ToTableName(schema), connectionDataTypes, _defaultIndexFields, "Data"),
-
-                // Codes table
-                CreateTable(codesTable.Name.ToTableName(schema), codesTable.Columns, new [] {(codesTable.Keys.ToArray(), false)}, "Codes")
-            };
-
-            // We optionally build an edges table
-            if (model.CreateEdgeTable)
-            {
-                var edgesTable = container.Tables["Edges"];
-                tasks.Add(CreateTable(edgesTable.Name.ToTableName(schema), edgesTable.Columns, new[] { (codesTable.Keys.ToArray(), false) }, "Edges"));
-            }
-
-            await Task.WhenAll(tasks);
+                await Task.WhenAll(tasks);
+                await transaction.CommitAsync();
+            });
         }
 
         public override async Task EmptyContainer(ExecutionContext executionContext, Guid providerDefinitionId, string id)
         {
-            var config = await base.GetAuthenticationDetails(executionContext, providerDefinitionId);
-            var schema = config.GetSchema();
-
-            async Task EmptyTable(SqlTableName tableName, string context)
+            await ExecuteWithRetryAsync(async () =>
             {
-                var sql = BuildEmptyContainerSql(tableName);
-                _logger.LogDebug("Sql Server Connector - Empty Container[{Context}] - Generated query: {sql}", context, sql);
+                var config = await base.GetAuthenticationDetails(executionContext, providerDefinitionId);
+                var schema = config.GetSchema();
+                var transaction = await _client.BeginTransaction(config.Authentication);
 
-                try
+                async Task EmptyTable(SqlTableName tableName, string context)
                 {
-                    await ExecuteCommandWithRetryAsync(() => _client.ExecuteCommandAsync(config, sql));
+                    var sql = BuildEmptyContainerSql(tableName);
+                    _logger.LogDebug("Sql Server Connector - Empty Container[{Context}] - Generated query: {sql}", context, sql);
+
+                    try
+                    {
+                        await _client.ExecuteCommandInTransactionAsync(transaction, sql);
+                    }
+                    catch (Exception e)
+                    {
+                        var message = $"Could not empty Container {tableName.FullyQualifiedName}";
+                        _logger.LogError(e, message);
+                        throw new CreateContainerException(message);
+                    }
                 }
-                catch (Exception e)
+
+                var container = new Container(id, StreamMode);
+                var tasks = new List<Task> { EmptyTable(container.PrimaryTable.ToTableName(schema), "Data") };
+                foreach (var table in container.Tables)
                 {
-                    var message = $"Could not empty Container {tableName.FullyQualifiedName}";
-                    _logger.LogError(e, message);
-                    throw new CreateContainerException(message);
+                    var tableName = table.Value.Name.ToTableName(schema);
+
+                    if (await CheckTableExists(transaction, tableName))
+                    {
+                        tasks.Add(EmptyTable(tableName, table.Key));
+                    }
                 }
-            }
 
-            var container = new Container(id, StreamMode);
-            var tasks = new List<Task> { EmptyTable(container.PrimaryTable.ToTableName(schema), "Data") };
-            foreach (var table in container.Tables)
-            {
-                var tableName = table.Value.Name.ToTableName(schema);
-
-                if (await CheckTableExists(config, tableName))
-                {
-                    tasks.Add(EmptyTable(tableName, table.Key));
-                }
-            }
-
-            await Task.WhenAll(tasks);
+                await Task.WhenAll(tasks);
+                await transaction.CommitAsync();
+            });
         }
 
         public override async Task ArchiveContainer(ExecutionContext executionContext, Guid providerDefinitionId, string id)
         {
-            var config = await base.GetAuthenticationDetails(executionContext, providerDefinitionId);
-            var schema = config.GetSchema();
-
-            async Task ArchiveTable(SqlTableName tableName, string context)
+            await ExecuteWithRetryAsync(async () =>
             {
-                var newName = await GetValidContainerName(executionContext, providerDefinitionId, $"{tableName.LocalName}{DateTime.Now:yyyyMMddHHmmss}");
+                var config = await base.GetAuthenticationDetails(executionContext, providerDefinitionId);
+                var schema = config.GetSchema();
+                var transaction = await _client.BeginTransaction(config.Authentication);
 
-                var sql = BuildRenameContainerSql(tableName, SqlName.FromUnsafe(newName), out var param);
-                _logger.LogDebug("Sql Server Connector - Archive Container[{Context}] - Generated query: {sql}", context, sql);
-
-                try
+                async Task ArchiveTable(SqlTableName tableName, string context)
                 {
-                    await ExecuteCommandWithRetryAsync(() => _client.ExecuteCommandAsync(config, sql, param));
+                    var newName = await GetValidContainerName(executionContext, providerDefinitionId, $"{tableName.LocalName}{DateTime.Now:yyyyMMddHHmmss}");
+
+                    var sql = BuildRenameContainerSql(tableName, SqlName.FromUnsafe(newName), out var param);
+                    _logger.LogDebug("Sql Server Connector - Archive Container[{Context}] - Generated query: {sql}", context, sql);
+
+                    try
+                    {
+                        await _client.ExecuteCommandInTransactionAsync(transaction, sql, param);
+                    }
+                    catch (Exception e)
+                    {
+                        var message = $"Could not Archive Container {tableName.FullyQualifiedName} for Connector {providerDefinitionId}";
+                        _logger.LogError(e, message);
+                        throw new CreateContainerException(message);
+                    }
                 }
-                catch (Exception e)
+
+                var container = new Container(id, StreamMode);
+                var tasks = new List<Task> { ArchiveTable(container.PrimaryTable.ToTableName(schema), "Data") };
+                foreach (var table in container.Tables)
                 {
-                    var message = $"Could not Archive Container {tableName.FullyQualifiedName} for Connector {providerDefinitionId}";
-                    _logger.LogError(e, message);
-                    throw new CreateContainerException(message);
+                    var tableName = table.Value.Name.ToTableName(schema);
+
+                    if (await CheckTableExists(transaction, tableName))
+                    {
+                        tasks.Add(ArchiveTable(tableName, table.Key));
+                    }
                 }
-            }
 
-            var container = new Container(id, StreamMode);
-            var tasks = new List<Task> { ArchiveTable(container.PrimaryTable.ToTableName(schema), "Data") };
-            foreach (var table in container.Tables)
-            {
-                var tableName = table.Value.Name.ToTableName(schema);
-
-                if (await CheckTableExists(config, tableName))
-                {
-                    tasks.Add(ArchiveTable(tableName, table.Key));
-                }
-            }
-
-            await Task.WhenAll(tasks);
+                await Task.WhenAll(tasks);
+                await transaction.CommitAsync();
+            });
         }
 
         public override async Task RenameContainer(ExecutionContext executionContext, Guid providerDefinitionId, string id, string newName)
         {
-            var config = await base.GetAuthenticationDetails(executionContext, providerDefinitionId);
-            var schema = config.GetSchema();
-
-            async Task RenameTable(SqlTableName currentTableName, string updatedName, string context)
+            await ExecuteWithRetryAsync(async () =>
             {
-                var sql = BuildRenameContainerSql(currentTableName, SqlName.FromUnsafe(updatedName), out var param);
+                var config = await base.GetAuthenticationDetails(executionContext, providerDefinitionId);
+                var schema = config.GetSchema();
+                var transaction = await _client.BeginTransaction(config.Authentication);
 
-                _logger.LogDebug("Sql Server Connector - Rename Container[{Context}] - Generated query: {sql}", context, sql);
-
-                try
+                async Task RenameTable(SqlTableName currentTableName, string updatedName, string context)
                 {
-                    await ExecuteCommandWithRetryAsync(() => _client.ExecuteCommandAsync(config, sql, param));
+                    var sql = BuildRenameContainerSql(currentTableName, SqlName.FromUnsafe(updatedName), out var param);
+
+                    _logger.LogDebug("Sql Server Connector - Rename Container[{Context}] - Generated query: {sql}", context, sql);
+
+                    try
+                    {
+                        await _client.ExecuteCommandInTransactionAsync(transaction, sql, param);
+                    }
+                    catch (Exception e)
+                    {
+                        var message = $"Could not Rename Container {currentTableName.FullyQualifiedName} for Connector {providerDefinitionId}";
+                        _logger.LogError(e, message);
+                        throw new CreateContainerException(message);
+                    }
                 }
-                catch (Exception e)
+
+                var currentContainer = new Container(id, StreamMode);
+                var updatedContainer = new Container(newName, StreamMode);
+
+                var tasks = new List<Task>
                 {
-                    var message = $"Could not Rename Container {currentTableName.FullyQualifiedName} for Connector {providerDefinitionId}";
-                    _logger.LogError(e, message);
-                    throw new CreateContainerException(message);
-                }
-            }
-
-            var currentContainer = new Container(id, StreamMode);
-            var updatedContainer = new Container(newName, StreamMode);
-
-            var tasks = new List<Task>
-            {
-                RenameTable(currentContainer.PrimaryTable.ToTableName(schema), updatedContainer.PrimaryTable, "Data")
-            };
-            foreach (var current in currentContainer.Tables)
-            {
-                var tableName = current.Value.Name.ToTableName(schema);
-
-                if (await CheckTableExists(config, tableName))
+                    RenameTable(currentContainer.PrimaryTable.ToTableName(schema), updatedContainer.PrimaryTable, "Data")
+                };
+                foreach (var current in currentContainer.Tables)
                 {
-                    tasks.Add(RenameTable(tableName, updatedContainer.Tables[current.Key].Name, current.Key));
-                }
-            }
+                    var tableName = current.Value.Name.ToTableName(schema);
 
-            await Task.WhenAll(tasks);
+                    if (await CheckTableExists(transaction, tableName))
+                    {
+                        tasks.Add(RenameTable(tableName, updatedContainer.Tables[current.Key].Name, current.Key));
+                    }
+                }
+
+                await Task.WhenAll(tasks);
+                await transaction.CommitAsync();
+            });
         }
 
         public override Task StoreData(ExecutionContext executionContext, Guid providerDefinitionId,
@@ -448,48 +494,57 @@ namespace CluedIn.Connector.SqlServer.Connector
 
         public override async Task RemoveContainer(ExecutionContext executionContext, Guid providerDefinitionId, string id)
         {
-            var config = await base.GetAuthenticationDetails(executionContext, providerDefinitionId);
-            var schema = config.GetSchema();
-
-            async Task RemoveTable(SqlTableName tableName, string context)
+            await ExecuteWithRetryAsync(async () =>
             {
-                var sql = BuildRemoveContainerSql(tableName);
+                var config = await base.GetAuthenticationDetails(executionContext, providerDefinitionId);
+                var schema = config.GetSchema();
+                var transaction = await _client.BeginTransaction(config.Authentication);
 
-                _logger.LogDebug("Sql Server Connector - Remove Container[{Context}] - Generated query: {sql}", context, sql);
-
-                try
+                async Task RemoveTable(SqlTableName tableName, string context)
                 {
-                    await ExecuteCommandWithRetryAsync(() => _client.ExecuteCommandAsync(config, sql));
+                    var sql = BuildRemoveContainerSql(tableName);
+
+                    _logger.LogDebug("Sql Server Connector - Remove Container[{Context}] - Generated query: {sql}",
+                        context, sql);
+
+                    try
+                    {
+                        await _client.ExecuteCommandInTransactionAsync(transaction, sql);
+                    }
+                    catch (Exception e)
+                    {
+                        var message =
+                            $"Could not Remove Container {tableName.FullyQualifiedName} for Connector {providerDefinitionId}";
+                        _logger.LogError(e, message);
+                        throw new CreateContainerException(message);
+                    }
                 }
-                catch (Exception e)
+
+                var container = new Container(id, StreamMode);
+                var tasks = new List<Task> { RemoveTable(container.PrimaryTable.ToTableName(schema), "Data") };
+                foreach (var table in container.Tables)
                 {
-                    var message = $"Could not Remove Container {tableName.FullyQualifiedName} for Connector {providerDefinitionId}";
-                    _logger.LogError(e, message);
-                    throw new CreateContainerException(message);
+                    var tableName = table.Value.Name.ToTableName(schema);
+
+                    if (await CheckTableExists(transaction, tableName))
+                    {
+                        tasks.Add(RemoveTable(tableName, table.Key));
+                    }
                 }
-            }
 
-            var container = new Container(id, StreamMode);
-            var tasks = new List<Task> { RemoveTable(container.PrimaryTable.ToTableName(schema), "Data") };
-            foreach (var table in container.Tables)
-            {
-                var tableName = table.Value.Name.ToTableName(schema);
-
-                if (await CheckTableExists(config, tableName))
-                {
-                    tasks.Add(RemoveTable(tableName, table.Key));
-                }
-            }
-
-            await Task.WhenAll(tasks);
+                await Task.WhenAll(tasks);
+                await transaction.CommitAsync();
+            });
         }
 
         public override async Task<IEnumerable<IConnectorContainer>> GetContainers(ExecutionContext executionContext, Guid providerDefinitionId)
         {
+            var config = await base.GetAuthenticationDetails(executionContext, providerDefinitionId);
+            var transaction = await _client.BeginTransaction(config.Authentication);
+
             try
             {
-                var config = await base.GetAuthenticationDetails(executionContext, providerDefinitionId);
-                var tables = await ExecuteResultCommandWithRetryAsync(() => _client.GetTables(config.Authentication, schema: config.GetSchema()));
+                var tables = await _client.GetTables(transaction, schema: config.GetSchema());
 
                 var result = from DataRow row in tables.Rows
                              select row["TABLE_NAME"] as string
@@ -508,10 +563,12 @@ namespace CluedIn.Connector.SqlServer.Connector
 
         public override async Task<IEnumerable<IConnectionDataType>> GetDataTypes(ExecutionContext executionContext, Guid providerDefinitionId, string containerId)
         {
+            var config = await base.GetAuthenticationDetails(executionContext, providerDefinitionId);
+            var transaction = await _client.BeginTransaction(config.Authentication);
+
             try
             {
-                var config = await base.GetAuthenticationDetails(executionContext, providerDefinitionId);
-                var tables = await ExecuteResultCommandWithRetryAsync(() => _client.GetTableColumns(config.Authentication, containerId, schema: config.GetSchema()));
+                var tables = await _client.GetTableColumns(transaction, containerId, schema: config.GetSchema());
 
                 var result = from DataRow row in tables.Rows
                              let name = row["COLUMN_NAME"] as string
@@ -538,47 +595,51 @@ namespace CluedIn.Connector.SqlServer.Connector
             IList<IEntityCode> codes,
             Guid entityId)
         {
-            try
+            await ExecuteWithRetryAsync(async () =>
             {
                 var config = await base.GetAuthenticationDetails(executionContext, providerDefinitionId);
+                var transaction = await _client.BeginTransaction(config.Authentication);
                 var schema = config.GetSchema();
 
-                if (_bulkSupported)
+                try
                 {
-                    var tableName = SqlTableName.FromUnsafeName(containerName, schema);
-
-                    var bulkFeature = _features.GetFeature<IBulkDeleteDataFeature>();
-                    await bulkFeature.BulkTableDelete(
-                        executionContext,
-                        providerDefinitionId,
-                        tableName,
-                        originEntityCode,
-                        codes,
-                        entityId,
-                        _bulkInsertThreshold,
-                        _bulkClient,
-                        config,
-                        _logger);
-                }
-                else
-                {
-                    var container = new Container(containerName, StreamMode);
-                    var deleteFeature = _features.GetFeature<IBuildDeleteDataFeature>();
-                    var commands = deleteFeature
-                        .BuildDeleteDataSql(executionContext, providerDefinitionId, container.PrimaryTable.ToTableName(schema),
-                            originEntityCode, codes, entityId, _logger);
-
-                    // We need to origin entity code for entities that have been deleted
-                    // see if we need to delete linked tables
-                    // do look up of OriginEntityCode from current table data
-                    var lookupOriginCodes = new List<string>();
-                    await using (var connection = await ExecuteResultCommandWithRetryAsync(() => _client.GetConnection(config.Authentication)))
+                    if (_bulkSupported)
                     {
-                        var cmd = connection.CreateCommand();
-                        cmd.CommandText = $"SELECT DISTINCT OriginEntityCode FROM {container.PrimaryTable.ToTableName(schema).FullyQualifiedName} WHERE [Id] = @Id;";
-                        cmd.Parameters.Add(new SqlParameter("Id", entityId));
+                        var tableName = SqlTableName.FromUnsafeName(containerName, schema);
 
-                        await using var resp = await ExecuteResultCommandWithRetryAsync(() => cmd.ExecuteReaderAsync());
+                        var bulkFeature = _features.GetFeature<IBulkDeleteDataFeature>();
+                        await bulkFeature.BulkTableDelete(
+                            executionContext,
+                            providerDefinitionId,
+                            tableName,
+                            originEntityCode,
+                            codes,
+                            entityId,
+                            _bulkInsertThreshold,
+                            _bulkClient,
+                            config,
+                            _logger);
+                    }
+                    else
+                    {
+                        var container = new Container(containerName, StreamMode);
+                        var deleteFeature = _features.GetFeature<IBuildDeleteDataFeature>();
+                        var commands = deleteFeature
+                            .BuildDeleteDataSql(executionContext, providerDefinitionId,
+                                container.PrimaryTable.ToTableName(schema),
+                                originEntityCode, codes, entityId, _logger);
+
+                        // We need to origin entity code for entities that have been deleted
+                        // see if we need to delete linked tables
+                        // do look up of OriginEntityCode from current table data
+                        var lookupOriginCodes = new List<string>();
+                        var cmd = transaction.Connection.CreateCommand();
+                        cmd.CommandText =
+                            $"SELECT DISTINCT OriginEntityCode FROM {container.PrimaryTable.ToTableName(schema).FullyQualifiedName} WHERE [Id] = @Id;";
+                        cmd.Parameters.Add(new SqlParameter("Id", entityId));
+                        cmd.Transaction = transaction;
+
+                        await using var resp = await cmd.ExecuteReaderAsync();
                         if (resp.HasRows)
                         {
                             while (await resp.ReadAsync())
@@ -586,31 +647,35 @@ namespace CluedIn.Connector.SqlServer.Connector
                                 lookupOriginCodes.Add(resp.GetString(0));
                             }
                         }
-                    }
 
-                    foreach (var table in container.Tables)
-                    {
-                        var tName = table.Value.Name.ToTableName(schema);
-
-                        if (await CheckTableExists(config, tName))
+                        foreach (var table in container.Tables)
                         {
-                            foreach (var entry in lookupOriginCodes)
+                            var tName = table.Value.Name.ToTableName(schema);
+
+                            if (await CheckTableExists(transaction, tName))
                             {
-                                commands = commands.Concat(deleteFeature.BuildDeleteDataSql(executionContext, providerDefinitionId, tName, entry, null, null, _logger));
+                                foreach (var entry in lookupOriginCodes)
+                                {
+                                    commands = commands.Concat(deleteFeature.BuildDeleteDataSql(executionContext,
+                                        providerDefinitionId, tName, entry, null, null, _logger));
+                                }
                             }
                         }
-                    }
 
-                    foreach (var command in commands)
-                        await ExecuteCommandWithRetryAsync(() => _client.ExecuteCommandAsync(config, command.Text, command.Parameters));
+                        foreach (var command in commands)
+                            await _client.ExecuteCommandInTransactionAsync(transaction, command.Text, command.Parameters);
+                    }
                 }
-            }
-            catch (Exception e)
-            {
-                var message = $"Could not delete data from Container '{containerName}' for Connector {providerDefinitionId}";
-                _logger.LogError(e, message);
-                throw new StoreDataException(message);
-            }
+                catch (Exception e)
+                {
+                    var message = $"Could not delete data from Container '{containerName}' for Connector {providerDefinitionId}";
+                    _logger.LogError(e, message);
+                    transaction.Rollback();
+                    throw new StoreDataException(message);
+                }
+
+                await transaction.CommitAsync();
+            });
         }
 
 
@@ -675,11 +740,11 @@ namespace CluedIn.Connector.SqlServer.Connector
             return $"TRUNCATE TABLE {tableName.FullyQualifiedName}";
         }
 
-        protected async Task<bool> CheckTableExists(IConnectorConnection config, SqlTableName tableName)
+        protected async Task<bool> CheckTableExists(SqlTransaction transaction, SqlTableName tableName)
         {
             try
             {
-                var tables = await ExecuteResultCommandWithRetryAsync(() => _client.GetTables(config.Authentication, name: tableName.LocalName, schema: tableName.Schema));
+                var tables = await _client.GetTables(transaction, name: tableName.LocalName, schema: tableName.Schema);
 
                 return tables.Rows.Count > 0;
             }
@@ -690,22 +755,17 @@ namespace CluedIn.Connector.SqlServer.Connector
             }
         }
 
-        protected override async Task<bool> CheckTableExists(ExecutionContext executionContext, Guid providerDefinitionId, string name)
+        protected override async Task<bool> CheckTableExists(ExecutionContext executionContext, Guid providerDefinitionId, SqlTransaction transaction, string name)
         {
             var config = await GetAuthenticationDetails(executionContext, providerDefinitionId);
             var tableName = SqlTableName.FromUnsafeName(name, config);
 
-            return await CheckTableExists(config, tableName);
+            return await CheckTableExists(transaction, tableName);
         }
 
-        private static async Task ExecuteCommandWithRetryAsync(Func<Task> command)
+        private static async Task ExecuteWithRetryAsync(Func<Task> taskFunc)
         {
-            await command.ExecuteWithRetryAsync(isTransient: ExceptionExtensions.IsTransient);
-        }
-
-        private static async Task<T> ExecuteResultCommandWithRetryAsync<T>(Func<Task<T>> command)
-        {
-            return await command.ExecuteWithRetryAsync(isTransient: ExceptionExtensions.IsTransient);
+            await taskFunc.ExecuteWithRetryAsync(isTransient: ExceptionExtensions.IsTransient);
         }
     }
 }
