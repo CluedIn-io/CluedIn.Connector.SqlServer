@@ -237,7 +237,6 @@ namespace CluedIn.Connector.SqlServer.Connector
                     var upgrade = _features.GetFeature<IUpgradeTimeStampingFeature>();
                     await upgrade.VerifyTimeStampColumnExist(_client, config, transaction, stream);
 
-
                     var buildIndexFeature = _features.GetFeature<IBuildCreateIndexFeature>();
                     var verifyUniqueIndexFeature = _features.GetFeature<VerifyUniqueIndexFeature>();
                     var verifyUniqueIndexCommand = verifyUniqueIndexFeature.GetVerifyUniqueIndexCommand(buildIndexFeature, tableName, _defaultIndexFields);
