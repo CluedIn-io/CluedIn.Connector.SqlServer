@@ -18,7 +18,8 @@ namespace CluedIn.Connector.SqlServer.Connector
                 UserID = (string)config[SqlServerConstants.KeyName.Username],
                 DataSource = (string)config[SqlServerConstants.KeyName.Host],
                 InitialCatalog = (string)config[SqlServerConstants.KeyName.DatabaseName],
-                Pooling = true
+                Pooling = true,
+                MultipleActiveResultSets = true
             };
 
             if (config.TryGetValue(SqlServerConstants.KeyName.PortNumber, out var portEntry) && int.TryParse(portEntry.ToString(), out var port))

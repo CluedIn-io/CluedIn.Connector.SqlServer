@@ -27,7 +27,7 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests.Connector
 
             var result = _sut.BuildConnectionString(properties);
 
-            Assert.Equal("Data Source=host,1433;Initial Catalog=database;User ID=user;Password=password;Pooling=True;Authentication=SqlPassword", result);
+            Assert.Equal("Data Source=host,1433;Initial Catalog=database;User ID=user;Password=password;Pooling=True;Multiple Active Result Sets=True;Authentication=SqlPassword", result);
         }
 
         [Fact]
@@ -44,7 +44,7 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests.Connector
 
             var result = _sut.BuildConnectionString(properties);
 
-            Assert.Equal("Data Source=host,9499;Initial Catalog=database;User ID=user;Password=password;Pooling=True;Authentication=SqlPassword", result);
+            Assert.Equal("Data Source=host,9499;Initial Catalog=database;User ID=user;Password=password;Pooling=True;Multiple Active Result Sets=True;Authentication=SqlPassword", result);
         }
 
         [Fact]
@@ -61,7 +61,7 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests.Connector
 
             var result = _sut.BuildConnectionString(properties);
 
-            Assert.Equal("Data Source=host,9499;Initial Catalog=database;User ID=user;Password=password;Pooling=True;Authentication=SqlPassword", result);
+            Assert.Equal("Data Source=host,9499;Initial Catalog=database;User ID=user;Password=password;Pooling=True;Multiple Active Result Sets=True;Authentication=SqlPassword", result);
         }
 
         [Fact]
@@ -78,7 +78,7 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests.Connector
 
             var result = _sut.BuildConnectionString(properties);
 
-            Assert.Equal("Data Source=host,1433;Initial Catalog=database;User ID=user;Password=password;Pooling=True;Authentication=SqlPassword", result);
+            Assert.Equal("Data Source=host,1433;Initial Catalog=database;User ID=user;Password=password;Pooling=True;Multiple Active Result Sets=True;Authentication=SqlPassword", result);
         }
     }
 }
