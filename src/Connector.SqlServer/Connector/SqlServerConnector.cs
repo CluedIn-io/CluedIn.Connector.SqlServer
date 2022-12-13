@@ -413,18 +413,14 @@ namespace CluedIn.Connector.SqlServer.Connector
                 }
 
                 var container = new Container(id, StreamMode);
-                var tasks = new List<Task> { ArchiveTable(container.PrimaryTable.ToTableName(schema), "Data") };
+                await ArchiveTable(container.PrimaryTable.ToTableName(schema), "Data");
                 foreach (var table in container.Tables)
                 {
                     var tableName = table.Value.Name.ToTableName(schema);
 
-                    if (await CheckTableExists(transaction, tableName))
-                    {
-                        tasks.Add(ArchiveTable(tableName, table.Key));
-                    }
+                    await ArchiveTable(tableName, table.Key);
                 }
 
-                await Task.WhenAll(tasks);
                 await transaction.CommitAsync();
             });
         }
