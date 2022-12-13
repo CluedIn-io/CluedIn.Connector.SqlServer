@@ -395,7 +395,7 @@ namespace CluedIn.Connector.SqlServer.Connector
 
                 async Task ArchiveTable(SqlTableName tableName, string context)
                 {
-                    var newName = await GetValidContainerName(executionContext, providerDefinitionId, $"{tableName.LocalName}{DateTime.Now:yyyyMMddHHmmss}");
+                    var newName = await GetValidContainerNameInTransaction(executionContext, providerDefinitionId, transaction, $"{tableName.LocalName}{DateTime.Now:yyyyMMddHHmmss}");
 
                     var sql = BuildRenameContainerSql(tableName, SqlName.FromUnsafe(newName), out var param);
                     _logger.LogDebug("Sql Server Connector - Archive Container[{Context}] - Generated query: {sql}", context, sql);
