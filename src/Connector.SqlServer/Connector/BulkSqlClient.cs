@@ -10,7 +10,7 @@ namespace CluedIn.Connector.SqlServer.Connector
     {
         public async Task ExecuteBulkAsync(IConnectorConnection config, DataTable table, SqlTableName tableName)
         {
-            await using var connection = await GetConnection(config.Authentication);
+            await using var connection = (await BeginTransaction(config.Authentication)).Connection;
             using var bulk = new SqlBulkCopy(connection) { DestinationTableName = tableName.FullyQualifiedName };
             await bulk.WriteToServerAsync(table);
         }

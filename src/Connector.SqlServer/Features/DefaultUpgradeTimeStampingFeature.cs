@@ -3,6 +3,7 @@ using CluedIn.Connector.SqlServer.Utils;
 using CluedIn.Core.Connectors;
 using CluedIn.Core.Data.Vocabularies;
 using CluedIn.Core.Streams.Models;
+using Microsoft.Data.SqlClient;
 using System;
 using System.Data;
 using System.Linq;
@@ -12,11 +13,24 @@ namespace CluedIn.Connector.SqlServer.Features
 {
     public class DefaultUpgradeTimeStampingFeature : IUpgradeTimeStampingFeature
     {
-        public virtual async Task VerifyTimeStampColumnExist(ISqlClient client, IConnectorConnection config, StreamModel stream)
+        public virtual async Task VerifyTimeStampColumnExist(ISqlClient client, IConnectorConnection config, SqlTransaction transaction, StreamModel stream)
         {
             var tableName = SqlTableName.FromUnsafeName(stream.ContainerName, config);
-            var tables = await client.GetTableColumns(config.Authentication, tableName: tableName.LocalName, schema: tableName.Schema);
-            var result = (from DataRow row in tables.Rows
+
+            // Adapted from the command that Microsoft SQL client uses to get table columns
+            var sqlCommandText = $@"EXEC sys.sp_columns_managed @Catalog, @Owner, @Table, @Column, 0";
+            var command = transaction.Connection.CreateCommand();
+            command.Transaction = transaction;
+            command.CommandText = sqlCommandText;
+            command.Parameters.AddWithValue("@Catalog", DBNull.Value);
+            command.Parameters.AddWithValue("@Owner", tableName.Schema.Value);
+            command.Parameters.AddWithValue("@Table", tableName.LocalName.Value);
+            command.Parameters.AddWithValue("@Column", DBNull.Value);
+
+            var dataTable = new DataTable();
+            var adapter = new SqlDataAdapter(command);
+            adapter.Fill(dataTable);
+            var result = (from DataRow row in dataTable.Rows
                           let name = row["COLUMN_NAME"] as string
                           let rawType = row["DATA_TYPE"] as string
                           select new { Name = name, RawDataType = rawType }).ToList();
@@ -26,7 +40,7 @@ namespace CluedIn.Connector.SqlServer.Features
                 var columnName = "TimeStamp";
                 var addTimeStampSql =
                     $"alter table {tableName.FullyQualifiedName} add [{columnName}] {SqlColumnHelper.GetColumnType(VocabularyKeyDataType.DateTime, columnName)}";
-                await client.ExecuteCommandAsync(config, addTimeStampSql);
+                await client.ExecuteCommandInTransactionAsync(transaction, addTimeStampSql);
             }
         }
     }
