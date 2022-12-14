@@ -21,7 +21,7 @@ using System.Threading.Tasks;
 
 namespace CluedIn.Connector.SqlServer.Connector
 {
-    public class SqlServerConnector : SqlConnectorBase, IConnectorStreamModeSupport, IConnectorUpgrade
+    public class SqlServerConnector : SqlConnectorBase<SqlTransaction, SqlParameter>, IConnectorStreamModeSupport, IConnectorUpgrade
     {
         private const string TimestampFieldName = "TimeStamp";
         private const string ChangeTypeFieldName = "ChangeType";
