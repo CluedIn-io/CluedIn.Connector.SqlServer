@@ -25,10 +25,10 @@ Declare @EntitiesWithDuplicatesExists AS BIT
 SET @EntitiesWithDuplicatesExists = 0
 
 IF EXISTS (
-SELECT TOP(1) [Id]
-   FROM {tableName}
-   GROUP BY [Id]
-   HAVING COUNT(Id) > 1)
+  SELECT TOP(1) [Id]
+  FROM {tableName.FullyQualifiedName}
+  GROUP BY [Id]
+  HAVING COUNT(Id) > 1)
 BEGIN
   SET @EntitiesWithDuplicatesExists = 1
 END
@@ -40,10 +40,16 @@ BEGIN
 END
 ELSE
 BEGIN
-  IF EXISTS (SELECT * FROM sys.indexes WHERE name = '{indexName}' AND is_unique = 'false')
+  IF EXISTS (
+    SELECT *
+    FROM sys.indexes
+    WHERE
+      object_id = (SELECT object_id FROM sys.objects WHERE name = '{tableName.LocalName}') AND
+      name = '{indexName}' AND
+      is_unique = 'false')
   BEGIN
     PRINT 'Adding index'
-	DROP INDEX {indexName} ON {tableName}
+	DROP INDEX {indexName} ON {tableName.FullyQualifiedName}
 	{createIndexCommand}
   END
 
