@@ -231,6 +231,17 @@ namespace CluedIn.Connector.SqlServer.Connector
                     var upgrade = _features.GetFeature<IUpgradeTimeStampingFeature>();
                     await upgrade.VerifyTimeStampColumnExist(_client, config, transaction, stream);
 
+                    var addCodeTableTypeSql = @"
+IF Type_ID(N'CodeTableType') IS NULL
+BEGIN
+  CREATE TYPE CodeTableType AS TABLE( Code nvarchar(1024));
+END
+";
+                    var addCodeTableTypeSqlCommand = transaction.Connection.CreateCommand();
+                    addCodeTableTypeSqlCommand.CommandText = addCodeTableTypeSql;
+                    addCodeTableTypeSqlCommand.Transaction = transaction;
+                    await addCodeTableTypeSqlCommand.ExecuteNonQueryAsync();
+
                     var indexFieldsToUse = StreamMode == StreamMode.EventStream
                         ? _eventStreamIndexFields
                         : _syncStreamIndexFields;
