@@ -34,9 +34,15 @@ namespace CluedIn.Connector.SqlServer.Connector
         private readonly bool _bulkSupported;
         private readonly bool _syncEdgesTable;
 
-        private readonly IList<(string[] columns, bool isUnique)> _defaultIndexFields = new List<(string[], bool)>
+        private readonly IList<(string[] columns, bool isUnique)> _syncStreamIndexFields = new List<(string[], bool)>
         {
             (new[] {"Id"}, true),
+            (new[] {"OriginEntityCode"}, false)
+        };
+
+        private readonly IList<(string[] columns, bool isUnique)> _eventStreamIndexFields = new List<(string[], bool)>
+        {
+            (new[] {"Id"}, false),
             (new[] {"OriginEntityCode"}, false)
         };
 
@@ -106,7 +112,13 @@ namespace CluedIn.Connector.SqlServer.Connector
                         dataToUse.Add(CorrelationIdFieldName, correlationId);
                     }
                     else
+                    {
                         dataToUse.Add(TimestampFieldName, timestamp);
+                    }
+
+                    var indexFieldsToUse = StreamMode == StreamMode.EventStream
+                        ? _eventStreamIndexFields
+                        : _syncStreamIndexFields;
 
                     var tableName = SqlTableName.FromUnsafeName(containerName, config);
 
@@ -134,7 +146,7 @@ namespace CluedIn.Connector.SqlServer.Connector
                                 providerDefinitionId,
                                 tableName,
                                 dataToUse,
-                                uniqueColumns: _defaultIndexFields
+                                uniqueColumns: indexFieldsToUse
                                     .Where(index => index.isUnique)
                                     .SelectMany(index => index.columns)
                                     .ToArray(),
@@ -151,7 +163,7 @@ namespace CluedIn.Connector.SqlServer.Connector
                                 providerDefinitionId,
                                 tableName,
                                 dataToUse,
-                                uniqueColumns: _defaultIndexFields
+                                uniqueColumns: indexFieldsToUse
                                     .Where(index => index.isUnique)
                                     .SelectMany(index => index.columns)
                                     .ToArray(),
@@ -219,9 +231,13 @@ namespace CluedIn.Connector.SqlServer.Connector
                     var upgrade = _features.GetFeature<IUpgradeTimeStampingFeature>();
                     await upgrade.VerifyTimeStampColumnExist(_client, config, transaction, stream);
 
+                    var indexFieldsToUse = StreamMode == StreamMode.EventStream
+                        ? _eventStreamIndexFields
+                        : _syncStreamIndexFields;
+
                     var buildIndexFeature = _features.GetFeature<IBuildCreateIndexFeature>();
                     var verifyUniqueIndexFeature = _features.GetFeature<VerifyUniqueIndexFeature>();
-                    var verifyUniqueIndexCommand = verifyUniqueIndexFeature.GetVerifyUniqueIndexCommand(buildIndexFeature, tableName, _defaultIndexFields);
+                    var verifyUniqueIndexCommand = verifyUniqueIndexFeature.GetVerifyUniqueIndexCommand(buildIndexFeature, tableName, indexFieldsToUse);
 
                     var command = transaction.Connection.CreateCommand();
                     command.CommandText = verifyUniqueIndexCommand;
@@ -304,10 +320,14 @@ namespace CluedIn.Connector.SqlServer.Connector
                     });
                 }
 
+                var indexFieldsToUse = StreamMode == StreamMode.EventStream
+                    ? _eventStreamIndexFields
+                    : _syncStreamIndexFields;
+
                 var tasks = new List<Task>
                 {
                     // Primary table
-                    CreateTable(container.PrimaryTable.ToTableName(schema), connectionDataTypes, _defaultIndexFields, "Data"),
+                    CreateTable(container.PrimaryTable.ToTableName(schema), connectionDataTypes, indexFieldsToUse, "Data"),
 
                     // Codes table
                     CreateTable(codesTable.Name.ToTableName(schema), codesTable.Columns, new[] { (codesTable.Keys.ToArray(), false) }, "Codes")
