@@ -11,6 +11,7 @@ using CluedIn.Core.Data.Vocabularies;
 using CluedIn.Core.DataStore;
 using CluedIn.Core.Streams.Models;
 using Microsoft.Data.SqlClient;
+using Microsoft.Data.SqlClient.Server;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
@@ -33,9 +34,15 @@ namespace CluedIn.Connector.SqlServer.Connector
         private readonly bool _bulkSupported;
         private readonly bool _syncEdgesTable;
 
-        private readonly IList<(string[] columns, bool isUnique)> _defaultIndexFields = new List<(string[], bool)>
+        private readonly IList<(string[] columns, bool isUnique)> _syncStreamIndexFields = new List<(string[], bool)>
         {
             (new[] {"Id"}, true),
+            (new[] {"OriginEntityCode"}, false)
+        };
+
+        private readonly IList<(string[] columns, bool isUnique)> _eventStreamIndexFields = new List<(string[], bool)>
+        {
+            (new[] {"Id"}, false),
             (new[] {"OriginEntityCode"}, false)
         };
 
@@ -105,7 +112,13 @@ namespace CluedIn.Connector.SqlServer.Connector
                         dataToUse.Add(CorrelationIdFieldName, correlationId);
                     }
                     else
+                    {
                         dataToUse.Add(TimestampFieldName, timestamp);
+                    }
+
+                    var indexFieldsToUse = StreamMode == StreamMode.EventStream
+                        ? _eventStreamIndexFields
+                        : _syncStreamIndexFields;
 
                     var tableName = SqlTableName.FromUnsafeName(containerName, config);
 
@@ -133,7 +146,7 @@ namespace CluedIn.Connector.SqlServer.Connector
                                 providerDefinitionId,
                                 tableName,
                                 dataToUse,
-                                uniqueColumns: _defaultIndexFields
+                                uniqueColumns: indexFieldsToUse
                                     .Where(index => index.isUnique)
                                     .SelectMany(index => index.columns)
                                     .ToArray(),
@@ -150,7 +163,7 @@ namespace CluedIn.Connector.SqlServer.Connector
                                 providerDefinitionId,
                                 tableName,
                                 dataToUse,
-                                uniqueColumns: _defaultIndexFields
+                                uniqueColumns: indexFieldsToUse
                                     .Where(index => index.isUnique)
                                     .SelectMany(index => index.columns)
                                     .ToArray(),
@@ -182,33 +195,14 @@ namespace CluedIn.Connector.SqlServer.Connector
             await ExecuteWithRetryAsync(async () =>
             {
                 var config = await base.GetAuthenticationDetails(executionContext, providerDefinitionId);
-                await using var transaction = await _client.BeginTransaction(config.Authentication);
-
-                try
+                await using (var transaction = await _client.BeginTransaction(config.Authentication))
                 {
                     var edgeTableName = SqlTableName.FromUnsafeName(GetEdgesContainerName(containerName), config);
 
-                    if (await CheckTableExists(transaction, edgeTableName))
-                    {
-                        var sql = BuildEdgeStoreDataSql(edgeTableName, originEntityCode, correlationId, edges, out var param);
-
-                        if (!string.IsNullOrWhiteSpace(sql))
-                        {
-                            _logger.LogDebug($"Sql Server Connector - Store Edge Data - Generated query: {sql}");
-
-                            await _client.ExecuteCommandInTransactionAsync(transaction, sql, param);
-                        }
-                    }
+                    var command = BuildEdgeStoreDataCommand(edgeTableName, originEntityCode, correlationId, edges, transaction);
+                    await command.ExecuteNonQueryAsync();
+                    await transaction.CommitAsync();
                 }
-                catch (Exception e)
-                {
-                    var message = $"Could not store edge data into Container '{containerName}' for Connector {providerDefinitionId}";
-                    _logger.LogError(e, message);
-                    await transaction.RollbackAsync();
-                    throw new StoreDataException(message);
-                }
-
-                await transaction.CommitAsync();
             });
         }
 
@@ -237,9 +231,24 @@ namespace CluedIn.Connector.SqlServer.Connector
                     var upgrade = _features.GetFeature<IUpgradeTimeStampingFeature>();
                     await upgrade.VerifyTimeStampColumnExist(_client, config, transaction, stream);
 
+                    var addCodeTableTypeSql = @"
+IF Type_ID(N'CodeTableType') IS NULL
+BEGIN
+  CREATE TYPE CodeTableType AS TABLE( Code nvarchar(1024));
+END
+";
+                    var addCodeTableTypeSqlCommand = transaction.Connection.CreateCommand();
+                    addCodeTableTypeSqlCommand.CommandText = addCodeTableTypeSql;
+                    addCodeTableTypeSqlCommand.Transaction = transaction;
+                    await addCodeTableTypeSqlCommand.ExecuteNonQueryAsync();
+
+                    var indexFieldsToUse = StreamMode == StreamMode.EventStream
+                        ? _eventStreamIndexFields
+                        : _syncStreamIndexFields;
+
                     var buildIndexFeature = _features.GetFeature<IBuildCreateIndexFeature>();
                     var verifyUniqueIndexFeature = _features.GetFeature<VerifyUniqueIndexFeature>();
-                    var verifyUniqueIndexCommand = verifyUniqueIndexFeature.GetVerifyUniqueIndexCommand(buildIndexFeature, tableName, _defaultIndexFields);
+                    var verifyUniqueIndexCommand = verifyUniqueIndexFeature.GetVerifyUniqueIndexCommand(buildIndexFeature, tableName, indexFieldsToUse);
 
                     var command = transaction.Connection.CreateCommand();
                     command.CommandText = verifyUniqueIndexCommand;
@@ -322,10 +331,14 @@ namespace CluedIn.Connector.SqlServer.Connector
                     });
                 }
 
+                var indexFieldsToUse = StreamMode == StreamMode.EventStream
+                    ? _eventStreamIndexFields
+                    : _syncStreamIndexFields;
+
                 var tasks = new List<Task>
                 {
                     // Primary table
-                    CreateTable(container.PrimaryTable.ToTableName(schema), connectionDataTypes, _defaultIndexFields, "Data"),
+                    CreateTable(container.PrimaryTable.ToTableName(schema), connectionDataTypes, indexFieldsToUse, "Data"),
 
                     // Codes table
                     CreateTable(codesTable.Name.ToTableName(schema), codesTable.Columns, new[] { (codesTable.Keys.ToArray(), false) }, "Codes")
@@ -674,41 +687,62 @@ namespace CluedIn.Connector.SqlServer.Connector
         }
 
 
-        internal string BuildEdgeStoreDataSql(SqlTableName tableName, string originEntityCode, string correlationId, IEnumerable<string> edges, out List<SqlParameter> param)
+        internal SqlCommand BuildEdgeStoreDataCommand(SqlTableName tableName, string originEntityCode, string correlationId, IEnumerable<string> edges, SqlTransaction transaction)
         {
-            var originParam = new SqlParameter { ParameterName = "@OriginEntityCode", Value = originEntityCode };
-            var correlationParam = new SqlParameter { ParameterName = "@CorrelationId", Value = correlationId };
-            param = new List<SqlParameter> { originParam, correlationParam };
+            var sqlMetaData = new SqlMetaData[1];
+            sqlMetaData[0] = new SqlMetaData("Code", SqlDbType.NVarChar, SqlMetaData.Max);
 
-            var builder = new StringBuilder();
+            var codesSqlMetaData = edges.Any()
+                ? edges.Select(edge =>
+                {
+                    var record = new SqlDataRecord(sqlMetaData);
+                    record.SetSqlString(0, edge);
+                    return record;
+                })
+                : null;
 
-            if (StreamMode == StreamMode.Sync && _syncEdgesTable)
-                builder.AppendLine(
-                    $"DELETE FROM {tableName.FullyQualifiedName} where [OriginEntityCode] = {originParam.ParameterName}");
+            var command = transaction.Connection.CreateCommand();
+            command.Transaction = transaction;
+            
+            var originEntityCodeParameter = new SqlParameter("@OriginEntityCode", SqlDbType.NVarChar) { Value = originEntityCode };
+            command.Parameters.Add(originEntityCodeParameter);
 
-            var edgeValues = new List<string>();
-            foreach (var edge in edges)
+            var codesTableParameter = command.Parameters.AddWithValue("@codesTable", codesSqlMetaData);
+            codesTableParameter.SqlDbType = SqlDbType.Structured;
+            codesTableParameter.TypeName = "dbo.CodeTableType";
+
+            if (StreamMode == StreamMode.EventStream)
             {
-                var edgeParam = new SqlParameter { ParameterName = $"@{edgeValues.Count}", Value = edge };
-                param.Add(edgeParam);
+                var sqlText = @$"
+INSERT INTO {tableName.FullyQualifiedName} (OriginEntityCode, CorrelationId, Code)
+SELECT @OriginEntityCode, @correlationId, codes.Code
+FROM @codesTable codes
+LEFT JOIN {tableName.FullyQualifiedName} existingEdges
+ON existingEdges.OriginEntityCode = @OriginEntityCode AND existingEdges.Code = codes.Code
+WHERE existingEdges.OriginEntityCode IS NULL
+";
+                command.CommandText = sqlText;
+                var correlationParameter = new SqlParameter("@correlationId", SqlDbType.NVarChar) { Value = correlationId };
+                command.Parameters.Add(correlationParameter);
+            }
+            else
+            {
+                var sqlText = @$"
+DELETE {tableName.FullyQualifiedName}
+WHERE OriginEntityCode = @OriginEntityCode AND 
+      NOT EXISTS (SELECT 1 FROM @codesTable codes WHERE codes.Code = {tableName.FullyQualifiedName}.Code)
 
-                if (StreamMode == StreamMode.EventStream)
-                    edgeValues.Add($"(@OriginEntityCode, @CorrelationId, {edgeParam.ParameterName})");
-                else
-                    edgeValues.Add($"(@OriginEntityCode, {edgeParam.ParameterName})");
+INSERT INTO {tableName.FullyQualifiedName} (OriginEntityCode, Code)
+SELECT @OriginEntityCode, codes.Code
+FROM @codesTable codes
+LEFT JOIN {tableName.FullyQualifiedName} existingEdges
+ON existingEdges.OriginEntityCode = @OriginEntityCode AND existingEdges.Code = codes.Code
+WHERE existingEdges.OriginEntityCode IS NULL
+";
+                command.CommandText = sqlText;
             }
 
-            if (edgeValues.Count <= 0)
-                return builder.ToString();
-
-            builder.AppendLine(
-                StreamMode == StreamMode.EventStream
-                    ? $"INSERT INTO {tableName.FullyQualifiedName} ([OriginEntityCode],[CorrelationId],[Code]) values"
-                    : $"INSERT INTO {tableName.FullyQualifiedName} ([OriginEntityCode],[Code]) values");
-
-            builder.AppendJoin(", ", edgeValues);
-
-            return builder.ToString();
+            return command;
         }
 
         private string BuildRenameContainerSql(SqlTableName tableName, SqlName newName, out List<SqlParameter> param)
