@@ -68,7 +68,7 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests.Features
         {
             var expected = new StringBuilder();
             expected.AppendLine($"CREATE TABLE [{tableName.Schema}].[{tableName.LocalName}](");
-            expected.AppendJoin(", ", columns.Select(c => $"[{c.Name.ToSanitizedSqlName()}] nvarchar(1024) NULL"));
+            expected.AppendJoin(", ", columns.Select(c => $"[{c.Name.ToSanitizedSqlName()}] nvarchar(max) NULL"));
             expected.AppendLine(") ON[PRIMARY]");
 
             var execContext = _testContext.Context;
