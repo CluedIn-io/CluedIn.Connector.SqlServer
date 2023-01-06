@@ -231,16 +231,16 @@ namespace CluedIn.Connector.SqlServer.Connector
                     var upgrade = _features.GetFeature<IUpgradeTimeStampingFeature>();
                     await upgrade.VerifyTimeStampColumnExist(_client, config, transaction, stream);
 
-                    var addCodeTableTypeSql = @"
-IF Type_ID(N'CodeTableType') IS NULL
-BEGIN
-  CREATE TYPE CodeTableType AS TABLE( Code nvarchar(1024));
-END
-";
-                    var addCodeTableTypeSqlCommand = transaction.Connection.CreateCommand();
-                    addCodeTableTypeSqlCommand.CommandText = addCodeTableTypeSql;
-                    addCodeTableTypeSqlCommand.Transaction = transaction;
-                    await addCodeTableTypeSqlCommand.ExecuteNonQueryAsync();
+                    // Upsert custom type
+                    {
+                        var addCustomTypesFeature = _features.GetFeature<IAddCustomTypesFeature>();
+                        var addCodeTableTypeText = addCustomTypesFeature.GetCreateCustomTypesCommandText();
+
+                        var addCodeTableTypeSqlCommand = transaction.Connection.CreateCommand();
+                        addCodeTableTypeSqlCommand.CommandText = addCodeTableTypeText;
+                        addCodeTableTypeSqlCommand.Transaction = transaction;
+                        await addCodeTableTypeSqlCommand.ExecuteNonQueryAsync();
+                    }
 
                     var indexFieldsToUse = StreamMode == StreamMode.EventStream
                         ? _eventStreamIndexFields
@@ -286,6 +286,10 @@ END
                         var indexCommandText = string.Join(Environment.NewLine, indexKeys.Select(key => createIndexFeature.GetCreateIndexCommandText(tableName, key.columns, key.isUnique)));
 
                         commands.Add(new SqlServerConnectorCommand() { Text = indexCommandText });
+
+                        var addCustomTypesFeature = _features.GetFeature<IAddCustomTypesFeature>();
+                        var addCodeTableTypeText = addCustomTypesFeature.GetCreateCustomTypesCommandText();
+                        commands.Add(new SqlServerConnectorCommand() { Text = addCodeTableTypeText });
 
                         foreach (var command in commands)
                         {
