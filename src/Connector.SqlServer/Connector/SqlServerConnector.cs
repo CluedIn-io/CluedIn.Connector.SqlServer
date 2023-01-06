@@ -287,6 +287,10 @@ namespace CluedIn.Connector.SqlServer.Connector
 
                         commands.Add(new SqlServerConnectorCommand() { Text = indexCommandText });
 
+                        var addCustomTypesFeature = _features.GetFeature<IAddCustomTypesFeature>();
+                        var addCodeTableTypeText = addCustomTypesFeature.GetCreateCustomTypesCommandText();
+                        commands.Add(new SqlServerConnectorCommand() { Text = addCodeTableTypeText });
+
                         foreach (var command in commands)
                         {
                             _logger.LogDebug("Sql Server Connector - Create Container[{Context}] - Generated query: {sql}", context, command.Text);
