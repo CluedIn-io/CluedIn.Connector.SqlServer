@@ -19,7 +19,8 @@ namespace CluedIn.Connector.SqlServer.Connector
                 DataSource = (string)config[SqlServerConstants.KeyName.Host],
                 InitialCatalog = (string)config[SqlServerConstants.KeyName.DatabaseName],
                 Pooling = true,
-                MultipleActiveResultSets = true
+                MultipleActiveResultSets = true,
+                MaxPoolSize = 200
             };
 
             if (config.TryGetValue(SqlServerConstants.KeyName.PortNumber, out var portEntry) && int.TryParse(portEntry.ToString(), out var port))
