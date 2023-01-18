@@ -15,7 +15,7 @@ namespace CluedIn.Connector.SqlServer.Features
             {"id", "uniqueidentifier" }, // ID of the Entity -- GUID.
         };
 
-        public static string GetColumnType(VocabularyKeyDataType type, string columnName)
+        public static string GetColumnType(VocabularyKeyDataType type, string columnName, string defaultMaxSize)
         {
             var column = columnName.ToLower();
             if (_knownColumnTypes.ContainsKey(column))
@@ -34,7 +34,7 @@ namespace CluedIn.Connector.SqlServer.Features
             //     _ => "nvarchar(max)"
             // };
 
-            return "nvarchar(max)";
+            return $"nvarchar({defaultMaxSize})";
         }
     }
 }

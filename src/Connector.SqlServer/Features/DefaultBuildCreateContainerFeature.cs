@@ -2,11 +2,13 @@
 using CluedIn.Connector.SqlServer.Connector;
 using CluedIn.Connector.SqlServer.Utils;
 using CluedIn.Core;
+using CluedIn.Core.Configuration;
 using CluedIn.Core.Connectors;
 using CluedIn.Core.Data.Vocabularies;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
+using System.Configuration;
 using System.Linq;
 using System.Text;
 
@@ -28,6 +30,8 @@ namespace CluedIn.Connector.SqlServer.Features
             if (executionContext == null)
                 throw new ArgumentNullException(nameof(executionContext));
 
+            var defaultMaxSize = ConfigurationManagerEx.AppSettings.GetValue(SqlServerConnector.DefaultSizeForFieldConfigurationKey, "max");
+
             var enumeratedColumns = columns as ConnectionDataType[] ?? columns?.ToArray();
             if (columns == null || !enumeratedColumns.Any())
                 throw new InvalidOperationException("The data to specify columns must be provided.");
@@ -41,15 +45,15 @@ namespace CluedIn.Connector.SqlServer.Features
             var builder = new StringBuilder();
             builder.AppendLine($"CREATE TABLE {tableName.FullyQualifiedName}(");
             builder.AppendJoin(", ",
-                trimmedColumns.Select(c => $"[{c.Name.ToSanitizedSqlName()}] {GetDbType(c.Type, c.Name)} NULL"));
+                trimmedColumns.Select(c => $"[{c.Name.ToSanitizedSqlName()}] {GetDbType(c.Type, c.Name, defaultMaxSize)} NULL"));
             builder.AppendLine(") ON[PRIMARY]");
 
             return new[] { new SqlServerConnectorCommand { Text = builder.ToString() } };
         }
 
-        protected virtual string GetDbType(VocabularyKeyDataType type, string columnName)
+        protected virtual string GetDbType(VocabularyKeyDataType type, string columnName, string defaultMaxSize)
         {
-            return SqlColumnHelper.GetColumnType(type, columnName);
+            return SqlColumnHelper.GetColumnType(type, columnName, defaultMaxSize);
         }
     }
 }
