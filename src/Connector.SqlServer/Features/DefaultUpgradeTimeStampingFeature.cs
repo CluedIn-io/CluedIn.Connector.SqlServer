@@ -1,10 +1,12 @@
 ﻿using CluedIn.Connector.SqlServer.Connector;
 using CluedIn.Connector.SqlServer.Utils;
+using CluedIn.Core.Configuration;
 using CluedIn.Core.Connectors;
 using CluedIn.Core.Data.Vocabularies;
 using CluedIn.Core.Streams.Models;
 using Microsoft.Data.SqlClient;
 using System;
+using System.Configuration;
 using System.Data;
 using System.Linq;
 using System.Threading.Tasks;
@@ -16,6 +18,7 @@ namespace CluedIn.Connector.SqlServer.Features
         public virtual async Task VerifyTimeStampColumnExist(ISqlClient client, IConnectorConnection config, SqlTransaction transaction, StreamModel stream)
         {
             var tableName = SqlTableName.FromUnsafeName(stream.ContainerName, config);
+            var defaultMaxSize = ConfigurationManagerEx.AppSettings.GetValue(SqlServerConnector.DefaultSizeForFieldConfigurationKey, "max");
 
             // Adapted from the command that Microsoft SQL client uses to get table columns
             var sqlCommandText = $@"EXEC sys.sp_columns_managed @Catalog, @Owner, @Table, @Column, 0";
@@ -39,7 +42,7 @@ namespace CluedIn.Connector.SqlServer.Features
             {
                 var columnName = "TimeStamp";
                 var addTimeStampSql =
-                    $"alter table {tableName.FullyQualifiedName} add [{columnName}] {SqlColumnHelper.GetColumnType(VocabularyKeyDataType.DateTime, columnName)}";
+                    $"alter table {tableName.FullyQualifiedName} add [{columnName}] {SqlColumnHelper.GetColumnType(VocabularyKeyDataType.DateTime, columnName, defaultMaxSize)}";
                 await client.ExecuteCommandInTransactionAsync(transaction, addTimeStampSql);
             }
         }

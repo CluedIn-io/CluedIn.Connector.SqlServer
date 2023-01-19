@@ -34,6 +34,8 @@ namespace CluedIn.Connector.SqlServer.Connector
         private readonly bool _bulkSupported;
         private readonly bool _syncEdgesTable;
 
+        public static string DefaultSizeForFieldConfigurationKey = "SqlConnector.DefaultSizeForField";
+
         private readonly IList<(string[] columns, bool isUnique)> _syncStreamIndexFields = new List<(string[], bool)>
         {
             (new[] {"Id"}, true),
