@@ -22,7 +22,7 @@ using System.Threading.Tasks;
 
 namespace CluedIn.Connector.SqlServer.Connector
 {
-    public class SqlServerConnector : SqlConnectorBase<SqlTransaction, SqlParameter>, IConnectorStreamModeSupport, IConnectorUpgrade
+    public class SqlServerConnector : SqlConnectorBase<SqlConnection, SqlTransaction, SqlParameter>, IConnectorStreamModeSupport, IConnectorUpgrade
     {
         private const string TimestampFieldName = "TimeStamp";
         private const string ChangeTypeFieldName = "ChangeType";
@@ -101,7 +101,8 @@ namespace CluedIn.Connector.SqlServer.Connector
             await ExecuteWithRetryAsync(async () =>
             {
                 var config = await base.GetAuthenticationDetails(executionContext, providerDefinitionId);
-                await using var transaction = await _client.BeginTransaction(config.Authentication);
+                await using var connectionAndTransaction = await _client.BeginTransaction(config.Authentication);
+                var transaction = connectionAndTransaction.Transaction;
 
                 try
                 {
@@ -197,8 +198,10 @@ namespace CluedIn.Connector.SqlServer.Connector
             await ExecuteWithRetryAsync(async () =>
             {
                 var config = await base.GetAuthenticationDetails(executionContext, providerDefinitionId);
-                await using (var transaction = await _client.BeginTransaction(config.Authentication))
+                await using (var connectionAndTransaction = await _client.BeginTransaction(config.Authentication))
                 {
+                    var transaction = connectionAndTransaction.Transaction;
+
                     var edgeTableName = SqlTableName.FromUnsafeName(GetEdgesContainerName(containerName), config);
 
                     var command = BuildEdgeStoreDataCommand(edgeTableName, originEntityCode, correlationId, edges, transaction);
@@ -213,7 +216,8 @@ namespace CluedIn.Connector.SqlServer.Connector
             await ExecuteWithRetryAsync(async () =>
             {
                 var config = await base.GetAuthenticationDetails(executionContext, stream.ConnectorProviderDefinitionId.Value);
-                var transaction = await _client.BeginTransaction(config.Authentication);
+                await using var connectionAndTransaction = await _client.BeginTransaction(config.Authentication);
+                var transaction = connectionAndTransaction.Transaction;
 
                 if (stream.ConnectorProviderDefinitionId.HasValue && stream.Mode is StreamMode.Sync)
                 {
@@ -273,7 +277,8 @@ namespace CluedIn.Connector.SqlServer.Connector
             {
                 var config = await base.GetAuthenticationDetails(executionContext, providerDefinitionId);
                 var schema = config.GetSchema();
-                var transaction = await _client.BeginTransaction(config.Authentication);
+                await using var connectionAndTransaction = await _client.BeginTransaction(config.Authentication);
+                var transaction = connectionAndTransaction.Transaction;
 
                 async Task CreateTable(SqlTableName tableName, IEnumerable<ConnectionDataType> columns, IEnumerable<(string[] columns, bool isUnique)> indexKeys, string context)
                 {
@@ -368,7 +373,8 @@ namespace CluedIn.Connector.SqlServer.Connector
             {
                 var config = await base.GetAuthenticationDetails(executionContext, providerDefinitionId);
                 var schema = config.GetSchema();
-                var transaction = await _client.BeginTransaction(config.Authentication);
+                await using var connectionAndTransaction = await _client.BeginTransaction(config.Authentication);
+                var transaction = connectionAndTransaction.Transaction;
 
                 async Task EmptyTable(SqlTableName tableName, string context)
                 {
@@ -410,7 +416,8 @@ namespace CluedIn.Connector.SqlServer.Connector
             {
                 var config = await base.GetAuthenticationDetails(executionContext, providerDefinitionId);
                 var schema = config.GetSchema();
-                var transaction = await _client.BeginTransaction(config.Authentication);
+                await using var connectionAndTransaction = await _client.BeginTransaction(config.Authentication);
+                var transaction = connectionAndTransaction.Transaction;
 
                 async Task ArchiveTable(SqlTableName tableName, string context)
                 {
@@ -450,7 +457,8 @@ namespace CluedIn.Connector.SqlServer.Connector
             {
                 var config = await base.GetAuthenticationDetails(executionContext, providerDefinitionId);
                 var schema = config.GetSchema();
-                var transaction = await _client.BeginTransaction(config.Authentication);
+                await using var connectionAndTransaction = await _client.BeginTransaction(config.Authentication);
+                var transaction = connectionAndTransaction.Transaction;
 
                 async Task RenameTable(SqlTableName currentTableName, string updatedName, string context)
                 {
@@ -512,7 +520,8 @@ namespace CluedIn.Connector.SqlServer.Connector
             {
                 var config = await base.GetAuthenticationDetails(executionContext, providerDefinitionId);
                 var schema = config.GetSchema();
-                var transaction = await _client.BeginTransaction(config.Authentication);
+                await using var connectionAndTransaction = await _client.BeginTransaction(config.Authentication);
+                var transaction = connectionAndTransaction.Transaction;
 
                 async Task RemoveTable(SqlTableName tableName, string context)
                 {
@@ -554,7 +563,8 @@ namespace CluedIn.Connector.SqlServer.Connector
         public override async Task<IEnumerable<IConnectorContainer>> GetContainers(ExecutionContext executionContext, Guid providerDefinitionId)
         {
             var config = await base.GetAuthenticationDetails(executionContext, providerDefinitionId);
-            var transaction = await _client.BeginTransaction(config.Authentication);
+            await using var connectionAndTransaction = await _client.BeginTransaction(config.Authentication);
+            var transaction = connectionAndTransaction.Transaction;
 
             try
             {
@@ -578,7 +588,8 @@ namespace CluedIn.Connector.SqlServer.Connector
         public override async Task<IEnumerable<IConnectionDataType>> GetDataTypes(ExecutionContext executionContext, Guid providerDefinitionId, string containerId)
         {
             var config = await base.GetAuthenticationDetails(executionContext, providerDefinitionId);
-            var transaction = await _client.BeginTransaction(config.Authentication);
+            await using var connectionAndTransaction = await _client.BeginTransaction(config.Authentication);
+            var transaction = connectionAndTransaction.Transaction;
 
             try
             {
@@ -612,7 +623,8 @@ namespace CluedIn.Connector.SqlServer.Connector
             await ExecuteWithRetryAsync(async () =>
             {
                 var config = await base.GetAuthenticationDetails(executionContext, providerDefinitionId);
-                var transaction = await _client.BeginTransaction(config.Authentication);
+                await using var connectionAndTransaction = await _client.BeginTransaction(config.Authentication);
+                var transaction = connectionAndTransaction.Transaction;
                 var schema = config.GetSchema();
 
                 try
