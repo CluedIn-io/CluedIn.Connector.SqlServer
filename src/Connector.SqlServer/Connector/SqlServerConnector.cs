@@ -184,7 +184,7 @@ namespace CluedIn.Connector.SqlServer.Connector
                     var message = $"Could not store data into Container '{containerName}' for Connector {providerDefinitionId}";
                     _logger.LogError(e, message);
                     await transaction.RollbackAsync();
-                    throw new StoreDataException(message);
+                    throw new StoreDataException(message, e);
                 }
 
                 await transaction.CommitAsync();
@@ -307,10 +307,9 @@ namespace CluedIn.Connector.SqlServer.Connector
                     }
                     catch (Exception e)
                     {
-                        var message =
-                            $"Could not create Container {tableName.FullyQualifiedName} for Connector {providerDefinitionId}";
+                        var message = $"Could not create Container {tableName.FullyQualifiedName} for Connector {providerDefinitionId}";
                         _logger.LogError(e, message);
-                        throw new CreateContainerException(message);
+                        throw new CreateContainerException(message, e);
                     }
                 }
 
@@ -389,7 +388,7 @@ namespace CluedIn.Connector.SqlServer.Connector
                     {
                         var message = $"Could not empty Container {tableName.FullyQualifiedName}";
                         _logger.LogError(e, message);
-                        throw new CreateContainerException(message);
+                        throw new CreateContainerException(message, e);
                     }
                 }
 
@@ -434,7 +433,7 @@ namespace CluedIn.Connector.SqlServer.Connector
                     {
                         var message = $"Could not Archive Container {tableName.FullyQualifiedName} for Connector {providerDefinitionId}";
                         _logger.LogError(e, message);
-                        throw new CreateContainerException(message);
+                        throw new CreateContainerException(message, e);
                     }
                 }
 
@@ -474,7 +473,7 @@ namespace CluedIn.Connector.SqlServer.Connector
                     {
                         var message = $"Could not Rename Container {currentTableName.FullyQualifiedName} for Connector {providerDefinitionId}";
                         _logger.LogError(e, message);
-                        throw new CreateContainerException(message);
+                        throw new CreateContainerException(message, e);
                     }
                 }
 
@@ -536,10 +535,9 @@ namespace CluedIn.Connector.SqlServer.Connector
                     }
                     catch (Exception e)
                     {
-                        var message =
-                            $"Could not Remove Container {tableName.FullyQualifiedName} for Connector {providerDefinitionId}";
+                        var message = $"Could not Remove Container {tableName.FullyQualifiedName} for Connector {providerDefinitionId}";
                         _logger.LogError(e, message);
-                        throw new CreateContainerException(message);
+                        throw new CreateContainerException(message, e);
                     }
                 }
 
@@ -581,7 +579,7 @@ namespace CluedIn.Connector.SqlServer.Connector
             {
                 var message = $"Could not get Containers for Connector {providerDefinitionId}";
                 _logger.LogError(e, message);
-                throw new GetContainersException(message);
+                throw new GetContainersException(message, e);
             }
         }
 
@@ -605,10 +603,9 @@ namespace CluedIn.Connector.SqlServer.Connector
             }
             catch (Exception e)
             {
-                var message =
-                    $"Could not get Data types for Container '{containerId}' for Connector {providerDefinitionId}";
+                var message = $"Could not get Data types for Container '{containerId}' for Connector {providerDefinitionId}";
                 _logger.LogError(e, message);
-                throw new GetDataTypesException(message);
+                throw new GetDataTypesException(message, e);
             }
         }
 
@@ -697,7 +694,7 @@ namespace CluedIn.Connector.SqlServer.Connector
                     var message = $"Could not delete data from Container '{containerName}' for Connector {providerDefinitionId}";
                     _logger.LogError(e, message);
                     transaction.Rollback();
-                    throw new StoreDataException(message);
+                    throw new StoreDataException(message, e);
                 }
 
                 await transaction.CommitAsync();
