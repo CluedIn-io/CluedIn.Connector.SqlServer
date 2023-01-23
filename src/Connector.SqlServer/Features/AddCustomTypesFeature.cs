@@ -10,7 +10,7 @@ BEGIN
   CREATE TYPE CodeTableType AS TABLE( Code nvarchar(1024));
 END
 
-GRANT EXEC ON CodeTableType TO PUBLIC
+GRANT EXEC ON TYPE::CodeTableType TO PUBLIC
 ";
         }
     }
