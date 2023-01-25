@@ -316,7 +316,8 @@ namespace CluedIn.Connector.SqlServer.Connector
                 var container = new Container(model.Name, StreamMode);
                 var codesTable = container.Tables["Codes"];
 
-                var connectionDataTypes = model.DataTypes;
+                // We need to copy the datatypes, otherwise we're adding to the model, which will cause problems if we have a timeout
+                var connectionDataTypes = model.DataTypes.ToList();
                 if (StreamMode == StreamMode.EventStream)
                 {
                     connectionDataTypes.Add(new ConnectionDataType
