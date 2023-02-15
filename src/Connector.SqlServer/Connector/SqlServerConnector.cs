@@ -22,7 +22,7 @@ using System.Threading.Tasks;
 
 namespace CluedIn.Connector.SqlServer.Connector
 {
-    public class SqlServerConnector : SqlConnectorBase<SqlTransaction, SqlParameter>, IConnectorStreamModeSupport, IConnectorUpgrade
+    public class SqlServerConnector : SqlConnectorBase<SqlConnection, SqlTransaction, SqlParameter>, IConnectorStreamModeSupport, IConnectorUpgrade
     {
         private const string TimestampFieldName = "TimeStamp";
         private const string ChangeTypeFieldName = "ChangeType";
@@ -33,6 +33,8 @@ namespace CluedIn.Connector.SqlServer.Connector
         private readonly int _bulkInsertThreshold;
         private readonly bool _bulkSupported;
         private readonly bool _syncEdgesTable;
+
+        public static string DefaultSizeForFieldConfigurationKey = "SqlConnector.DefaultSizeForField";
 
         private readonly IList<(string[] columns, bool isUnique)> _syncStreamIndexFields = new List<(string[], bool)>
         {
@@ -99,7 +101,8 @@ namespace CluedIn.Connector.SqlServer.Connector
             await ExecuteWithRetryAsync(async () =>
             {
                 var config = await base.GetAuthenticationDetails(executionContext, providerDefinitionId);
-                await using var transaction = await _client.BeginTransaction(config.Authentication);
+                await using var connectionAndTransaction = await _client.BeginTransaction(config.Authentication);
+                var transaction = connectionAndTransaction.Transaction;
 
                 try
                 {
@@ -181,7 +184,7 @@ namespace CluedIn.Connector.SqlServer.Connector
                     var message = $"Could not store data into Container '{containerName}' for Connector {providerDefinitionId}";
                     _logger.LogError(e, message);
                     await transaction.RollbackAsync();
-                    throw new StoreDataException(message);
+                    throw new StoreDataException(message, e);
                 }
 
                 await transaction.CommitAsync();
@@ -195,8 +198,10 @@ namespace CluedIn.Connector.SqlServer.Connector
             await ExecuteWithRetryAsync(async () =>
             {
                 var config = await base.GetAuthenticationDetails(executionContext, providerDefinitionId);
-                await using (var transaction = await _client.BeginTransaction(config.Authentication))
+                await using (var connectionAndTransaction = await _client.BeginTransaction(config.Authentication))
                 {
+                    var transaction = connectionAndTransaction.Transaction;
+
                     var edgeTableName = SqlTableName.FromUnsafeName(GetEdgesContainerName(containerName), config);
 
                     var command = BuildEdgeStoreDataCommand(edgeTableName, originEntityCode, correlationId, edges, transaction);
@@ -211,7 +216,8 @@ namespace CluedIn.Connector.SqlServer.Connector
             await ExecuteWithRetryAsync(async () =>
             {
                 var config = await base.GetAuthenticationDetails(executionContext, stream.ConnectorProviderDefinitionId.Value);
-                var transaction = await _client.BeginTransaction(config.Authentication);
+                await using var connectionAndTransaction = await _client.BeginTransaction(config.Authentication);
+                var transaction = connectionAndTransaction.Transaction;
 
                 if (stream.ConnectorProviderDefinitionId.HasValue && stream.Mode is StreamMode.Sync)
                 {
@@ -231,16 +237,16 @@ namespace CluedIn.Connector.SqlServer.Connector
                     var upgrade = _features.GetFeature<IUpgradeTimeStampingFeature>();
                     await upgrade.VerifyTimeStampColumnExist(_client, config, transaction, stream);
 
-                    var addCodeTableTypeSql = @"
-IF Type_ID(N'CodeTableType') IS NULL
-BEGIN
-  CREATE TYPE CodeTableType AS TABLE( Code nvarchar(1024));
-END
-";
-                    var addCodeTableTypeSqlCommand = transaction.Connection.CreateCommand();
-                    addCodeTableTypeSqlCommand.CommandText = addCodeTableTypeSql;
-                    addCodeTableTypeSqlCommand.Transaction = transaction;
-                    await addCodeTableTypeSqlCommand.ExecuteNonQueryAsync();
+                    // Upsert custom type
+                    {
+                        var addCustomTypesFeature = _features.GetFeature<IAddCustomTypesFeature>();
+                        var addCodeTableTypeText = addCustomTypesFeature.GetCreateCustomTypesCommandText();
+
+                        var addCodeTableTypeSqlCommand = transaction.Connection.CreateCommand();
+                        addCodeTableTypeSqlCommand.CommandText = addCodeTableTypeText;
+                        addCodeTableTypeSqlCommand.Transaction = transaction;
+                        await addCodeTableTypeSqlCommand.ExecuteNonQueryAsync();
+                    }
 
                     var indexFieldsToUse = StreamMode == StreamMode.EventStream
                         ? _eventStreamIndexFields
@@ -271,7 +277,8 @@ END
             {
                 var config = await base.GetAuthenticationDetails(executionContext, providerDefinitionId);
                 var schema = config.GetSchema();
-                var transaction = await _client.BeginTransaction(config.Authentication);
+                await using var connectionAndTransaction = await _client.BeginTransaction(config.Authentication);
+                var transaction = connectionAndTransaction.Transaction;
 
                 async Task CreateTable(SqlTableName tableName, IEnumerable<ConnectionDataType> columns, IEnumerable<(string[] columns, bool isUnique)> indexKeys, string context)
                 {
@@ -287,6 +294,10 @@ END
 
                         commands.Add(new SqlServerConnectorCommand() { Text = indexCommandText });
 
+                        var addCustomTypesFeature = _features.GetFeature<IAddCustomTypesFeature>();
+                        var addCodeTableTypeText = addCustomTypesFeature.GetCreateCustomTypesCommandText();
+                        commands.Add(new SqlServerConnectorCommand() { Text = addCodeTableTypeText });
+
                         foreach (var command in commands)
                         {
                             _logger.LogDebug("Sql Server Connector - Create Container[{Context}] - Generated query: {sql}", context, command.Text);
@@ -296,17 +307,17 @@ END
                     }
                     catch (Exception e)
                     {
-                        var message =
-                            $"Could not create Container {tableName.FullyQualifiedName} for Connector {providerDefinitionId}";
+                        var message = $"Could not create Container {tableName.FullyQualifiedName} for Connector {providerDefinitionId}";
                         _logger.LogError(e, message);
-                        throw new CreateContainerException(message);
+                        throw new CreateContainerException(message, e);
                     }
                 }
 
                 var container = new Container(model.Name, StreamMode);
                 var codesTable = container.Tables["Codes"];
 
-                var connectionDataTypes = model.DataTypes;
+                // We need to copy the datatypes, otherwise we're adding to the model, which will cause problems if we have a timeout
+                var connectionDataTypes = model.DataTypes.ToList();
                 if (StreamMode == StreamMode.EventStream)
                 {
                     connectionDataTypes.Add(new ConnectionDataType
@@ -362,7 +373,8 @@ END
             {
                 var config = await base.GetAuthenticationDetails(executionContext, providerDefinitionId);
                 var schema = config.GetSchema();
-                var transaction = await _client.BeginTransaction(config.Authentication);
+                await using var connectionAndTransaction = await _client.BeginTransaction(config.Authentication);
+                var transaction = connectionAndTransaction.Transaction;
 
                 async Task EmptyTable(SqlTableName tableName, string context)
                 {
@@ -377,7 +389,7 @@ END
                     {
                         var message = $"Could not empty Container {tableName.FullyQualifiedName}";
                         _logger.LogError(e, message);
-                        throw new CreateContainerException(message);
+                        throw new CreateContainerException(message, e);
                     }
                 }
 
@@ -404,7 +416,8 @@ END
             {
                 var config = await base.GetAuthenticationDetails(executionContext, providerDefinitionId);
                 var schema = config.GetSchema();
-                var transaction = await _client.BeginTransaction(config.Authentication);
+                await using var connectionAndTransaction = await _client.BeginTransaction(config.Authentication);
+                var transaction = connectionAndTransaction.Transaction;
 
                 async Task ArchiveTable(SqlTableName tableName, string context)
                 {
@@ -421,7 +434,7 @@ END
                     {
                         var message = $"Could not Archive Container {tableName.FullyQualifiedName} for Connector {providerDefinitionId}";
                         _logger.LogError(e, message);
-                        throw new CreateContainerException(message);
+                        throw new CreateContainerException(message, e);
                     }
                 }
 
@@ -444,7 +457,8 @@ END
             {
                 var config = await base.GetAuthenticationDetails(executionContext, providerDefinitionId);
                 var schema = config.GetSchema();
-                var transaction = await _client.BeginTransaction(config.Authentication);
+                await using var connectionAndTransaction = await _client.BeginTransaction(config.Authentication);
+                var transaction = connectionAndTransaction.Transaction;
 
                 async Task RenameTable(SqlTableName currentTableName, string updatedName, string context)
                 {
@@ -460,7 +474,7 @@ END
                     {
                         var message = $"Could not Rename Container {currentTableName.FullyQualifiedName} for Connector {providerDefinitionId}";
                         _logger.LogError(e, message);
-                        throw new CreateContainerException(message);
+                        throw new CreateContainerException(message, e);
                     }
                 }
 
@@ -506,7 +520,8 @@ END
             {
                 var config = await base.GetAuthenticationDetails(executionContext, providerDefinitionId);
                 var schema = config.GetSchema();
-                var transaction = await _client.BeginTransaction(config.Authentication);
+                await using var connectionAndTransaction = await _client.BeginTransaction(config.Authentication);
+                var transaction = connectionAndTransaction.Transaction;
 
                 async Task RemoveTable(SqlTableName tableName, string context)
                 {
@@ -521,10 +536,9 @@ END
                     }
                     catch (Exception e)
                     {
-                        var message =
-                            $"Could not Remove Container {tableName.FullyQualifiedName} for Connector {providerDefinitionId}";
+                        var message = $"Could not Remove Container {tableName.FullyQualifiedName} for Connector {providerDefinitionId}";
                         _logger.LogError(e, message);
-                        throw new CreateContainerException(message);
+                        throw new CreateContainerException(message, e);
                     }
                 }
 
@@ -548,7 +562,8 @@ END
         public override async Task<IEnumerable<IConnectorContainer>> GetContainers(ExecutionContext executionContext, Guid providerDefinitionId)
         {
             var config = await base.GetAuthenticationDetails(executionContext, providerDefinitionId);
-            var transaction = await _client.BeginTransaction(config.Authentication);
+            await using var connectionAndTransaction = await _client.BeginTransaction(config.Authentication);
+            var transaction = connectionAndTransaction.Transaction;
 
             try
             {
@@ -565,14 +580,15 @@ END
             {
                 var message = $"Could not get Containers for Connector {providerDefinitionId}";
                 _logger.LogError(e, message);
-                throw new GetContainersException(message);
+                throw new GetContainersException(message, e);
             }
         }
 
         public override async Task<IEnumerable<IConnectionDataType>> GetDataTypes(ExecutionContext executionContext, Guid providerDefinitionId, string containerId)
         {
             var config = await base.GetAuthenticationDetails(executionContext, providerDefinitionId);
-            var transaction = await _client.BeginTransaction(config.Authentication);
+            await using var connectionAndTransaction = await _client.BeginTransaction(config.Authentication);
+            var transaction = connectionAndTransaction.Transaction;
 
             try
             {
@@ -588,10 +604,9 @@ END
             }
             catch (Exception e)
             {
-                var message =
-                    $"Could not get Data types for Container '{containerId}' for Connector {providerDefinitionId}";
+                var message = $"Could not get Data types for Container '{containerId}' for Connector {providerDefinitionId}";
                 _logger.LogError(e, message);
-                throw new GetDataTypesException(message);
+                throw new GetDataTypesException(message, e);
             }
         }
 
@@ -606,7 +621,8 @@ END
             await ExecuteWithRetryAsync(async () =>
             {
                 var config = await base.GetAuthenticationDetails(executionContext, providerDefinitionId);
-                var transaction = await _client.BeginTransaction(config.Authentication);
+                await using var connectionAndTransaction = await _client.BeginTransaction(config.Authentication);
+                var transaction = connectionAndTransaction.Transaction;
                 var schema = config.GetSchema();
 
                 try
@@ -679,7 +695,7 @@ END
                     var message = $"Could not delete data from Container '{containerName}' for Connector {providerDefinitionId}";
                     _logger.LogError(e, message);
                     transaction.Rollback();
-                    throw new StoreDataException(message);
+                    throw new StoreDataException(message, e);
                 }
 
                 await transaction.CommitAsync();
