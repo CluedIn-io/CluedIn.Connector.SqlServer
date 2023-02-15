@@ -1,11 +1,14 @@
 ﻿using CluedIn.Connector.Common.Helpers;
 using CluedIn.Connector.SqlServer.Connector;
+using CluedIn.Connector.SqlServer.Utils;
 using CluedIn.Core;
+using CluedIn.Core.Configuration;
 using CluedIn.Core.Connectors;
 using CluedIn.Core.Data.Vocabularies;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
+using System.Configuration;
 using System.Linq;
 using System.Text;
 
@@ -13,10 +16,11 @@ namespace CluedIn.Connector.SqlServer.Features
 {
     public class DefaultBuildCreateContainerFeature : IBuildCreateContainerFeature
     {
+        /// TODO LDM: Looks like IEnumerable is not needed, returns single object. Also class could be sealed? 
         public virtual IEnumerable<SqlServerConnectorCommand> BuildCreateContainerSql(
             ExecutionContext executionContext,
             Guid providerDefinitionId,
-            string name,
+            SqlTableName tableName,
             IEnumerable<ConnectionDataType> columns,
             IEnumerable<string> keys,
             ILogger logger)
@@ -26,8 +30,7 @@ namespace CluedIn.Connector.SqlServer.Features
             if (executionContext == null)
                 throw new ArgumentNullException(nameof(executionContext));
 
-            if (string.IsNullOrWhiteSpace(name))
-                throw new InvalidOperationException("The name must be provided.");
+            var defaultMaxSize = ConfigurationManagerEx.AppSettings.GetValue(SqlServerConnector.DefaultSizeForFieldConfigurationKey, "max");
 
             var enumeratedColumns = columns as ConnectionDataType[] ?? columns?.ToArray();
             if (columns == null || !enumeratedColumns.Any())
@@ -40,18 +43,17 @@ namespace CluedIn.Connector.SqlServer.Features
             var trimmedColumns = enumeratedColumns.Where(x => x.Name != "Codes");
 
             var builder = new StringBuilder();
-            var sanitizedName = SqlStringSanitizer.Sanitize(name);
-            builder.AppendLine($"CREATE TABLE [{sanitizedName}](");
+            builder.AppendLine($"CREATE TABLE {tableName.FullyQualifiedName}(");
             builder.AppendJoin(", ",
-                trimmedColumns.Select(c => $"[{SqlStringSanitizer.Sanitize(c.Name)}] {GetDbType(c.Type, c.Name)} NULL"));
+                trimmedColumns.Select(c => $"[{c.Name.ToSanitizedSqlName()}] {GetDbType(c.Type, c.Name, defaultMaxSize)} NULL"));
             builder.AppendLine(") ON[PRIMARY]");
 
             return new[] { new SqlServerConnectorCommand { Text = builder.ToString() } };
         }
 
-        protected virtual string GetDbType(VocabularyKeyDataType type, string columnName)
+        protected virtual string GetDbType(VocabularyKeyDataType type, string columnName, string defaultMaxSize)
         {
-            return SqlColumnHelper.GetColumnType(type, columnName);
+            return SqlColumnHelper.GetColumnType(type, columnName, defaultMaxSize);
         }
     }
 }

@@ -1,34 +1,27 @@
-﻿using CluedIn.Connector.Common.Helpers;
-using CluedIn.Connector.SqlServer.Connector;
-using CluedIn.Core;
-using Microsoft.Extensions.Logging;
-using System;
+﻿using CluedIn.Connector.SqlServer.Connector;
+using CluedIn.Connector.SqlServer.Utils;
 using System.Collections.Generic;
 
 namespace CluedIn.Connector.SqlServer.Features
 {
-    public class DefaultBuildCreateIndexFeature : IBuildCreateIndexFeature
+    public sealed class DefaultBuildCreateIndexFeature : IBuildCreateIndexFeature
     {
-        public virtual IEnumerable<SqlServerConnectorCommand> BuildCreateIndexSql(
-            ExecutionContext executionContext,
-            Guid providerDefinitionId,
-            string containerName,
-            IEnumerable<string> keys,
-            ILogger logger)
+        public SqlServerConnectorCommand BuildCreateIndexSql(SqlTableName tableName, IEnumerable<string> keys, bool useUniqueIndex)
         {
-            if (executionContext == null)
-                throw new ArgumentNullException(nameof(executionContext));
+            var commandText = GetCreateIndexCommandText(tableName, keys, useUniqueIndex);
+            return new SqlServerConnectorCommand { Text = commandText };
+        }
 
-            if (string.IsNullOrWhiteSpace(containerName))
-                throw new InvalidOperationException("The Container Name must be provided.");
+        public string GetCreateIndexCommandText(SqlTableName tableName, IEnumerable<string> keys, bool useUniqueIndex)
+        {
+            var concatenatedKeys = string.Join('_', keys);
+            var indexName = $"IX_{tableName.LocalName}_{concatenatedKeys}";
+            return $"CREATE {(useUniqueIndex ? "UNIQUE" : string.Empty)} INDEX [{indexName}] ON {tableName.FullyQualifiedName}({string.Join(", ", keys)}); ";
+        }
 
-            if (logger == null)
-                throw new ArgumentNullException(nameof(logger));
-
-            var sanitizedName = SqlStringSanitizer.Sanitize(containerName);
-            var createIndexCommandText = $"CREATE INDEX [idx_{sanitizedName}] ON [{sanitizedName}]({string.Join(", ", keys)}); ";
-
-            return new[] { new SqlServerConnectorCommand { Text = createIndexCommandText } };
+        public string GetIndexName(SqlTableName tableName)
+        {
+            return $"idx_{tableName.Schema}_{tableName.LocalName}";
         }
     }
 }

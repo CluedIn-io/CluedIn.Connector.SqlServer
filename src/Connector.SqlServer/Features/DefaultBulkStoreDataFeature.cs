@@ -1,5 +1,6 @@
 ﻿using CluedIn.Connector.Common.Helpers;
 using CluedIn.Connector.SqlServer.Connector;
+using CluedIn.Connector.SqlServer.Utils;
 using CluedIn.Core;
 using CluedIn.Core.Connectors;
 using Microsoft.Extensions.Logging;
@@ -16,66 +17,65 @@ namespace CluedIn.Connector.SqlServer.Features
         public virtual async Task BulkTableUpdate(
             ExecutionContext executionContext,
             Guid providerDefinitionId,
-            string containerName,
+            SqlTableName tableName,
             IDictionary<string, object> data,
             int threshold,
             IBulkSqlClient client,
-            Func<Task<IConnectorConnection>> connectionFactory,
+            IConnectorConnection config,
             ILogger logger)
         {
-            var table = GetDataTable(executionContext, containerName, data);
+            var table = GetDataTable(executionContext, tableName, data);
             CacheDataTableRow(data, table);
 
             if (table.Rows.Count >= threshold)
-                await FlushTable(executionContext, connectionFactory, client, containerName, table, logger);
+                await FlushTable(executionContext, config, client, tableName, table, logger);
         }
 
         private static void CacheDataTableRow(IDictionary<string, object> data, DataTable table)
         {
             var row = table.NewRow();
             foreach (var item in data)
-                row[SqlStringSanitizer.Sanitize(item.Key)] = item.Value;
+                row[item.Key.ToSanitizedSqlName()] = item.Value;
 
             table.Rows.Add(row);
         }
 
         private async Task FlushTable(
             ExecutionContext executionContext,
-            Func<Task<IConnectorConnection>> connectionFactory,
+            IConnectorConnection config,
             IBulkSqlClient client,
-            string containerName,
+            SqlTableName tableName,
             DataTable table,
             ILogger logger)
         {
-            var dataTableCacheName = GetDataTableCacheName(containerName);
+            var dataTableCacheName = GetDataTableCacheName(tableName);
             executionContext.ApplicationContext.System.Cache.RemoveItem(dataTableCacheName);
-
-            var connection = await connectionFactory();
 
             var sw = new Stopwatch();
             sw.Start();
-            await client.ExecuteBulkAsync(connection, table, containerName);
+            await client.ExecuteBulkAsync(config, table, tableName);
             logger.LogDebug($"Stream StoreData BulkInsert {table.Rows.Count} rows - {sw.ElapsedMilliseconds}ms");
         }
 
-        private DataTable GetDataTable(ExecutionContext executionContext, string containerName,
-            IDictionary<string, object> data)
+        private DataTable GetDataTable(ExecutionContext executionContext, SqlTableName tableName, IDictionary<string, object> data)
         {
-            var dataTableCacheName = GetDataTableCacheName(containerName);
+            var dataTableCacheName = GetDataTableCacheName(tableName);
 
             return executionContext.ApplicationContext.System.Cache.GetItem(dataTableCacheName, () =>
             {
-                var table = new DataTable(containerName);
+                var table = new DataTable(tableName.FullyQualifiedName);
                 foreach (var col in data)
-                    table.Columns.Add(SqlStringSanitizer.Sanitize(col.Key), typeof(string));
+                {
+                    table.Columns.Add(col.Key.ToSanitizedSqlName(), typeof(string));
+                }
 
                 return table;
             });
         }
 
-        private static string GetDataTableCacheName(string containerName)
+        private static string GetDataTableCacheName(SqlTableName tableName)
         {
-            return $"Stream_cache_{SqlStringSanitizer.Sanitize(containerName)}";
+            return $"Stream_cache_{tableName.Schema}_{tableName.LocalName}";
         }
     }
 }

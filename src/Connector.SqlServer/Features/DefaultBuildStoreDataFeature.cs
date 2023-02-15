@@ -1,5 +1,6 @@
 ﻿using CluedIn.Connector.Common.Helpers;
 using CluedIn.Connector.SqlServer.Connector;
+using CluedIn.Connector.SqlServer.Utils;
 using CluedIn.Core;
 using CluedIn.Core.Data.Parts;
 using CluedIn.Core.Streams.Models;
@@ -16,19 +17,19 @@ namespace CluedIn.Connector.SqlServer.Features
     public class DefaultBuildStoreDataFeature : IBuildStoreDataFeature, IBuildStoreDataForMode
     {
         public IEnumerable<SqlServerConnectorCommand> BuildStoreDataSql(ExecutionContext executionContext,
-            Guid providerDefinitionId, string containerName, IDictionary<string, object> data, IList<string> keys,
+            Guid providerDefinitionId, SqlTableName tableName, IDictionary<string, object> data, IList<string> uniqueColumns,
             ILogger logger)
         {
-            return BuildStoreDataSql(executionContext, providerDefinitionId, containerName, data, keys, StreamMode.Sync,
+            return BuildStoreDataSql(executionContext, providerDefinitionId, tableName, data, uniqueColumns, StreamMode.Sync,
                 null, DateTimeOffset.Now, VersionChangeType.NotSet, logger);
         }
 
         public virtual IEnumerable<SqlServerConnectorCommand> BuildStoreDataSql(
             ExecutionContext executionContext,
             Guid providerDefinitionId,
-            string containerName,
+            SqlTableName tableName,
             IDictionary<string, object> data,
-            IList<string> keys,
+            IList<string> uniqueColumns,
             StreamMode mode,
             string correlationId,
             DateTimeOffset timestamp,
@@ -38,31 +39,26 @@ namespace CluedIn.Connector.SqlServer.Features
             if (executionContext == null)
                 throw new ArgumentNullException(nameof(executionContext));
 
-            if (string.IsNullOrWhiteSpace(containerName))
-                throw new InvalidOperationException("The containerName must be provided.");
-
             if (data == null || data.Count == 0)
                 throw new InvalidOperationException("The data to specify columns must be provided.");
-
-            if (keys == null || !keys.Any())
-                throw new InvalidOperationException("No Key Fields have been specified");
 
             if (logger == null)
                 throw new ArgumentNullException(nameof(logger));
 
+            var schema = tableName.Schema;
+
             //HACK: we need to pull out Codes into a separate table
-            var container = new Container(containerName, mode);
+            var container = new Container(tableName.LocalName, mode);
             if (data.TryGetValue("Codes", out var codes) && codes is IEnumerable codesEnumerable)
             {
                 data.Remove("Codes");
-                keys.Remove("Codes");
 
                 // HACK need a better way to source origin entity code
                 var codesTable = container.Tables["Codes"];
 
                 if (mode == StreamMode.Sync)
                     // need to delete from Codes table
-                    yield return ComposeDelete(codesTable.Name,
+                    yield return ComposeDelete(codesTable.Name.ToTableName(schema),
                         new Dictionary<string, object> { ["OriginEntityCode"] = data["OriginEntityCode"] });
 
                 // need to insert into Codes table
@@ -78,19 +74,19 @@ namespace CluedIn.Connector.SqlServer.Features
                     if (mode == StreamMode.EventStream)
                         dictionary["CorrelationId"] = correlationId;
 
-                    yield return ComposeInsert(codesTable.Name, dictionary);
+                    yield return ComposeInsert(codesTable.Name.ToTableName(schema), dictionary);
                 }
             }
 
             // Primary table
             if (mode == StreamMode.Sync)
-                yield return ComposeUpsert(container.PrimaryTable, data, keys, logger);
+                yield return ComposeUpsert(container.PrimaryTable.ToTableName(schema), data, uniqueColumns, logger);
             else
-                yield return ComposeInsert(container.PrimaryTable, data);
+                yield return ComposeInsert(container.PrimaryTable.ToTableName(schema), data);
         }
 
-        protected virtual SqlServerConnectorCommand ComposeUpsert(string tableName, IDictionary<string, object> data,
-            IList<string> keys, ILogger logger)
+        protected virtual SqlServerConnectorCommand ComposeUpsert(SqlTableName tableName, IDictionary<string, object> data,
+            IList<string> columnsToMergeOn, ILogger logger)
         {
             var builder = new StringBuilder();
             var parameters = new List<SqlParameter>();
@@ -99,7 +95,7 @@ namespace CluedIn.Connector.SqlServer.Features
             var updates = new List<string>();
             foreach (var entry in data)
             {
-                var name = SqlStringSanitizer.Sanitize(entry.Key);
+                var name = entry.Key.ToSanitizedSqlName();
                 var param = new SqlParameter($"@{name}", entry.Value ?? DBNull.Value);
                 try
                 {
@@ -119,10 +115,10 @@ namespace CluedIn.Connector.SqlServer.Features
             }
 
             var fieldsString = string.Join(", ", fields);
-            var mergeOnList = keys.Select(n => $"target.[{n}] = source.[{n}]");
+            var mergeOnList = columnsToMergeOn.Select(n => $"target.[{n}] = source.[{n}]");
             var mergeOn = string.Join(" AND ", mergeOnList);
 
-            builder.AppendLine($"MERGE [{SqlStringSanitizer.Sanitize(tableName)}] AS target");
+            builder.AppendLine($"MERGE {tableName.FullyQualifiedName} AS target");
             builder.AppendLine(
                 $"USING (SELECT {string.Join(", ", parameters.Select(x => x.ParameterName))}) AS source ({fieldsString})");
             builder.AppendLine($"  ON ({mergeOn})");
@@ -135,15 +131,15 @@ namespace CluedIn.Connector.SqlServer.Features
             return new SqlServerConnectorCommand { Text = builder.ToString(), Parameters = parameters };
         }
 
-        protected virtual SqlServerConnectorCommand ComposeDelete(string tableName, IDictionary<string, object> fields)
+        protected virtual SqlServerConnectorCommand ComposeDelete(SqlTableName tableName, IDictionary<string, object> fields)
         {
-            var sqlBuilder = new StringBuilder($"DELETE FROM {SqlStringSanitizer.Sanitize(tableName)} WHERE ");
+            var sqlBuilder = new StringBuilder($"DELETE FROM {tableName.FullyQualifiedName} WHERE ");
             var clauses = new List<string>();
             var parameters = new List<SqlParameter>();
 
             foreach (var entry in fields)
             {
-                var key = SqlStringSanitizer.Sanitize(entry.Key);
+                var key = entry.Key.ToSanitizedSqlName();
                 clauses.Add($"[{key}] = @{key}");
                 parameters.Add(new SqlParameter($"@{key}", entry.Value));
             }
@@ -154,18 +150,19 @@ namespace CluedIn.Connector.SqlServer.Features
             return new SqlServerConnectorCommand { Text = sqlBuilder.ToString(), Parameters = parameters };
         }
 
-        protected virtual SqlServerConnectorCommand ComposeInsert(string tableName, IDictionary<string, object> fields)
+        protected virtual SqlServerConnectorCommand ComposeInsert(SqlTableName tableName, IDictionary<string, object> fields)
         {
             var columns = new List<string>();
             var parameters = new List<SqlParameter>();
 
             foreach (var entry in fields)
             {
-                columns.Add($"[{entry.Key}]");
-                parameters.Add(new SqlParameter($"@{entry.Key}", entry.Value));
+                var key = entry.Key.ToSanitizedSqlName();
+                columns.Add($"[{key}]");
+                parameters.Add(new SqlParameter($"@{key}", entry.Value));
             }
 
-            var sqlBuilder = new StringBuilder($"INSERT INTO [{SqlStringSanitizer.Sanitize(tableName)}] (");
+            var sqlBuilder = new StringBuilder($"INSERT INTO {tableName.FullyQualifiedName} (");
             sqlBuilder.AppendJoin(",", columns);
             sqlBuilder.Append(") values (");
             sqlBuilder.AppendJoin(",", parameters.Select(x => $"{x.ParameterName}"));

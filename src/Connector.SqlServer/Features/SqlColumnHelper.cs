@@ -12,9 +12,10 @@ namespace CluedIn.Connector.SqlServer.Features
             {"codes", "nvarchar(1024)"},
             {"code", "nvarchar(1024)"},  // used in edges table
             {"correlationid", "nvarchar(1024)"}, // used in edges and codes table
+            {"id", "uniqueidentifier" }, // ID of the Entity -- GUID.
         };
 
-        public static string GetColumnType(VocabularyKeyDataType type, string columnName)
+        public static string GetColumnType(VocabularyKeyDataType type, string columnName, string defaultMaxSize)
         {
             var column = columnName.ToLower();
             if (_knownColumnTypes.ContainsKey(column))
@@ -33,7 +34,7 @@ namespace CluedIn.Connector.SqlServer.Features
             //     _ => "nvarchar(max)"
             // };
 
-            return "nvarchar(max)";
+            return $"nvarchar({defaultMaxSize})";
         }
     }
 }

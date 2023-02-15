@@ -8,13 +8,15 @@ namespace CluedIn.Connector.SqlServer.Features
     {
         private readonly ConcurrentDictionary<Type, object> _store = new ConcurrentDictionary<Type, object>
         {
+            [typeof(IAddCustomTypesFeature)] = new AddCustomTypesFeature(),
             [typeof(IBuildStoreDataFeature)] = new DefaultBuildStoreDataFeature(),
             [typeof(IBuildCreateContainerFeature)] = new DefaultBuildCreateContainerFeature(),
             [typeof(IBuildCreateIndexFeature)] = new DefaultBuildCreateIndexFeature(),
             [typeof(IBuildDeleteDataFeature)] = new DefaultBuildDeleteDataFeature(),
             [typeof(IBulkStoreDataFeature)] = new DefaultBulkStoreDataFeature(),
             [typeof(IBulkDeleteDataFeature)] = new DefaultBulkDeleteDataFeature(),
-            [typeof(IUpgradeExistingSchemaFeature)] = new DefaultUpgradeExistingSchemaFeature()
+            [typeof(IUpgradeTimeStampingFeature)] = new DefaultUpgradeTimeStampingFeature(),
+            [typeof(VerifyUniqueIndexFeature)] = new VerifyUniqueIndexFeature()
         };
 
         public T GetFeature<T>()

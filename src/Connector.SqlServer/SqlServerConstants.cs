@@ -1,7 +1,6 @@
 using CluedIn.Core.Providers;
 using System;
 using CluedIn.Connector.Common.Configurations;
-using CluedIn.Core;
 
 namespace CluedIn.Connector.SqlServer
 {
@@ -10,6 +9,7 @@ namespace CluedIn.Connector.SqlServer
         public struct KeyName
         {
             public const string Host = "host";
+            public const string Schema = "schema";
             public const string DatabaseName = "databaseName";
             public const string Username = "username";
             public const string Password = "password";
@@ -63,6 +63,13 @@ namespace CluedIn.Connector.SqlServer
                 {
                     name = KeyName.PortNumber,
                     displayName = CommonConfigurationNames.PortNumber.ToDisplayName(),
+                    type = "input",
+                    isRequired = false
+                },
+                new Control
+                {
+                    name = KeyName.Schema,
+                    displayName = CommonConfigurationNames.Schema.ToDisplayName(),
                     type = "input",
                     isRequired = false
                 }
