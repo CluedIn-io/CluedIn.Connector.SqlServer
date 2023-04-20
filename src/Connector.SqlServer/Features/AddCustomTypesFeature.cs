@@ -8,12 +8,7 @@
 IF Type_ID(N'CodeTableType') IS NULL
 BEGIN
   CREATE TYPE CodeTableType AS TABLE( Code nvarchar(1024));
-END
-
-GRANT EXEC ON TYPE::CodeTableType TO PUBLIC
-GRANT REFERENCES ON TYPE::CodeTableType TO PUBLIC
-GRANT VIEW DEFINITION ON TYPE::CodeTableType TO PUBLIC;
-";
+END";
         }
     }
 }
