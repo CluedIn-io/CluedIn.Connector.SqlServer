@@ -3,6 +3,7 @@ using CluedIn.Connector.SqlServer.Utils;
 using CluedIn.Core.Connectors;
 using FluentAssertions;
 using System;
+using System.Collections.Generic;
 using Xunit;
 
 namespace CluedIn.Connector.SqlServer.Unit.Tests.Utils
@@ -32,7 +33,7 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests.Utils
             string schema)
         {
             // arrange
-            var config = new ConnectorConnectionBase { Authentication = { [SqlServerConstants.KeyName.Schema] = schema } };
+            var config = new ConnectorConnectionBaseV2 { Authentication = new Dictionary<string, object>() { [SqlServerConstants.KeyName.Schema] = schema } };
 
             Action action = () => SqlTableName.FromUnsafeName(tableName, config);
 

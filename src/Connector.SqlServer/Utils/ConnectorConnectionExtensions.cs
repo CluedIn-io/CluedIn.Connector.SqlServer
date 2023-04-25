@@ -7,7 +7,7 @@ namespace CluedIn.Connector.SqlServer.Utils
         /// <summary>
         /// Returns sanitized configured schema or default one if it's not specified by user.
         /// </summary>
-        public static SqlName GetSchema(this IConnectorConnection config)
+        public static SqlName GetSchema(this IConnectorConnectionV2 config)
         {
             if (config.Authentication.TryGetValue(SqlServerConstants.KeyName.Schema, out var value) && value is string schema)
             {

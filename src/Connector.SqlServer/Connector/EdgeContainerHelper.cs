@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
-namespace CluedIn.Connector.SqlServer.Connector
+﻿namespace CluedIn.Connector.SqlServer.Connector
 {
     public static class EdgeContainerHelper
     {

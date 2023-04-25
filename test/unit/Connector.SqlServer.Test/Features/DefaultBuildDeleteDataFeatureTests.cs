@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Linq;
 using AutoFixture.Xunit2;
-using CluedIn.Connector.Common.Helpers;
 using CluedIn.Connector.SqlServer.Features;
 using CluedIn.Connector.SqlServer.Utils;
 using CluedIn.Core.Data;

@@ -1,5 +1,4 @@
-﻿using CluedIn.Connector.Common.Helpers;
-using CluedIn.Connector.SqlServer.Connector;
+﻿using CluedIn.Connector.SqlServer.Connector;
 using CluedIn.Connector.SqlServer.Utils;
 using CluedIn.Core;
 using CluedIn.Core.Data.Parts;

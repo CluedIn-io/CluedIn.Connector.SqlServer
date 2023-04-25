@@ -4,6 +4,7 @@
     <AssemblyName>CluedIn.Connector.SqlServer</AssemblyName>
     <RootNamespace>CluedIn.Connector.SqlServer</RootNamespace>
     <IsCluedInServerComponent>true</IsCluedInServerComponent>
+    <LangVersion>9</LangVersion>
   </PropertyGroup>
   <ItemGroup>
     <None Remove="Resources\microsoft-sql-server-logo.svg" />
@@ -13,6 +14,9 @@
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="CluedIn.Connector.Common" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="Models\" />
   </ItemGroup>
 
   <!-- Disable to above cluedin assets and enable the below for local debugging  -->

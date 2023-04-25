@@ -1,7 +1,6 @@
 ﻿using System.Collections.Generic;
 using CluedIn.Connector.SqlServer.Connector;
 using Xunit;
-using CluedIn.Connector.Common.Configurations;
 
 namespace CluedIn.Connector.SqlServer.Unit.Tests.Connector
 {

@@ -1,15 +1,14 @@
 ﻿using CluedIn.Connector.Common.Clients;
-using CluedIn.Connector.Common.Configurations;
 using Microsoft.Data.SqlClient;
 using System.Collections.Generic;
 
 namespace CluedIn.Connector.SqlServer.Connector
 {
-    public class SqlClient : TransactionalClientBase<SqlConnection, SqlTransaction, SqlParameter>, ISqlClient
+    public class SqlClient : TransactionalClientBaseV2<SqlConnection, SqlTransaction, SqlParameter>, ISqlClient
     {
         private readonly int _defaultPort = 1433;
 
-        public override string BuildConnectionString(IDictionary<string, object> config)
+        public override string BuildConnectionString(IReadOnlyDictionary<string, object> config)
         {
             var connectionStringBuilder = new SqlConnectionStringBuilder
             {

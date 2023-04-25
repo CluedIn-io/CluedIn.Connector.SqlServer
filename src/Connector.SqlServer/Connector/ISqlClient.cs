@@ -3,7 +3,7 @@ using Microsoft.Data.SqlClient;
 
 namespace CluedIn.Connector.SqlServer.Connector
 {
-    public interface ISqlClient : ITransactionalClientBase<SqlConnection, SqlTransaction, SqlParameter>
+    public interface ISqlClient : ITransactionalClientBaseV2<SqlConnection, SqlTransaction, SqlParameter>
     {
     }
 }
