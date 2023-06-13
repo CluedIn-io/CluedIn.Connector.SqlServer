@@ -1,7 +1,7 @@
 ﻿using CluedIn.Core.Connectors;
 using System.Data;
 
-namespace CluedIn.Connector.SqlServer.Features
+namespace CluedIn.Connector.SqlServer.Utils
 {
     public class SqlColumnHelper
     {

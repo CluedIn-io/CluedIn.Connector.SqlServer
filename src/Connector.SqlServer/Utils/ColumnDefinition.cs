@@ -1,8 +1,7 @@
-﻿using CluedIn.Connector.SqlServer.Features;
-using Microsoft.Data.SqlClient.Server;
+﻿using Microsoft.Data.SqlClient.Server;
 using System;
 using System.Data;
-using static CluedIn.Connector.SqlServer.Features.SqlColumnHelper;
+using static CluedIn.Connector.SqlServer.Utils.SqlColumnHelper;
 
 namespace CluedIn.Connector.SqlServer.Utils
 {

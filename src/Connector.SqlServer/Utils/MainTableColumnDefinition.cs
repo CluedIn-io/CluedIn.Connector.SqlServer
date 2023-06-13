@@ -1,5 +1,5 @@
 ﻿using System;
-using static CluedIn.Connector.SqlServer.Features.SqlColumnHelper;
+using static CluedIn.Connector.SqlServer.Utils.SqlColumnHelper;
 
 namespace CluedIn.Connector.SqlServer.Utils
 {

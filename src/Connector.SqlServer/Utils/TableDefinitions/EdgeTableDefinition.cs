@@ -1,5 +1,4 @@
 ﻿using CluedIn.Connector.SqlServer.Connector;
-using CluedIn.Connector.SqlServer.Features;
 using CluedIn.Core.Data;
 using CluedIn.Core.Streams.Models;
 using Microsoft.Data.SqlClient;
