@@ -1,5 +1,6 @@
 ﻿using CluedIn.Connector.SqlServer.Connector;
 using CluedIn.Connector.SqlServer.Features;
+using CluedIn.Core.Data;
 using CluedIn.Core.Streams.Models;
 using Microsoft.Data.SqlClient;
 using Microsoft.Data.SqlClient.Server;
@@ -7,11 +8,34 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace CluedIn.Connector.SqlServer.Utils.TableDefinitions
 {
     internal class EdgeTableDefinition
     {
+        public static Guid GetEdgeId(Guid entityId, EntityEdge edge, EdgeDirection edgeDirection)
+        {
+            var code = GetRelevantReference(edge, edgeDirection).Code.Key;
+            var propertiesConcatenated = string.Join("|", edge.Properties.Select(property => $"{property.Key}{property.Value}"));
+
+            var concatenatedStrings = $"{entityId}{edge.EdgeType}{code}{propertiesConcatenated}";
+            var md5 = MD5.Create();
+            var data = md5.ComputeHash(Encoding.Default.GetBytes(concatenatedStrings));
+            return new Guid(data);
+        }
+
+        private static EntityReference GetRelevantReference(EntityEdge edge, EdgeDirection edgeDirection)
+        {
+            return edgeDirection switch
+            {
+                EdgeDirection.Outgoing => edge.ToReference,
+                EdgeDirection.Incoming => edge.FromReference,
+                _ => throw new ArgumentOutOfRangeException(nameof(edgeDirection), edgeDirection, null)
+            };
+        }
+
         public static ColumnDefinition[] GetColumnDefinitions(StreamMode mode, EdgeDirection direction)
         {
             var codeColumnName = direction == EdgeDirection.Outgoing
@@ -64,7 +88,7 @@ namespace CluedIn.Connector.SqlServer.Utils.TableDefinitions
                             ? edge.ToReference.Code
                             : edge.FromReference.Code;
 
-                        var guid = ColumnDefinitionsUtility.GetEdgeId(connectorEntityData.EntityId, edge, direction);
+                        var guid = GetEdgeId(connectorEntityData.EntityId, edge, direction);
                         var record = new SqlDataRecord(sqlMetaData);
                         record.SetGuid(0, guid);
                         record.SetGuid(1, connectorEntityData.EntityId);
@@ -86,7 +110,7 @@ namespace CluedIn.Connector.SqlServer.Utils.TableDefinitions
                             ? edge.ToReference.Code
                             : edge.FromReference.Code;
 
-                        var guid = ColumnDefinitionsUtility.GetEdgeId(connectorEntityData.EntityId, edge, direction);
+                        var guid = GetEdgeId(connectorEntityData.EntityId, edge, direction);
                         var record = new SqlDataRecord(sqlMetaData);
                         record.SetGuid(0, guid);
                         record.SetGuid(1, connectorEntityData.EntityId);

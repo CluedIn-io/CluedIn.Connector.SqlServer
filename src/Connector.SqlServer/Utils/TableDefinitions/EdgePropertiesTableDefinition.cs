@@ -13,8 +13,6 @@ namespace CluedIn.Connector.SqlServer.Utils.TableDefinitions
 {
     internal static class EdgePropertiesTableDefinition
     {
-        public record PropertySet(SqlParameter[] PrimaryKeysParameters, SqlDataRecord Record);
-
         public static ColumnDefinition[] GetColumnDefinitions(StreamMode mode)
         {
             switch (mode)
@@ -56,7 +54,7 @@ namespace CluedIn.Connector.SqlServer.Utils.TableDefinitions
                             .Select(property =>
                             {
                                 var sqlMetaData = GetColumnDefinitions(mode).Select(column => column.ToSqlMetaData()).ToArray();
-                                var edgeId = ColumnDefinitionsUtility.GetEdgeId(connectorEntityData.EntityId, edge, direction);
+                                var edgeId = EdgeTableDefinition.GetEdgeId(connectorEntityData.EntityId, edge, direction);
 
                                 var record = new SqlDataRecord(sqlMetaData);
                                 record.SetGuid(0, edgeId);
@@ -76,7 +74,7 @@ namespace CluedIn.Connector.SqlServer.Utils.TableDefinitions
                             .Select(property =>
                             {
                                 var sqlMetaData = GetColumnDefinitions(mode).Select(column => column.ToSqlMetaData()).ToArray();
-                                var edgeId = ColumnDefinitionsUtility.GetEdgeId(connectorEntityData.EntityId, edge, direction);
+                                var edgeId = EdgeTableDefinition.GetEdgeId(connectorEntityData.EntityId, edge, direction);
 
                                 var record = new SqlDataRecord(sqlMetaData);
                                 record.SetGuid(0, edgeId);
