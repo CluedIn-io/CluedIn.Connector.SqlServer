@@ -140,6 +140,8 @@ namespace CluedIn.Connector.SqlServer.Connector
 
         private async Task<SaveResult> ExecuteUpsert(IReadOnlyStreamModel streamModel, SqlConnectorEntityData sqlConnectorEntityData, DateTimeOffset timeStamp, SqlName schema, SqlTransaction transaction)
         {
+            var isSyncMode = streamModel.Mode == StreamMode.Sync;
+
             var updateCommand = CreateStoreCommandUtility.BuildStoreMainTableCommand(streamModel, sqlConnectorEntityData, timeStamp, schema);
             var updateSqlCommand = updateCommand.ToSqlCommand(transaction);
             await updateSqlCommand.ExecuteNonQueryAsync();
@@ -148,13 +150,13 @@ namespace CluedIn.Connector.SqlServer.Connector
             var insertCodeSqlCommand = insertCodesCommand.ToSqlCommand(transaction);
             await insertCodeSqlCommand.ExecuteNonQueryAsync();
 
-            if (streamModel.ExportIncomingEdges && sqlConnectorEntityData.IncomingEdges.Any())
+            if (streamModel.ExportIncomingEdges && (isSyncMode || sqlConnectorEntityData.IncomingEdges.Any()))
             {
                 var incomingEdgesCommand = CreateStoreCommandUtility.BuildStoreEdgesCommand(streamModel, sqlConnectorEntityData, EdgeDirection.Incoming, schema);
                 var incomingEdgesSqlCommand = incomingEdgesCommand.ToSqlCommand(transaction);
                 await incomingEdgesSqlCommand.ExecuteNonQueryAsync();
 
-                if (sqlConnectorEntityData.IncomingEdges.Any(edge => edge.HasProperties))
+                if (isSyncMode || sqlConnectorEntityData.IncomingEdges.Any(edge => edge.HasProperties))
                 {
                     var incomingEdgePropertiesCommand = CreateStoreCommandUtility.BuildStoreEdgePropertiesCommands(streamModel, sqlConnectorEntityData, EdgeDirection.Incoming, schema);
                     var incomingEdgePropertiesSqlCommand = incomingEdgePropertiesCommand.ToSqlCommand(transaction);
@@ -162,13 +164,13 @@ namespace CluedIn.Connector.SqlServer.Connector
                 }
             }
 
-            if (streamModel.ExportOutgoingEdges && sqlConnectorEntityData.OutgoingEdges.Any())
+            if (streamModel.ExportOutgoingEdges && (isSyncMode || sqlConnectorEntityData.OutgoingEdges.Any()))
             {
                 var outgoingEdgesCommand = CreateStoreCommandUtility.BuildStoreEdgesCommand(streamModel, sqlConnectorEntityData, EdgeDirection.Outgoing, schema);
                 var outgoingEdgesSqlCommand = outgoingEdgesCommand.ToSqlCommand(transaction);
                 await outgoingEdgesSqlCommand.ExecuteNonQueryAsync();
 
-                if (sqlConnectorEntityData.OutgoingEdges.Any(edge => edge.HasProperties))
+                if (isSyncMode || sqlConnectorEntityData.OutgoingEdges.Any(edge => edge.HasProperties))
                 {
                     var outgoingEdgePropertiesCommand = CreateStoreCommandUtility.BuildStoreEdgePropertiesCommands(streamModel, sqlConnectorEntityData, EdgeDirection.Outgoing, schema);
                     var outgoingEdgePropertiesSqlCommand = outgoingEdgePropertiesCommand.ToSqlCommand(transaction);
