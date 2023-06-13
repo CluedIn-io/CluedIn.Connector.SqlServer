@@ -28,10 +28,10 @@ namespace CluedIn.Connector.SqlServer.Utils.TableDefinitions
                 StreamMode.EventStream => new MainTableColumnDefinition[]
                 {
                     new("Id", SqlColumnHelper.UniqueIdentifier, input => input.data.EntityId, IsPrimaryKey: true),
-                    new("PersistVersion", SqlColumnHelper.Int, input => input.data.PersistInfo != null ? input.data.PersistInfo.PersistVersion : DBNull.Value, CanBeNull: true),
-                    new("PersistHash", SqlColumnHelper.Char24, input => input.data.PersistInfo != null ? input.data.PersistInfo.PersistHash : DBNull.Value, CanBeNull: true),
-                    new("OriginEntityCode", SqlColumnHelper.NVarchar1024, input => input.data.OriginEntityCode != null ? input.data.OriginEntityCode.ToString() : DBNull.Value, CanBeNull: true),
-                    new("EntityType", SqlColumnHelper.NVarcharMax, input => input.data.EntityType != null ? input.data.EntityType.ToString() : DBNull.Value, CanBeNull: true),
+                    new("PersistVersion", SqlColumnHelper.Int, input => input.data.PersistInfo != null ? (object)input.data.PersistInfo.PersistVersion : (object)DBNull.Value, CanBeNull: true),
+                    new("PersistHash", SqlColumnHelper.Char24, input => input.data.PersistInfo != null ? (object)input.data.PersistInfo.PersistHash : (object)DBNull.Value, CanBeNull: true),
+                    new("OriginEntityCode", SqlColumnHelper.NVarchar1024, input => input.data.OriginEntityCode != null ? (object)input.data.OriginEntityCode.ToString() : (object)DBNull.Value, CanBeNull: true),
+                    new("EntityType", SqlColumnHelper.NVarcharMax, input => input.data.EntityType != null ? (object)input.data.EntityType.ToString() : (object)DBNull.Value, CanBeNull: true),
                     new("TimeStamp", SqlColumnHelper.DateTimeOffset7, input => input.timeStamp),
                     new("ChangeType", SqlColumnHelper.NVarchar256, input => input.data.ChangeType),
                     new("CorrelationId", SqlColumnHelper.UniqueIdentifier, input => input.data.CorrelationId, IsPrimaryKey: true)
