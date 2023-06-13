@@ -4,7 +4,6 @@
     <AssemblyName>CluedIn.Connector.SqlServer</AssemblyName>
     <RootNamespace>CluedIn.Connector.SqlServer</RootNamespace>
     <IsCluedInServerComponent>true</IsCluedInServerComponent>
-    <LangVersion>9</LangVersion>
   </PropertyGroup>
   <ItemGroup>
     <None Remove="Resources\microsoft-sql-server-logo.svg" />
