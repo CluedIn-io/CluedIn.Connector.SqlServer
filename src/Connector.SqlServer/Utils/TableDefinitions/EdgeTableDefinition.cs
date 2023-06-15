@@ -47,9 +47,9 @@ namespace CluedIn.Connector.SqlServer.Utils.TableDefinitions
                     return new ColumnDefinition[]
                     {
                         new("Id", SqlColumnHelper.UniqueIdentifier, IsPrimaryKey: true),
-                        new("EntityId", SqlColumnHelper.UniqueIdentifier, IsPivotKey: true),
-                        new("EdgeType", SqlColumnHelper.NVarcharMax, IsPivotValueKey: true),
-                        new(codeColumnName, SqlColumnHelper.NVarchar1024, IsPivotValueKey: true),
+                        new("EntityId", SqlColumnHelper.UniqueIdentifier),
+                        new("EdgeType", SqlColumnHelper.NVarcharMax),
+                        new(codeColumnName, SqlColumnHelper.NVarchar1024),
                         new("ChangeType", SqlColumnHelper.NVarchar256),
                         new("CorrelationId", SqlColumnHelper.UniqueIdentifier, IsPrimaryKey: true)
                     };
@@ -58,9 +58,9 @@ namespace CluedIn.Connector.SqlServer.Utils.TableDefinitions
                     return new ColumnDefinition[]
                     {
                         new("Id", SqlColumnHelper.UniqueIdentifier, IsPrimaryKey: true),
-                        new("EntityId", SqlColumnHelper.UniqueIdentifier, IsPivotKey: true),
-                        new("EdgeType", SqlColumnHelper.NVarcharMax, IsPivotValueKey: true),
-                        new(codeColumnName, SqlColumnHelper.NVarchar1024, IsPivotValueKey: true),
+                        new("EntityId", SqlColumnHelper.UniqueIdentifier),
+                        new("EdgeType", SqlColumnHelper.NVarcharMax),
+                        new(codeColumnName, SqlColumnHelper.NVarchar1024),
                     };
 
                 default:

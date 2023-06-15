@@ -10,8 +10,6 @@ namespace CluedIn.Connector.SqlServer.Utils
         ConnectorSqlType ConnectorSqlType,
         bool CanBeNull = false,
         bool IsPrimaryKey = false,
-        bool IsPivotKey = false,
-        bool IsPivotValueKey = false,
         bool AddIndex = false)
     {
         public SqlMetaData ToSqlMetaData()

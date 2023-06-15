@@ -19,8 +19,8 @@ namespace CluedIn.Connector.SqlServer.Utils.TableDefinitions
                 case StreamMode.EventStream:
                     return new ColumnDefinition[]
                     {
-                        new("EdgeId", SqlColumnHelper.UniqueIdentifier, IsPrimaryKey: true, IsPivotKey: true),
-                        new("KeyName", SqlColumnHelper.NVarchar256, IsPrimaryKey: true, IsPivotValueKey: true),
+                        new("EdgeId", SqlColumnHelper.UniqueIdentifier, IsPrimaryKey: true),
+                        new("KeyName", SqlColumnHelper.NVarchar256, IsPrimaryKey: true),
                         new("Value", SqlColumnHelper.NVarcharMax),
                         new("ChangeType", SqlColumnHelper.NVarchar256),
                         new("CorrelationId", SqlColumnHelper.UniqueIdentifier, IsPrimaryKey: true)
@@ -29,8 +29,8 @@ namespace CluedIn.Connector.SqlServer.Utils.TableDefinitions
                 case StreamMode.Sync:
                     return new ColumnDefinition[]
                     {
-                        new("EdgeId", SqlColumnHelper.UniqueIdentifier, IsPrimaryKey: true, IsPivotKey: true),
-                        new("KeyName", SqlColumnHelper.NVarchar256, IsPrimaryKey: true, IsPivotValueKey: true),
+                        new("EdgeId", SqlColumnHelper.UniqueIdentifier, IsPrimaryKey: true),
+                        new("KeyName", SqlColumnHelper.NVarchar256, IsPrimaryKey: true),
                         new("Value", SqlColumnHelper.NVarcharMax),
                     };
 

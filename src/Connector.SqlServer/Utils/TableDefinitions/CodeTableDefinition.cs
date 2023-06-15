@@ -18,8 +18,8 @@ namespace CluedIn.Connector.SqlServer.Utils.TableDefinitions
                 case StreamMode.EventStream:
                     return new ColumnDefinition[]
                     {
-                        new("EntityId", SqlColumnHelper.UniqueIdentifier, AddIndex: true, IsPivotKey: true),
-                        new("Code", SqlColumnHelper.NVarchar1024, IsPivotValueKey: true),
+                        new("EntityId", SqlColumnHelper.UniqueIdentifier, AddIndex: true),
+                        new("Code", SqlColumnHelper.NVarchar1024),
                         new("ChangeType", SqlColumnHelper.NVarchar256),
                         new("CorrelationId", SqlColumnHelper.UniqueIdentifier)
                     };
@@ -27,8 +27,8 @@ namespace CluedIn.Connector.SqlServer.Utils.TableDefinitions
                 case StreamMode.Sync:
                     return new ColumnDefinition[]
                     {
-                        new("EntityId", SqlColumnHelper.UniqueIdentifier, AddIndex: true, IsPivotKey: true),
-                        new("Code", SqlColumnHelper.NVarchar1024, IsPivotValueKey: true),
+                        new("EntityId", SqlColumnHelper.UniqueIdentifier, AddIndex: true),
+                        new("Code", SqlColumnHelper.NVarchar1024),
                     };
 
                 default:
