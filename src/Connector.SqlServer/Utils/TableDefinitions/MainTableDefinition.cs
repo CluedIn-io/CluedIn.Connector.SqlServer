@@ -55,7 +55,21 @@ namespace CluedIn.Connector.SqlServer.Utils.TableDefinitions
                 return new MainTableColumnDefinition(
                     name,
                     sqlType,
-                    input => input.data.Properties.First(x => x.Name == property.name).Value ?? DBNull.Value,
+                    input =>
+                    {
+                        var propertyValue = input.data.Properties.First(x => x.Name == property.name).Value;
+                        if (propertyValue == null)
+                        {
+                            return DBNull.Value;
+                        }
+
+                        if (propertyValue is IEnumerable<object> enumerable)
+                        {
+                            return $"[{string.Join(", ", enumerable)}]";
+                        }
+
+                        return propertyValue;
+                    },
                     CanBeNull: true);
             });
 
