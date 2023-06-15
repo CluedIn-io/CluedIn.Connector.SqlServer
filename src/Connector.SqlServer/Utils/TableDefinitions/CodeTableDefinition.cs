@@ -98,13 +98,18 @@ namespace CluedIn.Connector.SqlServer.Utils.TableDefinitions
         {
             var codeTableName = TableNameUtility.GetCodeTableName(streamModel, schema);
             var codeTableType = CreateCustomTypeCommandUtility.GetCodeTableCustomTypeName(streamModel, schema);
-            var eventStreamRecords = GetSqlRecords(StreamMode.EventStream, connectorEntityData);
-            var eventStreamRecordsParameter = new SqlParameter($"@{codeTableType.LocalName}", SqlDbType.Structured) { Value = eventStreamRecords, TypeName = codeTableType.FullyQualifiedName };
 
             var insertText = $@"
 INSERT INTO {codeTableName.FullyQualifiedName}
 SELECT * FROM @{codeTableType.LocalName}";
 
+            var eventStreamRecords = GetSqlRecords(StreamMode.EventStream, connectorEntityData);
+            if (!eventStreamRecords.Any())
+            {
+                eventStreamRecords = null;
+            }
+
+            var eventStreamRecordsParameter = new SqlParameter($"@{codeTableType.LocalName}", SqlDbType.Structured) { Value = eventStreamRecords, TypeName = codeTableType.FullyQualifiedName };
             return new SqlServerConnectorCommand { Text = insertText, Parameters = new[] { eventStreamRecordsParameter } };
         }
 
@@ -130,6 +135,10 @@ ON existingValues.[EntityId] = @EntityId AND existingValues.[Code] = newValues.[
 WHERE existingValues.[EntityId] IS NULL";
 
             var sqlRecords = GetSqlRecords(StreamMode.Sync, connectorEntityData);
+            if (!sqlRecords.Any())
+            {
+                sqlRecords = null;
+            }
 
             var entityIdParameter = new SqlParameter("@EntityId", SqlDbType.UniqueIdentifier) { Value = connectorEntityData.EntityId };
             var recordsParameter = new SqlParameter($"@{codeTableType.LocalName}", SqlDbType.Structured) { Value = sqlRecords, TypeName = codeTableType.FullyQualifiedName };

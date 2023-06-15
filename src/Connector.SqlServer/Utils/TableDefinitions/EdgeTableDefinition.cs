@@ -150,13 +150,17 @@ namespace CluedIn.Connector.SqlServer.Utils.TableDefinitions
             var edgeTableName = TableNameUtility.GetEdgesTableName(streamModel, direction, schema);
             var edgeTableType = CreateCustomTypeCommandUtility.GetEdgeTableCustomTypeName(streamModel, direction, schema);
 
-            var eventStreamRecords = GetSqlRecords(StreamMode.EventStream, direction, connectorEntityData);
-            var eventStreamRecordsParameter = new SqlParameter($"@{edgeTableType.LocalName}", SqlDbType.Structured) { Value = eventStreamRecords, TypeName = edgeTableType.FullyQualifiedName };
-
             var insertText = $@"
 INSERT INTO {edgeTableName.FullyQualifiedName}
 SELECT * FROM @{edgeTableType.LocalName}";
 
+            var eventStreamRecords = GetSqlRecords(StreamMode.EventStream, direction, connectorEntityData);
+            if (!eventStreamRecords.Any())
+            {
+                eventStreamRecords = null;
+            }
+
+            var eventStreamRecordsParameter = new SqlParameter($"@{edgeTableType.LocalName}", SqlDbType.Structured) { Value = eventStreamRecords, TypeName = edgeTableType.FullyQualifiedName };
             return new SqlServerConnectorCommand { Text = insertText, Parameters = new[] { eventStreamRecordsParameter } };
         }
 
@@ -198,6 +202,10 @@ FROM
 WHERE existingValues.[Id] IS NULL";
 
             var sqlRecords = GetSqlRecords(StreamMode.Sync, direction, connectorEntityData);
+            if (!sqlRecords.Any())
+            {
+                sqlRecords = null;
+            }
 
             var entityIdParameter = new SqlParameter("@EntityId", SqlDbType.UniqueIdentifier) { Value = connectorEntityData.EntityId };
             var recordsParameter = new SqlParameter($"@{edgeTableType.LocalName}", SqlDbType.Structured) { Value = sqlRecords, TypeName = edgeTableType.FullyQualifiedName };
