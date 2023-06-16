@@ -14,9 +14,6 @@
   <ItemGroup>
     <PackageReference Include="CluedIn.Connector.Common" />
   </ItemGroup>
-  <ItemGroup>
-    <Folder Include="Models\" />
-  </ItemGroup>
 
   <!-- Disable to above cluedin assets and enable the below for local debugging  -->
   <!--<ItemGroup>    

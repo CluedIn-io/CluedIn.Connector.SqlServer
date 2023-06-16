@@ -6,7 +6,6 @@
     <None Remove="D:\Projects\CluedIn\CluedIn.Connector.SqlServer\build\assets\nugetlogo.png" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="AutoFixture.AutoNSubstitute" />
     <PackageReference Include="AutoFixture.Xunit2" />
     <PackageReference Include="AutoFixture.AutoNSubstitute" />
     <PackageReference Include="Castle.Core" />
