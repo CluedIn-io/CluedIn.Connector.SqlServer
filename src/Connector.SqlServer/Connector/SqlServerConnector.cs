@@ -276,45 +276,36 @@ namespace CluedIn.Connector.SqlServer.Connector
                 await using var connectionAndTransaction = await _client.BeginTransaction(config.Authentication);
                 var transaction = connectionAndTransaction.Transaction;
 
-                var builder = new StringBuilder();
-
                 if (streamModel.ExportOutgoingEdges)
                 {
                     var outgoingEdgesTableName = TableNameUtility.GetEdgesTableName(streamModel, EdgeDirection.Outgoing, schema);
-                    var emptyOutgoingEdgeTable = BuildEmptyContainerSql(outgoingEdgesTableName);
-                    builder.AppendLine(emptyOutgoingEdgeTable);
+                    var emptyOutgoingEdgeTableCommand = BuildEmptyContainerSql(outgoingEdgesTableName);
+                    await emptyOutgoingEdgeTableCommand.ToSqlCommand(transaction).ExecuteNonQueryAsync();
 
                     var outgoingEdgesPropertiesTableName = TableNameUtility.GetEdgePropertiesTableName(streamModel, EdgeDirection.Outgoing, schema);
-                    var emptyOutgoingEdgesPropertiesTable = BuildEmptyContainerSql(outgoingEdgesPropertiesTableName);
-                    builder.AppendLine(emptyOutgoingEdgesPropertiesTable);
+                    var emptyOutgoingEdgesPropertiesTableCommand = BuildEmptyContainerSql(outgoingEdgesPropertiesTableName);
+                    await emptyOutgoingEdgesPropertiesTableCommand.ToSqlCommand(transaction).ExecuteNonQueryAsync();
                 }
 
                 if (streamModel.ExportIncomingEdges)
                 {
                     var incomingEdgesTableName = TableNameUtility.GetEdgesTableName(streamModel, EdgeDirection.Incoming, schema);
-                    var emptyIncomingEdgeTable = BuildEmptyContainerSql(incomingEdgesTableName);
-                    builder.AppendLine(emptyIncomingEdgeTable);
+                    var emptyIncomingEdgeTableCommand = BuildEmptyContainerSql(incomingEdgesTableName);
+                    await emptyIncomingEdgeTableCommand.ToSqlCommand(transaction).ExecuteNonQueryAsync();
 
                     var incomingEdgesPropertiesTableName = TableNameUtility.GetEdgePropertiesTableName(streamModel, EdgeDirection.Incoming, schema);
-                    var emptyIncomingEdgesPropertiesTable = BuildEmptyContainerSql(incomingEdgesPropertiesTableName);
-                    builder.AppendLine(emptyIncomingEdgesPropertiesTable);
+                    var emptyIncomingEdgesPropertiesTableCommand = BuildEmptyContainerSql(incomingEdgesPropertiesTableName);
+                    await emptyIncomingEdgesPropertiesTableCommand.ToSqlCommand(transaction).ExecuteNonQueryAsync();
                 }
 
                 var codeTableName = TableNameUtility.GetCodeTableName(streamModel, schema);
-                var emptyCodeTable = BuildEmptyContainerSql(codeTableName);
-                builder.AppendLine(emptyCodeTable);
+                var emptyCodeTableCommand = BuildEmptyContainerSql(codeTableName);
+                await emptyCodeTableCommand.ToSqlCommand( transaction ).ExecuteNonQueryAsync();
 
                 var mainTableName = TableNameUtility.GetMainTableName(streamModel, schema);
-                var emptyMainTable = BuildEmptyContainerSql(mainTableName);
-                builder.AppendLine(emptyMainTable);
+                var emptyMainTableCommand = BuildEmptyContainerSql(mainTableName);
+                await emptyMainTableCommand.ToSqlCommand(transaction).ExecuteNonQueryAsync();
 
-                var commandText = builder.ToString();
-                var sqlCommand = transaction.Connection.CreateCommand();
-                sqlCommand.CommandText = commandText;
-                sqlCommand.Transaction = transaction;
-
-                await sqlCommand.ExecuteNonQueryAsync();
-                
                 await transaction.CommitAsync();
             });
         }
@@ -501,9 +492,10 @@ namespace CluedIn.Connector.SqlServer.Connector
             return $"DROP TABLE {tableName.FullyQualifiedName} IF EXISTS";
         }
 
-        private string BuildEmptyContainerSql(SqlTableName tableName)
+        private SqlServerConnectorCommand BuildEmptyContainerSql(SqlTableName tableName)
         {
-            return $"TRUNCATE TABLE {tableName.FullyQualifiedName}";
+            var text = $"TRUNCATE TABLE {tableName.FullyQualifiedName}";
+            return new SqlServerConnectorCommand() { Text = text };
         }
 
         protected async Task<bool> CheckTableExists(SqlTransaction transaction, SqlTableName tableName)
