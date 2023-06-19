@@ -99,9 +99,10 @@ namespace CluedIn.Connector.SqlServer.Utils.TableDefinitions
             var codeTableName = TableNameUtility.GetCodeTableName(streamModel, schema);
             var codeTableType = CreateCustomTypeCommandUtility.GetCodeTableCustomTypeName(streamModel, schema);
 
-            var insertText = $@"
-INSERT INTO {codeTableName.FullyQualifiedName}
-SELECT * FROM @{codeTableType.LocalName}";
+            var insertText = $"""
+                INSERT INTO {codeTableName.FullyQualifiedName}
+                SELECT * FROM @{codeTableType.LocalName}
+                """;
 
             var eventStreamRecords = GetSqlRecords(StreamMode.EventStream, connectorEntityData);
             if (!eventStreamRecords.Any())
@@ -118,21 +119,22 @@ SELECT * FROM @{codeTableType.LocalName}";
             var codeTableName = TableNameUtility.GetCodeTableName(streamModel, schema);
             var codeTableType = CreateCustomTypeCommandUtility.GetCodeTableCustomTypeName(streamModel, schema);
 
-            var commandText = $@"
--- Delete existing columns that no longer exist
-DELETE {codeTableName.FullyQualifiedName}
-WHERE
-[EntityId] = @EntityId
-AND
-NOT EXISTS(SELECT 1 FROM @{codeTableType.LocalName} newValues WHERE newValues.[Code] = {codeTableName.FullyQualifiedName}.[Code])
-
--- Add new columns
-INSERT INTO {codeTableName.FullyQualifiedName}
-SELECT @EntityId, newValues.[Code]
-FROM @{codeTableType.LocalName} newValues
-LEFT JOIN {codeTableName.FullyQualifiedName} existingValues
-ON existingValues.[EntityId] = @EntityId AND existingValues.[Code] = newValues.[Code]
-WHERE existingValues.[EntityId] IS NULL";
+            var commandText = $"""
+                -- Delete existing columns that no longer exist
+                DELETE {codeTableName.FullyQualifiedName}
+                WHERE
+                [EntityId] = @EntityId
+                AND
+                NOT EXISTS(SELECT 1 FROM @{codeTableType.LocalName} newValues WHERE newValues.[Code] = {codeTableName.FullyQualifiedName}.[Code])
+                
+                -- Add new columns
+                INSERT INTO {codeTableName.FullyQualifiedName}
+                SELECT @EntityId, newValues.[Code]
+                FROM @{codeTableType.LocalName} newValues
+                LEFT JOIN {codeTableName.FullyQualifiedName} existingValues
+                ON existingValues.[EntityId] = @EntityId AND existingValues.[Code] = newValues.[Code]
+                WHERE existingValues.[EntityId] IS NULL
+                """;
 
             var sqlRecords = GetSqlRecords(StreamMode.Sync, connectorEntityData);
             if (!sqlRecords.Any())

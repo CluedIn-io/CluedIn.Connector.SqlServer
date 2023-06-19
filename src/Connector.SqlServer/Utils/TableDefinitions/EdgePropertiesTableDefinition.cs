@@ -116,9 +116,10 @@ namespace CluedIn.Connector.SqlServer.Utils.TableDefinitions
                 ? connectorEntityData.IncomingEdges
                 : connectorEntityData.OutgoingEdges;
 
-            var insertText = $@"
-INSERT INTO {edgePropertiesTableName.FullyQualifiedName}
-SELECT * FROM @{edgePropertiesTableType.LocalName}";
+            var insertText = $"""
+                INSERT INTO {edgePropertiesTableName.FullyQualifiedName}
+                SELECT * FROM @{edgePropertiesTableType.LocalName}
+                """;
 
             var eventStreamRecords = GetSqlDataRecords(StreamMode.EventStream, connectorEntityData, direction);
             if (!eventStreamRecords.Any())
@@ -136,43 +137,42 @@ SELECT * FROM @{edgePropertiesTableType.LocalName}";
             var edgePropertiesTableType = CreateCustomTypeCommandUtility.GetEdgePropertiesTableCustomTypeName(streamModel, direction, schema);
             var edgeTableName = TableNameUtility.GetEdgesTableName(streamModel, direction, schema);
 
-            var commandText = $@"
--- Delete existing columns that no longer exist
-DELETE {edgePropertiesTableName.FullyQualifiedName}
-WHERE
-    EXISTS(
-        SELECT
-            1
-        FROM
-            {edgeTableName.FullyQualifiedName} edge
-        WHERE
-            edge.[Id] = {edgePropertiesTableName.FullyQualifiedName}.[EdgeId]
-            AND edge.[EntityId] = @EntityId
-    )
-    AND NOT EXISTS(
-        SELECT
-            1
-        FROM
-            @{edgePropertiesTableType.LocalName} newValues
-        WHERE
-            newValues.[EdgeId] = {edgePropertiesTableName.FullyQualifiedName}.[EdgeId]
-    )
-
--- Add new columns
-INSERT INTO
-    {edgePropertiesTableName.FullyQualifiedName}
-SELECT
-    newValues.[EdgeId],
-    newValues.[KeyName],
-    newValues.[Value]
-FROM
-    @{edgePropertiesTableType.LocalName} newValues
-    LEFT JOIN {edgePropertiesTableName.FullyQualifiedName} existingValues 
-	ON newValues.[EdgeId] = existingValues.[EdgeId]
-WHERE
-    existingValues.[EdgeId] IS NULL
-
-";
+            var commandText = $"""
+                -- Delete existing columns that no longer exist
+                DELETE {edgePropertiesTableName.FullyQualifiedName}
+                WHERE
+                    EXISTS(
+                        SELECT
+                            1
+                        FROM
+                            {edgeTableName.FullyQualifiedName} edge
+                        WHERE
+                            edge.[Id] = {edgePropertiesTableName.FullyQualifiedName}.[EdgeId]
+                            AND edge.[EntityId] = @EntityId
+                    )
+                    AND NOT EXISTS(
+                        SELECT
+                            1
+                        FROM
+                            @{edgePropertiesTableType.LocalName} newValues
+                        WHERE
+                            newValues.[EdgeId] = {edgePropertiesTableName.FullyQualifiedName}.[EdgeId]
+                    )
+                
+                -- Add new columns
+                INSERT INTO
+                    {edgePropertiesTableName.FullyQualifiedName}
+                SELECT
+                    newValues.[EdgeId],
+                    newValues.[KeyName],
+                    newValues.[Value]
+                FROM
+                    @{edgePropertiesTableType.LocalName} newValues
+                    LEFT JOIN {edgePropertiesTableName.FullyQualifiedName} existingValues 
+                	ON newValues.[EdgeId] = existingValues.[EdgeId]
+                WHERE
+                    existingValues.[EdgeId] IS NULL
+                """;
 
 
             var sqlDataRecords = GetSqlDataRecords(StreamMode.Sync, connectorEntityData, direction).ToArray();

@@ -35,11 +35,12 @@ namespace CluedIn.Connector.SqlServer.Utils
             var edgeTableName = TableNameUtility.GetEdgesTableName(streamModel, edgeDirection, schema);
             var edgePropertiesTableName = TableNameUtility.GetEdgePropertiesTableName(streamModel, edgeDirection, schema);
 
-            var commandText = $@"
-DELETE edgeProperties
-FROM (SELECT [Id] as [Id] FROM {edgeTableName.FullyQualifiedName} WHERE [EntityId] = @EntityId) edges
-INNER JOIN {edgePropertiesTableName.FullyQualifiedName} edgeProperties
-ON edges.[Id] = edgeProperties.[EdgeId]";
+            var commandText = $"""
+                DELETE edgeProperties
+                FROM (SELECT [Id] as [Id] FROM {edgeTableName.FullyQualifiedName} WHERE [EntityId] = @EntityId) edges
+                INNER JOIN {edgePropertiesTableName.FullyQualifiedName} edgeProperties
+                ON edges.[Id] = edgeProperties.[EdgeId]
+                """;
 
             var entityIdParameter = new SqlParameter("@EntityId", SqlDbType.UniqueIdentifier) { Value = connectorEntityData.EntityId };
 

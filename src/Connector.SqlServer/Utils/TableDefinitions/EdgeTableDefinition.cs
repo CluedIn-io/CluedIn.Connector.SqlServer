@@ -150,9 +150,10 @@ namespace CluedIn.Connector.SqlServer.Utils.TableDefinitions
             var edgeTableName = TableNameUtility.GetEdgesTableName(streamModel, direction, schema);
             var edgeTableType = CreateCustomTypeCommandUtility.GetEdgeTableCustomTypeName(streamModel, direction, schema);
 
-            var insertText = $@"
-INSERT INTO {edgeTableName.FullyQualifiedName}
-SELECT * FROM @{edgeTableType.LocalName}";
+            var insertText = $"""
+                INSERT INTO {edgeTableName.FullyQualifiedName}
+                SELECT * FROM @{edgeTableType.LocalName}
+                """;
 
             var eventStreamRecords = GetSqlRecords(StreamMode.EventStream, direction, connectorEntityData);
             if (!eventStreamRecords.Any())
@@ -173,33 +174,34 @@ SELECT * FROM @{edgeTableType.LocalName}";
                 ? "ToCode"
                 : "FromCode";
 
-            var commandText = $@"
--- Delete existing columns that no longer exist
-DELETE {edgeTableName.FullyQualifiedName}
-WHERE
-    [EntityId] = @EntityId
-    AND
-    NOT EXISTS(
-        SELECT
-        1
-        FROM
-            @{edgeTableType.LocalName} newValues
-        WHERE
-            newValues.[Id] = {edgeTableName.FullyQualifiedName}.[Id]
-    )
-
--- Add new columns
-INSERT INTO {edgeTableName.FullyQualifiedName}
-SELECT
-    newValues.[Id],
-    newValues.[EntityId],
-    newValues.[EdgeType],
-    newValues.[{codeColumnName}]
-FROM
-    @{edgeTableType.LocalName} newValues
-    LEFT JOIN {edgeTableName.FullyQualifiedName} existingValues
-    ON newValues.[Id] = existingValues.[Id]
-WHERE existingValues.[Id] IS NULL";
+            var commandText = $"""
+                -- Delete existing columns that no longer exist
+                DELETE {edgeTableName.FullyQualifiedName}
+                WHERE
+                    [EntityId] = @EntityId
+                    AND
+                    NOT EXISTS(
+                        SELECT
+                        1
+                        FROM
+                            @{edgeTableType.LocalName} newValues
+                        WHERE
+                            newValues.[Id] = {edgeTableName.FullyQualifiedName}.[Id]
+                    )
+                
+                -- Add new columns
+                INSERT INTO {edgeTableName.FullyQualifiedName}
+                SELECT
+                    newValues.[Id],
+                    newValues.[EntityId],
+                    newValues.[EdgeType],
+                    newValues.[{codeColumnName}]
+                FROM
+                    @{edgeTableType.LocalName} newValues
+                    LEFT JOIN {edgeTableName.FullyQualifiedName} existingValues
+                    ON newValues.[Id] = existingValues.[Id]
+                WHERE existingValues.[Id] IS NULL
+                """;
 
             var sqlRecords = GetSqlRecords(StreamMode.Sync, direction, connectorEntityData);
             if (!sqlRecords.Any())

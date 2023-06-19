@@ -96,9 +96,10 @@ namespace CluedIn.Connector.SqlServer.Utils.TableDefinitions
             switch (streamModel.Mode)
             {
                 case StreamMode.EventStream:
-                    var insertText = $@"
-INSERT INTO {mainTableName.FullyQualifiedName}({columnNames})
-VALUES({valueParameterNames})";
+                    var insertText = $"""
+                        INSERT INTO {mainTableName.FullyQualifiedName}({columnNames})
+                        VALUES({valueParameterNames})
+                        """;
 
                     return new SqlServerConnectorCommand { Text = insertText, Parameters = valueParameters };
 
@@ -110,11 +111,12 @@ VALUES({valueParameterNames})";
                     });
                     var valueAssignmentsString = string.Join(", ", valueAssignmentStrings);
 
-                    var upsertText = $@"
-IF EXISTS (SELECT * FROM {mainTableName.FullyQualifiedName} WHERE [Id] = @Id)
-	UPDATE {mainTableName.FullyQualifiedName} SET {valueAssignmentsString} WHERE [Id] = @Id;
-ELSE
-	INSERT INTO {mainTableName.FullyQualifiedName}({columnNames}) VALUES({valueParameterNames})";
+                    var upsertText = $"""
+                        IF EXISTS (SELECT * FROM {mainTableName.FullyQualifiedName} WHERE [Id] = @Id)
+                        	UPDATE {mainTableName.FullyQualifiedName} SET {valueAssignmentsString} WHERE [Id] = @Id;
+                        ELSE
+                        	INSERT INTO {mainTableName.FullyQualifiedName}({columnNames}) VALUES({valueParameterNames})
+                        """;
 
                     return new SqlServerConnectorCommand { Text = upsertText, Parameters = valueParameters };
 
