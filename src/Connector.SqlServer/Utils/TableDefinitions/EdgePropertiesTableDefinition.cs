@@ -92,7 +92,7 @@ namespace CluedIn.Connector.SqlServer.Utils.TableDefinitions
 
         public static SqlServerConnectorCommand CreateUpsertCommands(IReadOnlyStreamModel streamModel, EdgeDirection direction, SqlConnectorEntityData connectorEntityData, SqlName schema)
         {
-            var mode = streamModel.Mode ?? StreamMode.Sync; // TODO: Correct fallback?
+            var mode = streamModel.Mode ?? StreamMode.Sync;
 
             switch (mode)
             {

@@ -123,14 +123,9 @@ namespace CluedIn.Connector.SqlServer.Utils.TableDefinitions
             }
         }
 
-        public static SqlParameter GetPivotKeyParameter(SqlConnectorEntityData connectorEntityData)
-        {
-            return new SqlParameter("@EntityId", SqlDbType.UniqueIdentifier) { Value = connectorEntityData.EntityId };
-        }
-
         public static SqlServerConnectorCommand CreateUpsertCommand(IReadOnlyStreamModel streamModel, EdgeDirection direction, SqlConnectorEntityData connectorEntityData, SqlName schema)
         {
-            var mode = streamModel.Mode ?? StreamMode.Sync; // TODO: Correct fallback?
+            var mode = streamModel.Mode ?? StreamMode.Sync;
 
             switch (mode)
             {
