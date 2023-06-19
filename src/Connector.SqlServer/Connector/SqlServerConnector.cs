@@ -472,10 +472,9 @@ namespace CluedIn.Connector.SqlServer.Connector
             {
                 var tables = await _client.GetTables(transaction, schema: config.GetSchema());
 
-                var result = from DataRow row in tables.Rows
-                             select row["TABLE_NAME"] as string
-                    into tableName
-                             select new SqlServerConnectorContainer { Id = tableName, Name = tableName };
+                var result = tables.Rows.Cast<DataRow>()
+                    .Select(row => row["TABLE_NAME"] as string)
+                    .Select(tableName => new SqlServerConnectorContainer { Id = tableName, Name = tableName });
 
                 return result.ToList();
             }
