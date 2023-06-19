@@ -67,17 +67,18 @@ namespace CluedIn.Connector.SqlServer.Connector
                     {
                         case StreamMode.EventStream:
                             result = await ExecuteUpsert(streamModel, sqlConnectorEntityData, timeStamp, schema, transaction);
-                            await transaction.CommitAsync();
-                            return;
+                            break;
 
                         case StreamMode.Sync:
                             result = await ExecuteDelete(streamModel, sqlConnectorEntityData, schema, transaction);
-                            await transaction.CommitAsync();
-                            return;
+                            break;
 
                         default:
                             throw new ArgumentOutOfRangeException();
                     }
+
+                    await transaction.CommitAsync();
+                    return;
                 }
 
                 var existenceCommand = ExistenceCommandUtility.BuildExistenceCommand(streamModel, sqlConnectorEntityData, schema);
