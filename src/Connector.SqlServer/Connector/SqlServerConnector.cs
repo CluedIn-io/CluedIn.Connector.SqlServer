@@ -57,7 +57,7 @@ namespace CluedIn.Connector.SqlServer.Connector
                 var schema = config.GetSchema();
                 await using var connectionAndTransaction = await _client.BeginTransaction(config.Authentication);
                 var transaction = connectionAndTransaction.Transaction;
-                var timeStamp = DateTimeOffset.Now;
+                var timeStamp = DateTimeOffset.UtcNow;
 
                 var sqlConnectorEntityData = new SqlConnectorEntityData(connectorEntityData, Guid.NewGuid());
 
@@ -332,7 +332,7 @@ namespace CluedIn.Connector.SqlServer.Connector
                 var newMainTableNameWithDateAppended = $"{mainTableName.LocalName}_{DateTime.Now:yyyyMMddHHmmss}";
                 var newMainTableName = TableNameUtility.GetMainTableName(newMainTableNameWithDateAppended, schema);
 
-                var suffixDate = DateTimeOffset.Now;
+                var suffixDate = DateTimeOffset.UtcNow;
                 var renameCommands = GetRenameTablesCommands(streamModel, mainTableName, newMainTableName, suffixDate, schema);
 
                 foreach (var renameCommand in renameCommands)
@@ -362,7 +362,7 @@ namespace CluedIn.Connector.SqlServer.Connector
                 var oldMainTableName = TableNameUtility.GetMainTableName(oldContainerName, schema);
                 var newMainTableName = TableNameUtility.GetMainTableName(streamModel, schema);
 
-                var suffixDate = DateTimeOffset.Now;
+                var suffixDate = DateTimeOffset.UtcNow;
                 var renameCommands = GetRenameTablesCommands(streamModel, oldMainTableName, newMainTableName, suffixDate, schema);
 
                 foreach (var renameCommand in renameCommands)
