@@ -8,11 +8,8 @@
   <ItemGroup>
     <PackageReference Include="AutoFixture.Xunit2" />
     <PackageReference Include="AutoFixture.AutoNSubstitute" />
-    <PackageReference Include="Castle.Core" />
-    <PackageReference Include="Castle.Windsor" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
     <PackageReference Include="coverlet.msbuild" />
-    <PackageReference Include="NSubstitute" />
     <PackageReference Include="xunit" />
     <PackageReference Include="xunit.runner.visualstudio" />
     <PackageReference Include="Moq" />
