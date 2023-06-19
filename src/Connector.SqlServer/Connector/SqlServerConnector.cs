@@ -39,8 +39,19 @@ namespace CluedIn.Connector.SqlServer.Connector
             await ExecuteWithRetryAsync(async () =>
             {
                 var config = await AuthenticationDetailsHelper.GetAuthenticationDetails(executionContext, streamModel.ConnectorProviderDefinitionId.Value);
+                var schema = config.GetSchema();
                 await using var connectionAndTransaction = await _client.BeginTransaction(config.Authentication);
                 var transaction = connectionAndTransaction.Transaction;
+
+                var mainTableName = TableNameUtility.GetMainTableName(streamModel, schema);
+                var healthCheckText = $"""
+                    IF OBJECT_ID(N'{mainTableName.FullyQualifiedName}') IS NOT NULL
+                        SELECT 1
+                    ELSE
+                        SELECT 2
+                    """;
+                var sqlConnectorCommand = new SqlServerConnectorCommand() { Text = healthCheckText, Parameters = Array.Empty<SqlParameter>()};
+                await sqlConnectorCommand.ToSqlCommand(transaction).ExecuteScalarAsync();
 
                 await transaction.CommitAsync();
             });
