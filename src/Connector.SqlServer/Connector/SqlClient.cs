@@ -1,6 +1,10 @@
 ﻿using CluedIn.Connector.Common.Clients;
 using Microsoft.Data.SqlClient;
+using System;
+using System.Collections;
 using System.Collections.Generic;
+using System.Data;
+using System.Threading.Tasks;
 
 namespace CluedIn.Connector.SqlServer.Connector
 {
@@ -28,6 +32,46 @@ namespace CluedIn.Connector.SqlServer.Connector
                 connectionStringBuilder.DataSource = $"{connectionStringBuilder.DataSource},{_defaultPort}";
 
             return connectionStringBuilder.ToString();
+        }
+
+        public async Task<SqlConnection> BeginConnection(IReadOnlyDictionary<string, object> config)
+        {
+            var connectionString = BuildConnectionString(config);
+            var connection = new SqlConnection(connectionString);
+            await connection.OpenAsync();
+            return connection;
+        }
+
+        public Task<DataTable> GetTableColumns(SqlConnection connection, string tableName, string schema)
+        {
+            if (string.IsNullOrWhiteSpace(tableName))
+                tableName = (string)null;
+
+            var restrictionValues = new string[4]
+            {
+                null,
+                schema,
+                tableName,
+                null
+            };
+
+            return Task.FromResult(connection.GetSchema("Columns", restrictionValues));
+        }
+
+        public Task<DataTable> GetTables(SqlConnection connection, string tableName = null, string schema = null)
+        {
+            if (string.IsNullOrWhiteSpace(tableName))
+                tableName = (string)null;
+
+            var restrictionValues = new string[4]
+            {
+                null,
+                schema,
+                tableName,
+                null
+            };
+
+            return Task.FromResult(connection.GetSchema("tables", restrictionValues));
         }
     }
 }

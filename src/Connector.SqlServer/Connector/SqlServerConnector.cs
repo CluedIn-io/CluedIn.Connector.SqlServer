@@ -1,5 +1,6 @@
 ﻿using CluedIn.Connector.Common.Connectors;
 using CluedIn.Connector.SqlServer.Utils;
+using CluedIn.Connector.SqlServer.Utils.TableDefinitions;
 using CluedIn.Core;
 using CluedIn.Core.Connectors;
 using CluedIn.Core.Data.Parts;
@@ -476,15 +477,38 @@ namespace CluedIn.Connector.SqlServer.Connector
         public override async Task<IEnumerable<IConnectorContainer>> GetContainers(ExecutionContext executionContext, Guid connectorProviderDefinitionId)
         {
             var config = await AuthenticationDetailsHelper.GetAuthenticationDetails(executionContext, connectorProviderDefinitionId);
-            await using var connectionAndTransaction = await _client.BeginTransaction(config.Authentication);
-            var transaction = connectionAndTransaction.Transaction;
+            var schema = config.GetSchema();
+            var connection = await _client.BeginConnection(config.Authentication);
 
             try
             {
-                var tables = await _client.GetTables(transaction, schema: config.GetSchema());
+                var tables = await _client.GetTables(connection, schema: schema);
+                var tableNames = tables.Rows
+                    .Cast<DataRow>()
+                    .Select(row => row["TABLE_NAME"] as string);
 
-                var result = tables.Rows.Cast<DataRow>()
-                    .Select(row => row["TABLE_NAME"] as string)
+                var tableAndColumns = tableNames
+                    .Select(name =>
+                    {
+                        var tableColumns = _client.GetTableColumns(connection, name, schema).Result.Rows
+                            .Cast<DataRow>()
+                            .Select(row => row["COLUMN_NAME"])
+                            .Cast<string>()
+                            .ToArray();
+                        return (name, tableColumns);
+                    });
+
+                var minimumMainTableColumns = MainTableDefinition
+                    .GetColumnDefinitions(StreamMode.Sync, Array.Empty<(string name, ConnectorPropertyDataType dataType)>()).Select(column => column.Name);
+
+                var mainTables = tableAndColumns
+                    // Note: This is somewhat of a hack.
+                    // In order to determine which tables are main tables, we find all of the tables that as a minimum, have the columns
+                    // that a main table would have in sync mode (since the columns in sync mode is a subset of the columns in event mode)
+                    .Where(tc => minimumMainTableColumns.All(mainTableColumnName => tc.tableColumns.Contains(mainTableColumnName)))
+                    .Select(tc => tc.name);
+
+                var result = mainTables
                     .Select(tableName => new SqlServerConnectorContainer { Id = tableName, Name = tableName });
 
                 return result.ToList();
