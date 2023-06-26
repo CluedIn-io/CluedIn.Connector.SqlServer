@@ -47,13 +47,20 @@ namespace CluedIn.Connector.SqlServer.Connector
                 var transaction = connectionAndTransaction.Transaction;
 
                 var mainTableName = TableNameUtility.GetMainTableName(streamModel, schema);
-                var healthCheckText = $"""
-                    IF OBJECT_ID(N'{mainTableName.FullyQualifiedName}') IS NOT NULL
-                        SELECT 1
-                    ELSE
-                        SELECT 2
+                var oldEdgeLocalTableName = $"{mainTableName.LocalName}Edges";
+                var newEdgeLocalTableName = $"{mainTableName.LocalName}_{DateTimeOffset.UtcNow}Edges";
+
+                var oldEdgeTableName = SqlName.FromUnsafe(oldEdgeLocalTableName).ToTableName(schema);
+                var newEdgeTableName = SqlName.FromUnsafe(newEdgeLocalTableName).ToTableName(schema);
+
+                var tableRenameText = $"""
+                    IF (OBJECT_ID(N'{oldEdgeTableName.FullyQualifiedName}') IS NOT NULL)
+                    BEGIN
+                        EXEC sp_rename N'{oldEdgeTableName.FullyQualifiedName}', {newEdgeTableName.LocalName};
+                    END
                     """;
-                var sqlConnectorCommand = new SqlServerConnectorCommand() { Text = healthCheckText, Parameters = Array.Empty<SqlParameter>()};
+
+                var sqlConnectorCommand = new SqlServerConnectorCommand() { Text = tableRenameText, Parameters = Array.Empty<SqlParameter>() };
                 await sqlConnectorCommand.ToSqlCommand(transaction).ExecuteScalarAsync();
 
                 await transaction.CommitAsync();
