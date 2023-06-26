@@ -48,7 +48,7 @@ namespace CluedIn.Connector.SqlServer.Utils.TableDefinitions
                     {
                         new("Id", SqlColumnHelper.UniqueIdentifier, IsPrimaryKey: true),
                         new("EntityId", SqlColumnHelper.UniqueIdentifier),
-                        new("EdgeType", SqlColumnHelper.NVarcharMax),
+                        new("EdgeType", SqlColumnHelper.NVarchar1024),
                         new(codeColumnName, SqlColumnHelper.NVarchar1024),
                         new("ChangeType", SqlColumnHelper.NVarchar256),
                         new("CorrelationId", SqlColumnHelper.UniqueIdentifier, IsPrimaryKey: true)
