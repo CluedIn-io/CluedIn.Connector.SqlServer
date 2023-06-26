@@ -21,6 +21,8 @@ namespace CluedIn.Connector.SqlServer.Connector
     {
         private readonly ISqlClient _client;
 
+        public static string DefaultSizeForFieldConfigurationKey = "SqlConnector.DefaultSizeForField";
+
         public SqlServerConnector(
             ILogger<SqlServerConnector> logger,
             ISqlClient client,

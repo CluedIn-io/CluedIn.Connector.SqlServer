@@ -21,7 +21,7 @@ namespace CluedIn.Connector.SqlServer.Utils.TableDefinitions
                     {
                         new("EdgeId", SqlColumnHelper.UniqueIdentifier, IsPrimaryKey: true),
                         new("KeyName", SqlColumnHelper.NVarchar256, IsPrimaryKey: true),
-                        new("Value", SqlColumnHelper.NVarcharMax),
+                        new("Value", SqlColumnHelper.GetColumnTypeForPropertyValue()),
                         new("ChangeType", SqlColumnHelper.NVarchar256),
                         new("CorrelationId", SqlColumnHelper.UniqueIdentifier, IsPrimaryKey: true)
                     };
@@ -31,7 +31,7 @@ namespace CluedIn.Connector.SqlServer.Utils.TableDefinitions
                     {
                         new("EdgeId", SqlColumnHelper.UniqueIdentifier, IsPrimaryKey: true),
                         new("KeyName", SqlColumnHelper.NVarchar256, IsPrimaryKey: true),
-                        new("Value", SqlColumnHelper.NVarcharMax),
+                        new("Value", SqlColumnHelper.GetColumnTypeForPropertyValue()),
                     };
 
                 default:

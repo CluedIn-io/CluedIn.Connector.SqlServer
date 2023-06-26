@@ -1,4 +1,6 @@
-﻿using CluedIn.Core.Connectors;
+﻿using CluedIn.Connector.SqlServer.Connector;
+using CluedIn.Core.Configuration;
+using CluedIn.Core.Connectors;
 using System.Data;
 
 namespace CluedIn.Connector.SqlServer.Utils
@@ -17,7 +19,14 @@ namespace CluedIn.Connector.SqlServer.Utils
 
         public static ConnectorSqlType GetColumnType(ConnectorPropertyDataType type)
         {
-            return NVarcharMax;
+            var size = ConfigurationManagerEx.AppSettings.GetValue(SqlServerConnector.DefaultSizeForFieldConfigurationKey, "max");
+            return new ConnectorSqlType(SqlDbType.NVarChar, $"nvarchar({size})");
+        }
+
+        public static ConnectorSqlType GetColumnTypeForPropertyValue()
+        {
+            var size = ConfigurationManagerEx.AppSettings.GetValue(SqlServerConnector.DefaultSizeForFieldConfigurationKey, "max");
+            return new ConnectorSqlType(SqlDbType.NVarChar, $"nvarchar({size})");
         }
     }
 }
