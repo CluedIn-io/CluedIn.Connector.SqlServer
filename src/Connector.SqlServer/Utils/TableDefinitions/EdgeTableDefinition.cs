@@ -50,7 +50,7 @@ namespace CluedIn.Connector.SqlServer.Utils.TableDefinitions
                         new("EntityId", SqlColumnHelper.UniqueIdentifier),
                         new("EdgeType", SqlColumnHelper.NVarchar1024),
                         new(codeColumnName, SqlColumnHelper.NVarchar1024),
-                        new("ChangeType", SqlColumnHelper.NVarchar256),
+                        new("ChangeType", SqlColumnHelper.Int),
                         new("CorrelationId", SqlColumnHelper.UniqueIdentifier, IsPrimaryKey: true)
                     };
 

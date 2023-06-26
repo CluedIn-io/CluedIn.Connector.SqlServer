@@ -22,7 +22,7 @@ namespace CluedIn.Connector.SqlServer.Utils.TableDefinitions
                         new("EdgeId", SqlColumnHelper.UniqueIdentifier, IsPrimaryKey: true),
                         new("KeyName", SqlColumnHelper.NVarchar256, IsPrimaryKey: true),
                         new("Value", SqlColumnHelper.GetColumnTypeForPropertyValue()),
-                        new("ChangeType", SqlColumnHelper.NVarchar256),
+                        new("ChangeType", SqlColumnHelper.Int),
                         new("CorrelationId", SqlColumnHelper.UniqueIdentifier, IsPrimaryKey: true)
                     };
 

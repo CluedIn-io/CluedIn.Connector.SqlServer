@@ -21,7 +21,7 @@ namespace CluedIn.Connector.SqlServer.Utils.TableDefinitions
                         new("EntityId", SqlColumnHelper.UniqueIdentifier, AddIndex: true),
                         new("Code", SqlColumnHelper.NVarchar1024),
                         new("ChangeType", SqlColumnHelper.NVarchar256),
-                        new("CorrelationId", SqlColumnHelper.UniqueIdentifier)
+                        new("CorrelationId", SqlColumnHelper.Int)
                     };
 
                 case StreamMode.Sync:

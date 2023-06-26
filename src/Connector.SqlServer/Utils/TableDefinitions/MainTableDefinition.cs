@@ -33,7 +33,7 @@ namespace CluedIn.Connector.SqlServer.Utils.TableDefinitions
                     new("OriginEntityCode", SqlColumnHelper.NVarchar1024, input => input.data.OriginEntityCode != null ? (object)input.data.OriginEntityCode.ToString() : (object)DBNull.Value, CanBeNull: true),
                     new("EntityType", SqlColumnHelper.NVarcharMax, input => input.data.EntityType != null ? (object)input.data.EntityType.ToString() : (object)DBNull.Value, CanBeNull: true),
                     new("TimeStamp", SqlColumnHelper.DateTimeOffset7, input => input.timeStamp),
-                    new("ChangeType", SqlColumnHelper.NVarchar256, input => input.data.ChangeType),
+                    new("ChangeType", SqlColumnHelper.Int, input => input.data.ChangeType),
                     new("CorrelationId", SqlColumnHelper.UniqueIdentifier, input => input.data.CorrelationId, IsPrimaryKey: true)
                 },
                 StreamMode.Sync => new MainTableColumnDefinition[]
