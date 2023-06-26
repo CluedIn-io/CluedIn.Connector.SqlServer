@@ -5,7 +5,6 @@ using System.Collections.Generic;
 using CluedIn.Connector.Common.Configurations;
 using CluedIn.Connector.SqlServer.Utils;
 using System;
-using System.Linq;
 using System.Threading.Tasks;
 using CluedIn.Core.Crawling;
 using CluedIn.Core.Providers;

@@ -14,7 +14,7 @@ namespace CluedIn.Connector.SqlServer
             var asm = Assembly.GetExecutingAssembly();
             container.Register(Types.FromAssembly(asm).BasedOn<IFeatureStore>().WithServiceFromInterface()
                 .If(t => !t.IsAbstract).LifestyleSingleton());
-            container.Register(Component.For<ISqlClient>().ImplementedBy<BulkSqlClient>().OnlyNewServices());
+            container.Register(Component.For<ISqlClient>().ImplementedBy<SqlClient>().OnlyNewServices());
             container.Register(Component.For<ISqlServerConstants>().ImplementedBy<SqlServerConstants>().LifestyleSingleton());
         }
     }

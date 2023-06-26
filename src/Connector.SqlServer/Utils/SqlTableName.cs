@@ -19,7 +19,7 @@ namespace CluedIn.Connector.SqlServer.Utils
         /// <summary>
         /// Creates sanitized table name from unsafe name
         /// </summary>
-        public static SqlTableName FromUnsafeName(string rawTableName, IConnectorConnection config) =>
+        public static SqlTableName FromUnsafeName(string rawTableName, IConnectorConnectionV2 config) =>
             FromUnsafeName(rawTableName, config.GetSchema());
 
         public SqlName Schema { get; }

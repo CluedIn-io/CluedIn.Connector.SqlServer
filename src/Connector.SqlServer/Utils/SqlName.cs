@@ -41,6 +41,6 @@ namespace CluedIn.Connector.SqlServer.Utils
 
         public SqlTableName ToTableName(SqlName schema) => new SqlTableName(this, schema);
 
-        public SqlTableName ToTableName(IConnectorConnection config) => new SqlTableName(this, config.GetSchema());
+        public SqlTableName ToTableName(IConnectorConnectionV2 config) => new SqlTableName(this, config.GetSchema());
     }
 }
