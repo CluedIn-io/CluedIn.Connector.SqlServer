@@ -41,12 +41,8 @@ namespace CluedIn.Connector.SqlServer.Connector
 
         public override async Task VerifyExistingContainer(ExecutionContext executionContext, IReadOnlyStreamModel streamModel)
         {
-            Debugger.Launch();
-
             await ExecuteWithRetryAsync(async () =>
             {
-                this._logger.LogError("Verifying existing container for stream: {streamId}", streamModel.Id);
-
                 var config = await AuthenticationDetailsHelper.GetAuthenticationDetails(executionContext, streamModel.ConnectorProviderDefinitionId.Value);
                 var schema = config.GetSchema();
                 await using var connectionAndTransaction = await _client.BeginTransaction(config.Authentication);
