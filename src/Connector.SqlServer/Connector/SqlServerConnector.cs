@@ -119,16 +119,16 @@ namespace CluedIn.Connector.SqlServer.Connector
                 var schema = config.GetSchema();
                 await using var connectionAndTransaction = await _client.BeginTransaction(config.Authentication);
                 var transaction = connectionAndTransaction.Transaction;
-                var timeStamp = DateTimeOffset.UtcNow;
+                var timestamp = DateTimeOffset.UtcNow;
 
-                var sqlConnectorEntityData = new SqlConnectorEntityData(connectorEntityData, Guid.NewGuid());
+                var sqlConnectorEntityData = new SqlConnectorEntityData(connectorEntityData, Guid.NewGuid(), timestamp);
 
                 if (connectorEntityData.ChangeType == VersionChangeType.Removed)
                 {
                     switch (streamModel.Mode)
                     {
                         case StreamMode.EventStream:
-                            result = await ExecuteUpsert(streamModel, sqlConnectorEntityData, timeStamp, schema, transaction);
+                            result = await ExecuteUpsert(streamModel, sqlConnectorEntityData, schema, transaction);
                             break;
 
                         case StreamMode.Sync:
@@ -150,7 +150,7 @@ namespace CluedIn.Connector.SqlServer.Connector
                 {
                     case ExistenceCommandUtility.ExistenceCheckResult.NoVersionExists:
                     case ExistenceCommandUtility.ExistenceCheckResult.EarlierVersionExists:
-                        var upsertResult = await ExecuteUpsert(streamModel, sqlConnectorEntityData, timeStamp, schema, transaction);
+                        var upsertResult = await ExecuteUpsert(streamModel, sqlConnectorEntityData, schema, transaction);
                         result = upsertResult;
 
                         break;
@@ -201,11 +201,11 @@ namespace CluedIn.Connector.SqlServer.Connector
             return SaveResult.Success;
         }
 
-        private async Task<SaveResult> ExecuteUpsert(IReadOnlyStreamModel streamModel, SqlConnectorEntityData sqlConnectorEntityData, DateTimeOffset timeStamp, SqlName schema, SqlTransaction transaction)
+        private async Task<SaveResult> ExecuteUpsert(IReadOnlyStreamModel streamModel, SqlConnectorEntityData sqlConnectorEntityData, SqlName schema, SqlTransaction transaction)
         {
             var isSyncMode = streamModel.Mode == StreamMode.Sync;
 
-            var updateCommand = StoreCommandBuilder.MainTableCommand(streamModel, sqlConnectorEntityData, timeStamp, schema);
+            var updateCommand = StoreCommandBuilder.MainTableCommand(streamModel, sqlConnectorEntityData, schema);
             var updateSqlCommand = updateCommand.ToSqlCommand(transaction);
             await updateSqlCommand.ExecuteNonQueryAsync();
 
