@@ -27,23 +27,23 @@ namespace CluedIn.Connector.SqlServer.Utils.TableDefinitions
             {
                 StreamMode.EventStream => new MainTableColumnDefinition[]
                 {
-                    new("Id", SqlColumnHelper.UniqueIdentifier, input => input.data.EntityId, IsPrimaryKey: true),
-                    new("PersistVersion", SqlColumnHelper.Int, input => input.data.PersistInfo != null ? (object)input.data.PersistInfo.PersistVersion : (object)DBNull.Value, CanBeNull: true),
-                    new("PersistHash", SqlColumnHelper.Char24, input => input.data.PersistInfo != null ? (object)input.data.PersistInfo.PersistHash : (object)DBNull.Value, CanBeNull: true),
-                    new("OriginEntityCode", SqlColumnHelper.NVarchar1024, input => input.data.OriginEntityCode != null ? (object)input.data.OriginEntityCode.ToString() : (object)DBNull.Value, CanBeNull: true),
-                    new("EntityType", SqlColumnHelper.NVarcharMax, input => input.data.EntityType != null ? (object)input.data.EntityType.ToString() : (object)DBNull.Value, CanBeNull: true),
-                    new("TimeStamp", SqlColumnHelper.DateTimeOffset7, input => input.timeStamp),
-                    new("ChangeType", SqlColumnHelper.Int, input => input.data.ChangeType),
-                    new("CorrelationId", SqlColumnHelper.UniqueIdentifier, input => input.data.CorrelationId, IsPrimaryKey: true)
+                    new("Id", SqlColumnHelper.UniqueIdentifier, input => input.EntityId, IsPrimaryKey: true),
+                    new("PersistVersion", SqlColumnHelper.Int, input => input.PersistInfo != null ? (object)input.PersistInfo.PersistVersion : (object)DBNull.Value, CanBeNull: true),
+                    new("PersistHash", SqlColumnHelper.Char24, input => input.PersistInfo != null ? (object)input.PersistInfo.PersistHash : (object)DBNull.Value, CanBeNull: true),
+                    new("OriginEntityCode", SqlColumnHelper.NVarchar1024, input => input.OriginEntityCode != null ? (object)input.OriginEntityCode.ToString() : (object)DBNull.Value, CanBeNull: true),
+                    new("EntityType", SqlColumnHelper.NVarcharMax, input => input.EntityType != null ? (object)input.EntityType.ToString() : (object)DBNull.Value, CanBeNull: true),
+                    new("Timestamp", SqlColumnHelper.DateTimeOffset7, input => input.Timestamp),
+                    new("ChangeType", SqlColumnHelper.Int, input => input.ChangeType),
+                    new("CorrelationId", SqlColumnHelper.UniqueIdentifier, input => input.CorrelationId, IsPrimaryKey: true)
                 },
                 StreamMode.Sync => new MainTableColumnDefinition[]
                 {
-                    new("Id", SqlColumnHelper.UniqueIdentifier, input => input.data.EntityId, IsPrimaryKey: true),
-                    new("PersistVersion", SqlColumnHelper.Int, input => input.data.PersistInfo!.PersistVersion),
-                    new("PersistHash", SqlColumnHelper.Char24, input => input.data.PersistInfo!.PersistHash),
-                    new("OriginEntityCode", SqlColumnHelper.NVarchar1024, input => input.data.OriginEntityCode.ToString()),
-                    new("EntityType", SqlColumnHelper.NVarcharMax, input => input.data.EntityType.ToString()),
-                    new("TimeStamp", SqlColumnHelper.DateTimeOffset7, input => input.timeStamp),
+                    new("Id", SqlColumnHelper.UniqueIdentifier, input => input.EntityId, IsPrimaryKey: true),
+                    new("PersistVersion", SqlColumnHelper.Int, input => input.PersistInfo!.PersistVersion),
+                    new("PersistHash", SqlColumnHelper.Char24, input => input.PersistInfo!.PersistHash),
+                    new("OriginEntityCode", SqlColumnHelper.NVarchar1024, input => input.OriginEntityCode.ToString()),
+                    new("EntityType", SqlColumnHelper.NVarcharMax, input => input.EntityType.ToString()),
+                    new("Timestamp", SqlColumnHelper.DateTimeOffset7, input => input.Timestamp),
                 },
                 _ => throw new ArgumentOutOfRangeException(nameof(streamMode), streamMode, null)
             };
@@ -57,7 +57,7 @@ namespace CluedIn.Connector.SqlServer.Utils.TableDefinitions
                     sqlType,
                     input =>
                     {
-                        var propertyValue = input.data.Properties.First(x => x.Name == property.name).Value;
+                        var propertyValue = input.Properties.First(x => x.Name == property.name).Value;
                         if (propertyValue == null)
                         {
                             return DBNull.Value;
@@ -78,7 +78,7 @@ namespace CluedIn.Connector.SqlServer.Utils.TableDefinitions
             return allColumns;
         }
 
-        public static SqlServerConnectorCommand CreateUpsertCommand(IReadOnlyStreamModel streamModel, SqlConnectorEntityData connectorEntityData, DateTimeOffset timeStamp, SqlName schema)
+        public static SqlServerConnectorCommand CreateUpsertCommand(IReadOnlyStreamModel streamModel, SqlConnectorEntityData connectorEntityData, SqlName schema)
         {
             var mainTableName = TableNameUtility.GetMainTableName(streamModel, schema);
             var mainTableDefinitions = GetColumnDefinitions(connectorEntityData);
@@ -89,7 +89,7 @@ namespace CluedIn.Connector.SqlServer.Utils.TableDefinitions
             var valueParameters = mainTableDefinitions.Select(definition =>
                 new SqlParameter($"@{definition.Name}", definition.ConnectorSqlType.SqlType)
                 {
-                    Value = definition.GetValueFunc((connectorEntityData, timeStamp))
+                    Value = definition.GetValueFunc(connectorEntityData)
                 })
                 .ToArray();
 

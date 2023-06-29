@@ -6,7 +6,7 @@ namespace CluedIn.Connector.SqlServer.Utils
     internal record MainTableColumnDefinition(
         string Name,
         ConnectorSqlType ConnectorSqlType,
-        Func<(SqlConnectorEntityData data, DateTimeOffset timeStamp), object> GetValueFunc,
+        Func<SqlConnectorEntityData, object> GetValueFunc,
         bool CanBeNull = false,
         bool IsPrimaryKey = false,
         bool AddIndex = false

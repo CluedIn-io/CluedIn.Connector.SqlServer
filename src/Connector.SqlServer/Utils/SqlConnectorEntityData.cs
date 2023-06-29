@@ -25,10 +25,13 @@ namespace CluedIn.Connector.SqlServer.Utils
 
         public Guid? CorrelationId;
 
-        public SqlConnectorEntityData(IReadOnlyConnectorEntityData inner, Guid? correlationId)
+        public DateTimeOffset Timestamp;
+
+        public SqlConnectorEntityData(IReadOnlyConnectorEntityData inner, Guid? correlationId, DateTimeOffset timestamp)
         {
             _inner = inner;
             CorrelationId = correlationId;
+            Timestamp = timestamp;
         }
     }
 }

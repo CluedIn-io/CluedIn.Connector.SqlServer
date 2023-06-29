@@ -9,9 +9,9 @@ namespace CluedIn.Connector.SqlServer.Utils
 {
     internal static class StoreCommandBuilder
     {
-        public static SqlServerConnectorCommand MainTableCommand(IReadOnlyStreamModel streamModel, SqlConnectorEntityData connectorEntityData, DateTimeOffset timeStamp, SqlName schema)
+        public static SqlServerConnectorCommand MainTableCommand(IReadOnlyStreamModel streamModel, SqlConnectorEntityData connectorEntityData, SqlName schema)
         {
-            return MainTableDefinition.CreateUpsertCommand(streamModel, connectorEntityData, timeStamp, schema);
+            return MainTableDefinition.CreateUpsertCommand(streamModel, connectorEntityData, schema);
         }
 
         public static SqlServerConnectorCommand CodesInsertCommand(IReadOnlyStreamModel streamModel, SqlConnectorEntityData connectorEntityData, SqlName schema)
