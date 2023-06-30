@@ -47,7 +47,7 @@ namespace CluedIn.Connector.SqlServer.Utils.TableDefinitions
                     return new ColumnDefinition[]
                     {
                         new("Id", SqlColumnHelper.UniqueIdentifier, IsPrimaryKey: true),
-                        new("EntityId", SqlColumnHelper.UniqueIdentifier),
+                        new("EntityId", SqlColumnHelper.UniqueIdentifier, AddIndex: true),
                         new("EdgeType", SqlColumnHelper.NVarchar1024),
                         new(codeColumnName, SqlColumnHelper.NVarchar1024),
                         new("ChangeType", SqlColumnHelper.Int),
@@ -58,7 +58,7 @@ namespace CluedIn.Connector.SqlServer.Utils.TableDefinitions
                     return new ColumnDefinition[]
                     {
                         new("Id", SqlColumnHelper.UniqueIdentifier, IsPrimaryKey: true),
-                        new("EntityId", SqlColumnHelper.UniqueIdentifier),
+                        new("EntityId", SqlColumnHelper.UniqueIdentifier, AddIndex: true),
                         new("EdgeType", SqlColumnHelper.NVarcharMax),
                         new(codeColumnName, SqlColumnHelper.NVarchar1024),
                     };
