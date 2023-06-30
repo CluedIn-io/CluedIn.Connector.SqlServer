@@ -73,7 +73,26 @@ namespace CluedIn.Connector.SqlServer.Connector
 
                 // Check if old main table is present
                 {
-                    var tableColumnsSelectText = $"""
+                    var tableExistsText = $"""
+                        IF (OBJECT_ID(N'{mainTableName.FullyQualifiedName}') IS NOT NULL)
+                        BEGIN
+                        	SELECT 1
+                        END
+                        ELSE
+                        BEGIN
+                        	SELECT 0
+                        END
+                        """;
+
+                    var tableExistsCommand = new SqlServerConnectorCommand() { Text = tableExistsText, Parameters = Array.Empty<SqlParameter>() };
+                    var tableExistsResult = await tableExistsCommand.ToSqlCommand(transaction).ExecuteScalarAsync();
+
+                    // If the table exists, we need to check if it was created in an older version of the connector.
+                    // The way we do this is check is to check if it contains all of the columns that we expect the
+                    // main table to have in this version.
+                    if ((int)tableExistsResult == 1)
+                    {
+                        var tableColumnsSelectText = $"""
                         SELECT columns.name FROM sys.columns columns
                         INNER JOIN sys.tables tables
                         ON tables.object_id = columns.object_id AND 
@@ -81,26 +100,32 @@ namespace CluedIn.Connector.SqlServer.Connector
                            tables.type = 'U'
                         """;
 
-                    var tableCheckSqlConnectorCommand = new SqlServerConnectorCommand() { Text = tableColumnsSelectText, Parameters = Array.Empty<SqlParameter>() };
-                    var reader = await tableCheckSqlConnectorCommand
-                        .ToSqlCommand(transaction)
-                        .ExecuteReaderAsync();
+                        var tableCheckSqlConnectorCommand = new SqlServerConnectorCommand() { Text = tableColumnsSelectText, Parameters = Array.Empty<SqlParameter>() };
+                        var reader = await tableCheckSqlConnectorCommand
+                            .ToSqlCommand(transaction)
+                            .ExecuteReaderAsync();
 
-                    var existingColumns = new List<string>();
-                    while (await reader.ReadAsync())
-                    {
-                        existingColumns.Add(reader[0].ToString());
-                    }
+                        var existingColumns = new List<string>();
+                        while (await reader.ReadAsync())
+                        {
+                            existingColumns.Add(reader[0].ToString());
+                        }
 
-                    var expectedColumnNames = MainTableDefinition
-                        .GetColumnDefinitions(StreamMode.Sync, Array.Empty<(string, ConnectorPropertyDataType)>())
-                        .Select(columnDefinition => columnDefinition.Name);
+                        var expectedColumnNames = MainTableDefinition
+                            .GetColumnDefinitions(StreamMode.Sync, Array.Empty<(string, ConnectorPropertyDataType)>())
+                            .Select(columnDefinition => columnDefinition.Name);
 
-                    var existingColumnsContainsAllExpectedColumns = expectedColumnNames.All(column => existingColumns.Contains(column));
+                        var existingColumnsContainsAllExpectedColumns = expectedColumnNames.All(column => existingColumns.Contains(column));
 
-                    if (!existingColumnsContainsAllExpectedColumns)
-                    {
-                        throw IncompatibleTableException.OldTableVersionExists(streamModel.Id, (Guid)streamModel.ConnectorProviderDefinitionId);
+                        if (!existingColumnsContainsAllExpectedColumns)
+                        {
+                            // If an exception is thrown during `VerifyExistingContainer`, nothing can be done with the stream.
+                            // This includes reprocessing the stream, to create new tables.
+                            // Until this is changed in platform, we simply log the exception instead of throwing
+                            // PBI: #23500
+                            var exception = IncompatibleTableException.OldTableVersionExists(streamModel.Id, (Guid)streamModel.ConnectorProviderDefinitionId);
+                            _logger.LogError(exception, "Not all expected columns were present, most likely because the table was created in an old version");
+                        }
                     }
                 }
 
