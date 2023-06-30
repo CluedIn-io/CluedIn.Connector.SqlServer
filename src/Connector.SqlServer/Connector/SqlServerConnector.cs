@@ -119,7 +119,12 @@ namespace CluedIn.Connector.SqlServer.Connector
 
                         if (!existingColumnsContainsAllExpectedColumns)
                         {
-                            throw IncompatibleTableException.OldTableVersionExists(streamModel.Id, (Guid)streamModel.ConnectorProviderDefinitionId);
+                            // If an exception is thrown during `VerifyExistingContainer`, nothing can be done with the stream.
+                            // This includes reprocessing the stream, to create new tables.
+                            // Until this is changed in platform, we simply log the exception instead of throwing
+                            // PBI: #23500
+                            var exception = IncompatibleTableException.OldTableVersionExists(streamModel.Id, (Guid)streamModel.ConnectorProviderDefinitionId);
+                            _logger.LogError(exception, "Not all expected columns were present, most likely because the table was created in an old version");
                         }
                     }
                 }
