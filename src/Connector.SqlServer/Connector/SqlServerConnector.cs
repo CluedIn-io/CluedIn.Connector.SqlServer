@@ -1,5 +1,4 @@
 ﻿using CluedIn.Connector.Common.Connectors;
-using CluedIn.Connector.SqlServer.Exceptions;
 using CluedIn.Connector.SqlServer.Utils;
 using CluedIn.Connector.SqlServer.Utils.TableDefinitions;
 using CluedIn.Core;
@@ -12,7 +11,6 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Data;
-using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -49,60 +47,21 @@ namespace CluedIn.Connector.SqlServer.Connector
                 var transaction = connectionAndTransaction.Transaction;
 
                 var mainTableName = TableNameUtility.GetMainTableName(streamModel, schema);
+                var oldEdgeLocalTableName = $"{mainTableName.LocalName}Edges";
+                var newEdgeLocalTableName = $"{mainTableName.LocalName}_{DateTimeOffset.UtcNow}Edges";
 
-                // Archive old edge table name, since rename logic used during normal archive expect different name
-                {
-                    var oldEdgeLocalTableName = $"{mainTableName.LocalName}Edges";
-                    var newEdgeLocalTableName = $"{mainTableName.LocalName}_{DateTimeOffset.UtcNow}Edges";
+                var oldEdgeTableName = SqlName.FromUnsafe(oldEdgeLocalTableName).ToTableName(schema);
+                var newEdgeTableName = SqlName.FromUnsafe(newEdgeLocalTableName).ToTableName(schema);
 
-                    var oldEdgeTableName = SqlName.FromUnsafe(oldEdgeLocalTableName).ToTableName(schema);
-                    var newEdgeTableName = SqlName.FromUnsafe(newEdgeLocalTableName).ToTableName(schema);
+                var tableRenameText = $"""
+                    IF (OBJECT_ID(N'{oldEdgeTableName.FullyQualifiedName}') IS NOT NULL)
+                    BEGIN
+                        EXEC sp_rename N'{oldEdgeTableName.FullyQualifiedName}', {newEdgeTableName.LocalName};
+                    END
+                    """;
 
-                    var tableRenameText = $"""
-                        IF (OBJECT_ID(N'{oldEdgeTableName.FullyQualifiedName}') IS NOT NULL)
-                        BEGIN
-                            EXEC sp_rename N'{oldEdgeTableName.FullyQualifiedName}', {newEdgeTableName.LocalName};
-                        END
-                        """;
-
-                    var renameSqlConnectorCommand = new SqlServerConnectorCommand() { Text = tableRenameText, Parameters = Array.Empty<SqlParameter>() };
-                    await renameSqlConnectorCommand
-                        .ToSqlCommand(transaction)
-                        .ExecuteScalarAsync();
-                }
-
-                // Check if old main table is present
-                {
-                    var tableColumnsSelectText = $"""
-                        SELECT columns.name FROM sys.columns columns
-                        INNER JOIN sys.tables tables
-                        ON tables.object_id = columns.object_id AND 
-                           tables.Name = '{mainTableName.LocalName}' AND
-                           tables.type = 'U'
-                        """;
-
-                    var tableCheckSqlConnectorCommand = new SqlServerConnectorCommand() { Text = tableColumnsSelectText, Parameters = Array.Empty<SqlParameter>() };
-                    var reader = await tableCheckSqlConnectorCommand
-                        .ToSqlCommand(transaction)
-                        .ExecuteReaderAsync();
-
-                    var existingColumns = new List<string>();
-                    while (await reader.ReadAsync())
-                    {
-                        existingColumns.Add(reader[0].ToString());
-                    }
-
-                    var expectedColumnNames = MainTableDefinition
-                        .GetColumnDefinitions(StreamMode.Sync, Array.Empty<(string, ConnectorPropertyDataType)>())
-                        .Select(columnDefinition => columnDefinition.Name);
-
-                    var existingColumnsContainsAllExpectedColumns = expectedColumnNames.All(column => existingColumns.Contains(column));
-
-                    if (!existingColumnsContainsAllExpectedColumns)
-                    {
-                        throw IncompatibleTableException.OldTableVersionExists(streamModel.Id, (Guid)streamModel.ConnectorProviderDefinitionId);
-                    }
-                }
+                var sqlConnectorCommand = new SqlServerConnectorCommand() { Text = tableRenameText, Parameters = Array.Empty<SqlParameter>() };
+                await sqlConnectorCommand.ToSqlCommand(transaction).ExecuteScalarAsync();
 
                 await transaction.CommitAsync();
             });
