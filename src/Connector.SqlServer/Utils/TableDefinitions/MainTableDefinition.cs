@@ -2,7 +2,6 @@
 using CluedIn.Core.Connectors;
 using CluedIn.Core.Streams.Models;
 using Microsoft.Data.SqlClient;
-using Nest;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -48,30 +47,35 @@ namespace CluedIn.Connector.SqlServer.Utils.TableDefinitions
                 _ => throw new ArgumentOutOfRangeException(nameof(streamMode), streamMode, null)
             };
 
-            var propertyColumns = properties.Select(property =>
-            {
-                var name = property.name.ToSanitizedSqlName();
-                var sqlType = SqlColumnHelper.GetColumnType(property.dataType);
-                return new MainTableColumnDefinition(
-                    name,
-                    sqlType,
-                    input =>
-                    {
-                        var propertyValue = input.Properties.First(x => x.Name == property.name).Value;
-                        if (propertyValue == null)
-                        {
-                            return DBNull.Value;
-                        }
+            var defaultColumnNamesHashSet = defaultColumns.Select(x => x.Name).ToHashSet();
 
-                        if (propertyValue is IEnumerable<object> enumerable)
+            var propertyColumns = properties
+                // We need to filter out any properties, that are contained in the default columns.
+                .Where(property => !defaultColumnNamesHashSet.Contains(property.name.ToSanitizedSqlName()))
+                .Select(property =>
+                {
+                    var name = property.name.ToSanitizedSqlName();
+                    var sqlType = SqlColumnHelper.GetColumnType(property.dataType);
+                    return new MainTableColumnDefinition(
+                        name,
+                        sqlType,
+                        input =>
                         {
-                            return $"[{string.Join(", ", enumerable)}]";
-                        }
+                            var propertyValue = input.Properties.First(x => x.Name == property.name).Value;
+                            if (propertyValue == null)
+                            {
+                                return DBNull.Value;
+                            }
 
-                        return propertyValue;
-                    },
-                    CanBeNull: true);
-            });
+                            if (propertyValue is IEnumerable<object> enumerable)
+                            {
+                                return $"[{string.Join(", ", enumerable)}]";
+                            }
+
+                            return propertyValue;
+                        },
+                        CanBeNull: true);
+                });
 
             var allColumns = defaultColumns.Concat(propertyColumns).ToArray();
 

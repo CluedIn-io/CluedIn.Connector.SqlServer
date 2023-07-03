@@ -7,6 +7,7 @@ using FluentAssertions;
 using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Linq;
 using Xunit;
 
 namespace CluedIn.Connector.SqlServer.Unit.Tests.Utils.TableDefinitions
@@ -47,6 +48,24 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests.Utils.TableDefinitions
             // assert
             eventColumnDefinitions.Should().Contain(column => column.Name == "ChangeType");
             eventColumnDefinitions.Should().Contain(column => column.Name == "CorrelationId");
+        }
+
+        [Theory, AutoNData]
+        public void GetColumnDefinitions_ShouldNotIncludePropertiesMultipleTimes()
+        {
+            // arrange
+            var properties = new (string, ConnectorPropertyDataType)[]
+            {
+                ("PersistVersion", new EntityPropertyConnectorPropertyDataType(typeof(string))),
+            };
+
+            // act
+            var syncColumnDefinitions = MainTableDefinition.GetColumnDefinitions(StreamMode.Sync, properties);
+            var eventColumnDefinitions = MainTableDefinition.GetColumnDefinitions(StreamMode.EventStream, properties);
+
+            // assert
+            syncColumnDefinitions.Should().ContainSingle(column => column.Name == "PersistVersion");
+            eventColumnDefinitions.Should().ContainSingle(column => column.Name == "PersistVersion");
         }
     }
 }
