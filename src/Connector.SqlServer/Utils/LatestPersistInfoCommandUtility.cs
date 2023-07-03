@@ -49,7 +49,6 @@ FROM {mainTableName.FullyQualifiedName}";
         {
             while (await reader.ReadAsync())
             {
-                await reader.ReadAsync();
                 var persistVersion = (int)reader[0];
                 var persistHash = (string)reader[1];
                 var entityId = (Guid)reader[2];
