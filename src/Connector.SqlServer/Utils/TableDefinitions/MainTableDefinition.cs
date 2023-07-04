@@ -2,7 +2,6 @@
 using CluedIn.Core.Connectors;
 using CluedIn.Core.Streams.Models;
 using Microsoft.Data.SqlClient;
-using Nest;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -31,7 +30,7 @@ namespace CluedIn.Connector.SqlServer.Utils.TableDefinitions
                     new("PersistVersion", SqlColumnHelper.Int, input => input.PersistInfo != null ? (object)input.PersistInfo.PersistVersion : (object)DBNull.Value, CanBeNull: true),
                     new("PersistHash", SqlColumnHelper.Char24, input => input.PersistInfo != null ? (object)input.PersistInfo.PersistHash : (object)DBNull.Value, CanBeNull: true),
                     new("OriginEntityCode", SqlColumnHelper.NVarchar1024, input => input.OriginEntityCode != null ? (object)input.OriginEntityCode.ToString() : (object)DBNull.Value, CanBeNull: true),
-                    new("EntityType", SqlColumnHelper.NVarcharMax, input => input.EntityType != null ? (object)input.EntityType.ToString() : (object)DBNull.Value, CanBeNull: true),
+                    new("EntityType", SqlColumnHelper.NVarchar1024, input => input.EntityType != null ? (object)input.EntityType.ToString() : (object)DBNull.Value, CanBeNull: true),
                     new("Timestamp", SqlColumnHelper.DateTimeOffset7, input => input.Timestamp),
                     new("ChangeType", SqlColumnHelper.Int, input => input.ChangeType),
                     new("CorrelationId", SqlColumnHelper.UniqueIdentifier, input => input.CorrelationId, IsPrimaryKey: true)
@@ -42,36 +41,41 @@ namespace CluedIn.Connector.SqlServer.Utils.TableDefinitions
                     new("PersistVersion", SqlColumnHelper.Int, input => input.PersistInfo!.PersistVersion),
                     new("PersistHash", SqlColumnHelper.Char24, input => input.PersistInfo!.PersistHash),
                     new("OriginEntityCode", SqlColumnHelper.NVarchar1024, input => input.OriginEntityCode.ToString()),
-                    new("EntityType", SqlColumnHelper.NVarcharMax, input => input.EntityType.ToString()),
+                    new("EntityType", SqlColumnHelper.NVarchar1024, input => input.EntityType.ToString()),
                     new("Timestamp", SqlColumnHelper.DateTimeOffset7, input => input.Timestamp),
                 },
                 _ => throw new ArgumentOutOfRangeException(nameof(streamMode), streamMode, null)
             };
 
-            var propertyColumns = properties.Select(property =>
-            {
-                var name = property.name.ToSanitizedSqlName();
-                var sqlType = SqlColumnHelper.GetColumnType(property.dataType);
-                return new MainTableColumnDefinition(
-                    name,
-                    sqlType,
-                    input =>
-                    {
-                        var propertyValue = input.Properties.First(x => x.Name == property.name).Value;
-                        if (propertyValue == null)
-                        {
-                            return DBNull.Value;
-                        }
+            var defaultColumnNamesHashSet = defaultColumns.Select(x => x.Name).ToHashSet();
 
-                        if (propertyValue is IEnumerable<object> enumerable)
+            var propertyColumns = properties
+                // We need to filter out any properties, that are contained in the default columns.
+                .Where(property => !defaultColumnNamesHashSet.Contains(property.name.ToSanitizedSqlName()))
+                .Select(property =>
+                {
+                    var name = property.name.ToSanitizedSqlName();
+                    var sqlType = SqlColumnHelper.GetColumnType(property.dataType);
+                    return new MainTableColumnDefinition(
+                        name,
+                        sqlType,
+                        input =>
                         {
-                            return $"[{string.Join(", ", enumerable)}]";
-                        }
+                            var propertyValue = input.Properties.First(x => x.Name == property.name).Value;
+                            if (propertyValue == null)
+                            {
+                                return DBNull.Value;
+                            }
 
-                        return propertyValue;
-                    },
-                    CanBeNull: true);
-            });
+                            if (propertyValue is IEnumerable<object> enumerable)
+                            {
+                                return $"[{string.Join(", ", enumerable)}]";
+                            }
+
+                            return propertyValue;
+                        },
+                        CanBeNull: true);
+                });
 
             var allColumns = defaultColumns.Concat(propertyColumns).ToArray();
 

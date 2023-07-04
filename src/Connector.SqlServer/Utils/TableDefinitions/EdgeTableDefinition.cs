@@ -47,7 +47,7 @@ namespace CluedIn.Connector.SqlServer.Utils.TableDefinitions
                     return new ColumnDefinition[]
                     {
                         new("Id", SqlColumnHelper.UniqueIdentifier, IsPrimaryKey: true),
-                        new("EntityId", SqlColumnHelper.UniqueIdentifier),
+                        new("EntityId", SqlColumnHelper.UniqueIdentifier, AddIndex: true),
                         new("EdgeType", SqlColumnHelper.NVarchar1024),
                         new(codeColumnName, SqlColumnHelper.NVarchar1024),
                         new("ChangeType", SqlColumnHelper.Int),
@@ -58,7 +58,7 @@ namespace CluedIn.Connector.SqlServer.Utils.TableDefinitions
                     return new ColumnDefinition[]
                     {
                         new("Id", SqlColumnHelper.UniqueIdentifier, IsPrimaryKey: true),
-                        new("EntityId", SqlColumnHelper.UniqueIdentifier),
+                        new("EntityId", SqlColumnHelper.UniqueIdentifier, AddIndex: true),
                         new("EdgeType", SqlColumnHelper.NVarcharMax),
                         new(codeColumnName, SqlColumnHelper.NVarchar1024),
                     };
@@ -165,6 +165,21 @@ namespace CluedIn.Connector.SqlServer.Utils.TableDefinitions
             var edgeTableName = TableNameUtility.GetEdgesTableName(streamModel, direction, schema);
             var edgeTableType = CreateCustomTypeCommandUtility.GetEdgeTableCustomTypeName(streamModel, direction, schema);
 
+            var sqlRecords = GetSqlRecords(StreamMode.Sync, direction, connectorEntityData);
+            var entityIdParameter = new SqlParameter("@EntityId", SqlDbType.UniqueIdentifier) { Value = connectorEntityData.EntityId };
+
+            if (!sqlRecords.Any())
+            {
+                // If there are edges to be exported, we can use a simpler command,
+                // than if we have to potentially both delete and insert edges.
+                var simpleCommandText = $"""
+                    DELETE {edgeTableName.FullyQualifiedName}
+                    WHERE [EntityId] = @EntityId
+                    """;
+
+                return new SqlServerConnectorCommand { Text = simpleCommandText, Parameters = new[] { entityIdParameter } };
+            }
+
             var codeColumnName = direction == EdgeDirection.Outgoing
                 ? "ToCode"
                 : "FromCode";
@@ -198,13 +213,6 @@ namespace CluedIn.Connector.SqlServer.Utils.TableDefinitions
                 WHERE existingValues.[Id] IS NULL
                 """;
 
-            var sqlRecords = GetSqlRecords(StreamMode.Sync, direction, connectorEntityData);
-            if (!sqlRecords.Any())
-            {
-                sqlRecords = null;
-            }
-
-            var entityIdParameter = new SqlParameter("@EntityId", SqlDbType.UniqueIdentifier) { Value = connectorEntityData.EntityId };
             var recordsParameter = new SqlParameter($"@{edgeTableType.LocalName}", SqlDbType.Structured) { Value = sqlRecords, TypeName = edgeTableType.FullyQualifiedName };
 
             return new SqlServerConnectorCommand { Text = commandText, Parameters = new[] { entityIdParameter, recordsParameter } };
