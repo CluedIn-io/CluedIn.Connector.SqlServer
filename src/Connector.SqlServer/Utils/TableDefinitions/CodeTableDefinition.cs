@@ -20,8 +20,8 @@ namespace CluedIn.Connector.SqlServer.Utils.TableDefinitions
                     {
                         new("EntityId", SqlColumnHelper.UniqueIdentifier, AddIndex: true),
                         new("Code", SqlColumnHelper.NVarchar1024),
-                        new("ChangeType", SqlColumnHelper.NVarchar256),
-                        new("CorrelationId", SqlColumnHelper.Int)
+                        new("ChangeType", SqlColumnHelper.Int),
+                        new("CorrelationId", SqlColumnHelper.UniqueIdentifier)
                     };
 
                 case StreamMode.Sync:
@@ -50,8 +50,8 @@ namespace CluedIn.Connector.SqlServer.Utils.TableDefinitions
                         var record = new SqlDataRecord(sqlMetaData);
                         record.SetGuid(0, connectorEntityData.EntityId);
                         record.SetString(1, code.Key);
-                        record.SetString(2, connectorEntityData.ChangeType.ToString());
-                        record.SetGuid(3, connectorEntityData.CorrelationId.Value);
+                        record.SetInt32(2, (int)connectorEntityData.ChangeType);
+                        record.SetGuid(3, (Guid)connectorEntityData.CorrelationId.Value);
                         return record;
                     });
 
