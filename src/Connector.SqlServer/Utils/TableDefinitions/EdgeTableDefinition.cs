@@ -93,7 +93,7 @@ namespace CluedIn.Connector.SqlServer.Utils.TableDefinitions
                         record.SetGuid(1, connectorEntityData.EntityId);
                         record.SetString(2, edge.EdgeType);
                         record.SetString(3, code.Key);
-                        record.SetString(4, connectorEntityData.ChangeType.ToString());
+                        record.SetInt32(4, (int)connectorEntityData.ChangeType);
                         record.SetGuid(5, connectorEntityData.CorrelationId.Value);
                         return record;
                     });
