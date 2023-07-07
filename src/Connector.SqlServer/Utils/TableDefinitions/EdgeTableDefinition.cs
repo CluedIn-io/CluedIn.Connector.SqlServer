@@ -68,7 +68,7 @@ namespace CluedIn.Connector.SqlServer.Utils.TableDefinitions
             }
         }
 
-        public static IEnumerable<SqlDataRecord> GetSqlRecords(StreamMode streamMode, EdgeDirection direction, SqlConnectorEntityData connectorEntityData)
+        public static SqlDataRecord[] GetSqlRecords(StreamMode streamMode, EdgeDirection direction, SqlConnectorEntityData connectorEntityData)
         {
             var edges = direction == EdgeDirection.Incoming
                 ? connectorEntityData.IncomingEdges
@@ -96,7 +96,7 @@ namespace CluedIn.Connector.SqlServer.Utils.TableDefinitions
                         record.SetInt32(4, (int)connectorEntityData.ChangeType);
                         record.SetGuid(5, connectorEntityData.CorrelationId.Value);
                         return record;
-                    });
+                    }).ToArray();
 
                 case StreamMode.Sync:
                     var syncModeColumnDefinitions = GetColumnDefinitions(streamMode, direction);
@@ -116,7 +116,7 @@ namespace CluedIn.Connector.SqlServer.Utils.TableDefinitions
                         record.SetString(2, edge.EdgeType);
                         record.SetString(3, code.Key);
                         return record;
-                    });
+                    }).ToArray();
 
                 default:
                     throw new ArgumentOutOfRangeException(nameof(streamMode), streamMode, null);
