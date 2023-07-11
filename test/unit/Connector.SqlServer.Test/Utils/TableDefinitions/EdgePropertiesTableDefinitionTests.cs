@@ -76,10 +76,11 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests.Utils.TableDefinitions
                 foreach (var edgeProperty in edge.Properties)
                 {
                     sqlRecord[0].Should().Be(edgeId);
-                    sqlRecord[1].Should().Be(edgeProperty.Key);
-                    sqlRecord[2].Should().Be(edgeProperty.Value);
-                    sqlRecord[3].Should().Be(VersionChangeType.Added);
-                    sqlRecord[4].Should().Be(correlationId);
+                    sqlRecord[1].Should().Be(entityId);
+                    sqlRecord[2].Should().Be(edgeProperty.Key);
+                    sqlRecord[3].Should().Be(edgeProperty.Value);
+                    sqlRecord[4].Should().Be(VersionChangeType.Added);
+                    sqlRecord[5].Should().Be(correlationId);
                 }
             }
         }
@@ -130,8 +131,9 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests.Utils.TableDefinitions
                 foreach (var edgeProperty in edge.Properties)
                 {
                     sqlRecord[0].Should().Be(edgeId);
-                    sqlRecord[1].Should().Be(edgeProperty.Key);
-                    sqlRecord[2].Should().Be(edgeProperty.Value);
+                    sqlRecord[1].Should().Be(entityId);
+                    sqlRecord[2].Should().Be(edgeProperty.Key);
+                    sqlRecord[3].Should().Be(edgeProperty.Value);
                 }
             }
         }
