@@ -1,32 +1,103 @@
 using CluedIn.Core;
-using CluedIn.Connector.Common;
 using Microsoft.Extensions.Logging;
 using System.Collections.Generic;
-using CluedIn.Connector.Common.Configurations;
 using CluedIn.Connector.SqlServer.Utils;
 using System;
 using System.Threading.Tasks;
 using CluedIn.Core.Crawling;
+using CluedIn.Core.Data.Relational;
 using CluedIn.Core.Providers;
+using CluedIn.Core.Webhooks;
+using CluedIn.Providers.Models;
+using Newtonsoft.Json;
 
 namespace CluedIn.Connector.SqlServer
 {
-    public class SqlServerConnectorProvider : ConnectorProviderBase<SqlServerConnectorProvider>
+    public class SqlServerConnectorProvider : ProviderBase, IExtendedProviderMetadata
     {
+        private readonly ISqlServerConstants _configuration;
+        private readonly ILogger<SqlServerConnectorProvider> _logger;
+
         public SqlServerConnectorProvider([NotNull] ApplicationContext appContext, ISqlServerConstants configuration,
             ILogger<SqlServerConnectorProvider> logger)
-            : base(appContext, configuration, logger)
+            : base(appContext, configuration.CreateProviderMetadata())
         {
+            _configuration = configuration;
+            _logger = logger;
         }
 
-        protected override IEnumerable<string> ProviderNameParts =>
-            new[] { SqlServerConstants.KeyName.Host, SqlServerConstants.KeyName.Schema, SqlServerConstants.KeyName.DatabaseName };
+        protected IEnumerable<string> ProviderNameParts => new[] { SqlServerConstants.KeyName.Host, SqlServerConstants.KeyName.Schema, SqlServerConstants.KeyName.DatabaseName };
+
+        public string Icon => _configuration.Icon;
+        public string Domain => _configuration.Domain;
+        public string About => _configuration.About;
+        public AuthMethods AuthMethods => _configuration.AuthMethods;
+        public IEnumerable<Control> Properties => _configuration.Properties;
+        public Guide Guide => _configuration.Guide;
+        public new IntegrationType Type => _configuration.Type;
 
         public override string Schedule(DateTimeOffset relativeDateTime, bool webHooksEnabled)
             => $"{relativeDateTime.Minute} 0/23 * * *";
 
+        public override Task<IEnumerable<WebHookSignature>> CreateWebHook(ExecutionContext context, CrawlJobData jobData, IWebhookDefinition webhookDefinition,
+            IDictionary<string, object> config)
+        {
+            throw new NotImplementedException();
+        }
+
+        public override Task<IEnumerable<WebhookDefinition>> GetWebHooks(ExecutionContext context)
+        {
+            throw new NotImplementedException();
+        }
+
+        public override Task DeleteWebHook(ExecutionContext context, CrawlJobData jobData, IWebhookDefinition webhookDefinition)
+        {
+            throw new NotImplementedException();
+        }
+
         public override Task<CrawlLimit> GetRemainingApiAllowance(ExecutionContext context, CrawlJobData jobData, Guid organizationId, Guid userId, Guid providerDefinitionId)
             => Task.FromResult(new CrawlLimit(-1, TimeSpan.Zero));
+
+        public override IEnumerable<string> WebhookManagementEndpoints(IEnumerable<string> ids)
+        {
+            throw new NotImplementedException();
+        }
+
+        public override Task<CrawlJobData> GetCrawlJobData(ProviderUpdateContext context, IDictionary<string, object> configuration, Guid organizationId, Guid userId,
+            Guid providerDefinitionId)
+        {
+            // WARNING: The log output can contain sensitive information
+            _logger.LogDebug($"GetCrawlJobData config input: {JsonConvert.SerializeObject(configuration)}");
+            return Task.FromResult<CrawlJobData>(new CrawlJobDataWrapper(configuration));
+        }
+
+        public override Task<bool> TestAuthentication(ProviderUpdateContext context, IDictionary<string, object> configuration, Guid organizationId, Guid userId,
+            Guid providerDefinitionId)
+        {
+            throw new NotImplementedException();
+        }
+
+        public override Task<ExpectedStatistics> FetchUnSyncedEntityStatistics(ExecutionContext context, IDictionary<string, object> configuration, Guid organizationId,
+            Guid userId, Guid providerDefinitionId)
+        {
+            throw new NotImplementedException();
+        }
+
+        public override Task<IDictionary<string, object>> GetHelperConfiguration(ProviderUpdateContext context, CrawlJobData jobData, Guid organizationId, Guid userId, Guid providerDefinitionId)
+        {
+            _logger.LogDebug($"GetHelperConfiguration CrawlJobData input: {JsonConvert.SerializeObject(jobData)}");
+
+            if (jobData is CrawlJobDataWrapper dataWrapper)
+                return Task.FromResult(dataWrapper.Configurations);
+
+            return Task.FromResult<IDictionary<string, object>>(new Dictionary<string, object>());
+        }
+
+        public override Task<IDictionary<string, object>> GetHelperConfiguration(ProviderUpdateContext context, CrawlJobData jobData, Guid organizationId, Guid userId,
+            Guid providerDefinitionId, string folderId)
+        {
+            throw new NotImplementedException();
+        }
 
         public override Task<AccountInformation> GetAccountInformation(ExecutionContext context, CrawlJobData jobData, Guid organizationId, Guid userId, Guid providerDefinitionId)
         {

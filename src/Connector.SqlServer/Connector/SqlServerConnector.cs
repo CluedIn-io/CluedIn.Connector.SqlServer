@@ -1,5 +1,4 @@
-﻿using CluedIn.Connector.Common.Connectors;
-using CluedIn.Connector.SqlServer.Exceptions;
+﻿using CluedIn.Connector.SqlServer.Exceptions;
 using CluedIn.Connector.SqlServer.Utils;
 using CluedIn.Connector.SqlServer.Utils.TableDefinitions;
 using CluedIn.Core;
@@ -12,16 +11,17 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Data;
-using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
 namespace CluedIn.Connector.SqlServer.Connector
 {
-    public class SqlServerConnector : SqlConnectorBaseV2<SqlConnection, SqlTransaction, SqlParameter>
+    public class SqlServerConnector : ConnectorBaseV2
     {
+        private readonly ILogger<SqlServerConnector> _logger;
         private readonly ISqlClient _client;
+        private readonly ISqlServerConstants _constants;
 
         public static string DefaultSizeForFieldConfigurationKey = "SqlConnector.DefaultSizeForField";
 
@@ -29,9 +29,37 @@ namespace CluedIn.Connector.SqlServer.Connector
             ILogger<SqlServerConnector> logger,
             ISqlClient client,
             ISqlServerConstants constants)
-            : base(logger, client, constants.ProviderId, supportsRetrievingLatestEntityPersistInfo: false)
+            : base(constants.ProviderId, supportsRetrievingLatestEntityPersistInfo: false)
         {
+            _logger = logger;
             _client = client;
+            _constants = constants;
+
+        }
+
+        public override async Task<string> GetValidContainerName(ExecutionContext executionContext, Guid connectorProviderDefinitionId, string containerName)
+        {
+            var config = await AuthenticationDetailsHelper.GetAuthenticationDetails(executionContext, connectorProviderDefinitionId);
+            await using var connectionAndTransaction = await _client.BeginTransaction(config.Authentication);
+            var transaction = connectionAndTransaction.Transaction;
+
+            var cleanName = containerName.ToSanitizedSqlName();
+
+            if (!await CheckTableExists(executionContext, connectorProviderDefinitionId, transaction, cleanName))
+            {
+                return cleanName;
+            }
+
+            // If exists, append count like in windows explorer
+            var count = 0;
+            string newName;
+            do
+            {
+                count++;
+                newName = $"{cleanName}{count}";
+            } while (await CheckTableExists(executionContext, connectorProviderDefinitionId, transaction, newName));
+
+            return newName;
         }
 
         public override IReadOnlyCollection<StreamMode> GetSupportedModes()
@@ -309,6 +337,23 @@ namespace CluedIn.Connector.SqlServer.Connector
             return result;
         }
 
+        public override async Task<ConnectionVerificationResult> VerifyConnection(ExecutionContext executionContext, IReadOnlyDictionary<string, object> configurationData)
+        {
+            try
+            {
+                await using var connectionAndTransaction = await _client.BeginTransaction(configurationData);
+                var connectionIsOpen = connectionAndTransaction.Connection.State == ConnectionState.Open;
+                await connectionAndTransaction.DisposeAsync();
+
+                return new ConnectionVerificationResult(connectionIsOpen);
+            }
+            catch (Exception e)
+            {
+                _logger.LogError(e, "Error verifying connection");
+                return new ConnectionVerificationResult(false, e.Message);
+            }
+        }
+
         public override async Task CreateContainer(ExecutionContext executionContext, Guid connectorProviderDefinitionId, IReadOnlyCreateContainerModelV2 model)
         {
             await ExecuteWithRetryAsync(async () =>
@@ -456,6 +501,11 @@ namespace CluedIn.Connector.SqlServer.Connector
 
                 await transaction.CommitAsync();
             });
+        }
+
+        public override Task<string> GetValidMappingDestinationPropertyName(ExecutionContext executionContext, Guid connectorProviderDefinitionId, string propertyName)
+        {
+            return Task.FromResult(propertyName.ToSanitizedSqlName());
         }
 
         private IEnumerable<SqlServerConnectorCommand> GetRenameTablesCommands(IReadOnlyStreamModel streamModel, SqlTableName oldMainTableName, SqlTableName newMainTableName, DateTimeOffset suffixDate, SqlName schema)
@@ -634,7 +684,7 @@ where
             }
         }
 
-        protected override async Task<bool> CheckTableExists(ExecutionContext executionContext, Guid connectorProviderDefinitionId, SqlTransaction transaction, string name)
+        protected async Task<bool> CheckTableExists(ExecutionContext executionContext, Guid connectorProviderDefinitionId, SqlTransaction transaction, string name)
         {
             var config = await AuthenticationDetailsHelper.GetAuthenticationDetails(executionContext, connectorProviderDefinitionId);
             var tableName = SqlTableName.FromUnsafeName(name, config);
