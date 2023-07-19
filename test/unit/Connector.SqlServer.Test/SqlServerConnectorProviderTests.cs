@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using AutoFixture.Xunit2;
-using CluedIn.Connector.Common.Configurations;
 using CluedIn.Core.Crawling;
 using CluedIn.Core.Webhooks;
 using FluentAssertions;

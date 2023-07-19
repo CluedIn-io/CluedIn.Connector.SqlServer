@@ -12,7 +12,7 @@
     <EmbeddedResource Include="Resources\microsoft-sql-server-logo.svg" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="CluedIn.Connector.Common" />
+    <PackageReference Include="CluedIn.Core" />
   </ItemGroup>
 
   <!-- Disable to above cluedin assets and enable the below for local debugging  -->

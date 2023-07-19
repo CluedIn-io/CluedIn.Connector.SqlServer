@@ -1,4 +1,4 @@
-﻿using CluedIn.Connector.Common.Helpers;
+﻿using System.Text.RegularExpressions;
 
 namespace CluedIn.Connector.SqlServer.Utils
 {
@@ -7,6 +7,9 @@ namespace CluedIn.Connector.SqlServer.Utils
         /// <summary>
         /// Sanitize potentially unsafe value to be a valid SQL name
         /// </summary>
-        public static string ToSanitizedSqlName(this string value) => SqlStringSanitizer.Sanitize(value);
+        public static string ToSanitizedSqlName(this string value)
+        {
+            return Regex.Replace(value, @"[^_A-Za-z0-9]+", string.Empty);
+        }
     }
 }

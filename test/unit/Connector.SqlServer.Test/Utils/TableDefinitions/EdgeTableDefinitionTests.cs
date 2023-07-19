@@ -1,10 +1,13 @@
 ﻿using CluedIn.Connector.SqlServer.Unit.Tests.Customizations;
 using CluedIn.Connector.SqlServer.Utils;
 using CluedIn.Connector.SqlServer.Utils.TableDefinitions;
+using CluedIn.Core.Connectors;
 using CluedIn.Core.Data;
+using CluedIn.Core.Data.Parts;
 using CluedIn.Core.Streams.Models;
 using FluentAssertions;
 using System;
+using System.Linq;
 using Xunit;
 
 namespace CluedIn.Connector.SqlServer.Unit.Tests.Utils.TableDefinitions
@@ -85,6 +88,98 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests.Utils.TableDefinitions
 
             // assert
             edge1Id.Should().NotBe(edge2Id);
+        }
+
+        [Theory, AutoNData]
+        public void GetSqlRecord_ShouldYieldCorrectRecords_ForEventMode(Guid entityId, EntityCode originEntityCode, EntityReference[] outgoingEdgeReferences, Guid correlationId, DateTimeOffset timestamp)
+        {
+            // arrange
+            var entityType = EntityType.Person;
+            var fromReference = new EntityReference(entityType, "fromReferenceName");
+            var outgoingEdges = outgoingEdgeReferences
+                .Select(toReference => new EntityEdge(fromReference, toReference, EntityEdgeType.For))
+                .ToArray();
+
+            var connectorEntityData = new ConnectorEntityData(
+                VersionChangeType.Added,
+                StreamMode.EventStream,
+                entityId,
+                persistInfo: null,
+                previousPersistInfo: null,
+                originEntityCode,
+                entityType,
+                properties: Array.Empty<ConnectorPropertyData>(),
+                entityCodes: Array.Empty<IEntityCode>(),
+                incomingEdges: Array.Empty<EntityEdge>(),
+                outgoingEdges: outgoingEdges);
+
+            var sqlConnectorEntityData = new SqlConnectorEntityData(connectorEntityData, correlationId, timestamp);
+
+            // act
+            var sqlRecords = EdgeTableDefinition.GetSqlRecords(StreamMode.EventStream, EdgeDirection.Outgoing, sqlConnectorEntityData).ToArray();
+
+            // assert
+            sqlRecords.Should().NotBeEmpty();
+            sqlRecords.Should().HaveCount(outgoingEdges.Length);
+
+            for (var i = 0; i < outgoingEdges.Length; i++)
+            {
+                var sqlRecord = sqlRecords[i];
+                var edge = outgoingEdges[i];
+                var edgeId = EdgeTableDefinition.GetEdgeId(entityId, edge, EdgeDirection.Outgoing);
+
+                sqlRecord[0].Should().Be(edgeId);
+                sqlRecord[1].Should().Be(entityId);
+                sqlRecord[2].Should().Be(edge.EdgeType.ToString());
+                sqlRecord[3].Should().Be(edge.ToReference.Code.Key);
+                sqlRecord[4].Should().Be(VersionChangeType.Added);
+                sqlRecord[5].Should().Be(correlationId);
+            }
+        }
+
+        [Theory, AutoNData]
+        public void GetSqlRecord_ShouldYieldCorrectRecords_ForSyncMode(Guid entityId, EntityCode originEntityCode, EntityReference[] outgoingEdgeReferences, Guid correlationId, DateTimeOffset timestamp)
+        {
+            // arrange
+            var entityType = EntityType.Person;
+            var fromReference = new EntityReference(entityType, "fromReferenceName");
+            var outgoingEdges = outgoingEdgeReferences
+                .Select(toReference => new EntityEdge(fromReference, toReference, EntityEdgeType.For))
+                .ToArray();
+
+            var connectorEntityData = new ConnectorEntityData(
+                VersionChangeType.Added,
+                StreamMode.Sync,
+                entityId,
+                persistInfo: null,
+                previousPersistInfo: null,
+                originEntityCode,
+                entityType,
+                properties: Array.Empty<ConnectorPropertyData>(),
+                entityCodes: Array.Empty<IEntityCode>(),
+                incomingEdges: Array.Empty<EntityEdge>(),
+                outgoingEdges: outgoingEdges);
+
+            var sqlConnectorEntityData = new SqlConnectorEntityData(connectorEntityData, correlationId, timestamp);
+
+            // act
+            var sqlRecords = EdgeTableDefinition.GetSqlRecords(StreamMode.Sync, EdgeDirection.Outgoing, sqlConnectorEntityData).ToArray();
+
+            // assert
+            sqlRecords.Should().NotBeEmpty();
+            sqlRecords.Should().HaveCount(outgoingEdges.Length);
+
+            for (var i = 0; i < outgoingEdges.Length; i++)
+            {
+                var sqlRecord = sqlRecords[i];
+                var edge = outgoingEdges[i];
+                var edgeId = EdgeTableDefinition.GetEdgeId(entityId, edge, EdgeDirection.Outgoing);
+
+                sqlRecord[0].Should().Be(edgeId);
+                sqlRecord[1].Should().Be(entityId);
+                sqlRecord[2].Should().Be(edge.EdgeType.ToString());
+                sqlRecord[3].Should().Be(edge.ToReference.Code.Key);
+            }
         }
     }
 }

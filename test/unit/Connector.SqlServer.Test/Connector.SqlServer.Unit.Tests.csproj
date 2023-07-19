@@ -8,6 +8,7 @@
   <ItemGroup>
     <PackageReference Include="AutoFixture.Xunit2" />
     <PackageReference Include="AutoFixture.AutoNSubstitute" />
+    <PackageReference Include="CluedIn.DataStore" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
     <PackageReference Include="coverlet.msbuild" />
     <PackageReference Include="xunit" />

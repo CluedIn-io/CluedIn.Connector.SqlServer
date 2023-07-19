@@ -1,5 +1,4 @@
 ﻿using CluedIn.Connector.SqlServer.Connector;
-using CluedIn.Core.Data;
 using CluedIn.Core.Streams.Models;
 using Microsoft.Data.SqlClient;
 using Microsoft.Data.SqlClient.Server;
@@ -20,6 +19,7 @@ namespace CluedIn.Connector.SqlServer.Utils.TableDefinitions
                     return new ColumnDefinition[]
                     {
                         new("EdgeId", SqlColumnHelper.UniqueIdentifier, IsPrimaryKey: true),
+                        new("EntityId", SqlColumnHelper.UniqueIdentifier),
                         new("KeyName", SqlColumnHelper.NVarchar256, IsPrimaryKey: true),
                         new("Value", SqlColumnHelper.GetColumnTypeForPropertyValue()),
                         new("ChangeType", SqlColumnHelper.Int),
@@ -30,6 +30,7 @@ namespace CluedIn.Connector.SqlServer.Utils.TableDefinitions
                     return new ColumnDefinition[]
                     {
                         new("EdgeId", SqlColumnHelper.UniqueIdentifier, IsPrimaryKey: true),
+                        new("EntityId", SqlColumnHelper.UniqueIdentifier),
                         new("KeyName", SqlColumnHelper.NVarchar256, IsPrimaryKey: true),
                         new("Value", SqlColumnHelper.GetColumnTypeForPropertyValue()),
                     };
@@ -57,10 +58,11 @@ namespace CluedIn.Connector.SqlServer.Utils.TableDefinitions
 
                                 var record = new SqlDataRecord(sqlMetaData);
                                 record.SetGuid(0, edgeId);
-                                record.SetString(1, property.Key);
-                                record.SetString(2, property.Value);
-                                record.SetString(3, connectorEntityData.ChangeType.ToString());
-                                record.SetGuid(4, connectorEntityData.CorrelationId.Value);
+                                record.SetGuid(1, connectorEntityData.EntityId);
+                                record.SetString(2, property.Key);
+                                record.SetString(3, property.Value);
+                                record.SetInt32(4, (int)connectorEntityData.ChangeType);
+                                record.SetGuid(5, connectorEntityData.CorrelationId.Value);
 
                                 return record;
                             }));
@@ -77,8 +79,9 @@ namespace CluedIn.Connector.SqlServer.Utils.TableDefinitions
 
                                 var record = new SqlDataRecord(sqlMetaData);
                                 record.SetGuid(0, edgeId);
-                                record.SetString(1, property.Key);
-                                record.SetString(2, property.Value);
+                                record.SetGuid(1, connectorEntityData.EntityId);
+                                record.SetString(2, property.Key);
+                                record.SetString(3, property.Value);
 
                                 return record;
                             }));
@@ -135,21 +138,26 @@ namespace CluedIn.Connector.SqlServer.Utils.TableDefinitions
         {
             var edgePropertiesTableName = TableNameUtility.GetEdgePropertiesTableName(streamModel, direction, schema);
             var edgePropertiesTableType = CreateCustomTypeCommandUtility.GetEdgePropertiesTableCustomTypeName(streamModel, direction, schema);
-            var edgeTableName = TableNameUtility.GetEdgesTableName(streamModel, direction, schema);
+            var entityIdParameter = new SqlParameter("@EntityId", SqlDbType.UniqueIdentifier) { Value = connectorEntityData.EntityId };
+
+            var sqlDataRecords = GetSqlDataRecords(StreamMode.Sync, connectorEntityData, direction).ToArray();
+            if (!sqlDataRecords.Any())
+            {
+                // If there are no edge properties to be exported, we can use a simpler command,
+                // than if we have to potentially both delete and insert edge properties.
+                var simpleCommandText = $"""
+                    DELETE {edgePropertiesTableName.FullyQualifiedName}
+                    WHERE [EntityId] = @EntityId
+                    """;
+
+                return new SqlServerConnectorCommand { Text = simpleCommandText, Parameters = new[] { entityIdParameter } };
+            }
 
             var commandText = $"""
                 -- Delete existing columns that no longer exist
                 DELETE {edgePropertiesTableName.FullyQualifiedName}
                 WHERE
-                    EXISTS(
-                        SELECT
-                            1
-                        FROM
-                            {edgeTableName.FullyQualifiedName} edge
-                        WHERE
-                            edge.[Id] = {edgePropertiesTableName.FullyQualifiedName}.[EdgeId]
-                            AND edge.[EntityId] = @EntityId
-                    )
+                    {edgePropertiesTableName.FullyQualifiedName}.[EntityId] = @EntityId
                     AND NOT EXISTS(
                         SELECT
                             1
@@ -164,6 +172,7 @@ namespace CluedIn.Connector.SqlServer.Utils.TableDefinitions
                     {edgePropertiesTableName.FullyQualifiedName}
                 SELECT
                     newValues.[EdgeId],
+                    newValues.[EntityId],
                     newValues.[KeyName],
                     newValues.[Value]
                 FROM
@@ -174,14 +183,6 @@ namespace CluedIn.Connector.SqlServer.Utils.TableDefinitions
                     existingValues.[EdgeId] IS NULL
                 """;
 
-
-            var sqlDataRecords = GetSqlDataRecords(StreamMode.Sync, connectorEntityData, direction).ToArray();
-            if (!sqlDataRecords.Any())
-            {
-                sqlDataRecords = null;
-            }
-
-            var entityIdParameter = new SqlParameter("@EntityId", SqlDbType.UniqueIdentifier) { Value = connectorEntityData.EntityId };
             var recordsParameter = new SqlParameter($"@{edgePropertiesTableType.LocalName}", SqlDbType.Structured) { Value = sqlDataRecords, TypeName = edgePropertiesTableType.FullyQualifiedName };
 
             return new SqlServerConnectorCommand { Text = commandText, Parameters = new[] { entityIdParameter, recordsParameter } };
