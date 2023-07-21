@@ -5,7 +5,7 @@
 
         MUST SPECIFY IN CSPROJ AS <PackageReference Name="<depName>" />
     -->
-    <PackageReference Update="CluedIn.Connector.Common" Version="3.5.3" />
+    <PackageReference Update="CluedIn.Connector.Common" Version="3.6.0" />
   </ItemGroup>
   <ItemGroup>
     <!--
@@ -15,7 +15,10 @@
     -->
     <PackageReference Update="Microsoft.NET.Test.Sdk" Version="16.5.0" />
     <PackageReference Update="AutoFixture.Xunit2" Version="4.11.0" />
+    <PackageReference Update="AutoFixture.AutoNSubstitute" Version="4.18.0" />
     <PackageReference Update="coverlet.msbuild" Version="2.8.0" />
+    <PackageReference Update="CluedIn.Core" Version="3.6.1" />
+    <PackageReference Update="CluedIn.DataStore" Version="3.6.1" />
     <PackageReference Update="xunit" Version="2.4.1" />
     <PackageReference Update="xunit.runner.visualstudio" Version="2.4.1" />
     <PackageReference Update="Moq" Version="4.13.1" />
