@@ -20,7 +20,7 @@ namespace CluedIn.Connector.SqlServer.Utils.TableDefinitions
                     {
                         new("EntityId", SqlColumnHelper.UniqueIdentifier, AddIndex: true),
                         new("Code", SqlColumnHelper.NVarchar1024),
-                        new("IsDataPartOriginEntityCode", SqlColumnHelper.Bit),
+                        new("IsDataPartOriginEntityCode", SqlColumnHelper.Bit, CanBeNull: true),
                         new("ChangeType", SqlColumnHelper.Int),
                         new("CorrelationId", SqlColumnHelper.UniqueIdentifier)
                     };
@@ -30,7 +30,7 @@ namespace CluedIn.Connector.SqlServer.Utils.TableDefinitions
                     {
                         new("EntityId", SqlColumnHelper.UniqueIdentifier, AddIndex: true),
                         new("Code", SqlColumnHelper.NVarchar1024),
-                        new("IsDataPartOriginEntityCode", SqlColumnHelper.Bit),
+                        new("IsDataPartOriginEntityCode", SqlColumnHelper.Bit, CanBeNull: true),
                     };
 
                 default:
