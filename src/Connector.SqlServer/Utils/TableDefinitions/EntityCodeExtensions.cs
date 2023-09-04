@@ -9,10 +9,10 @@ using System.Reflection;
 
 internal static class EntityCodeExtensions
 {
-    public static bool IsOriginEntityCode(this IEntityCode code)
+    public static object IsOriginEntityCode(this IEntityCode code)
     {
         if (code is EntityCode)
-            return false;
+            return DBNull.Value;
 
         try
         {
@@ -22,7 +22,7 @@ internal static class EntityCodeExtensions
         }
         catch (InvalidOperationException)
         {
-            return false;
+            return DBNull.Value;
         }
     }
 }
