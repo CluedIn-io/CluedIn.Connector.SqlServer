@@ -18,6 +18,11 @@ namespace CluedIn.Connector.SqlServer.Utils
             return GetCustomTypeName(TableNameUtility.GetCodeTableName(model, schema), schema);
         }
 
+        public static SqlTableName GetCodeTableCustomTypeName(SqlTableName mainTableName, SqlName schema)
+        {
+            return GetCustomTypeName(TableNameUtility.GetCodeTableName(mainTableName, schema), schema);
+        }
+
         public static SqlTableName GetEdgeTableCustomTypeName(IReadOnlyStreamModel model, EdgeDirection edgeDirection, SqlName schema)
         {
             return GetCustomTypeName(TableNameUtility.GetEdgesTableName(model, edgeDirection, schema), schema);
@@ -28,6 +33,11 @@ namespace CluedIn.Connector.SqlServer.Utils
             return GetCustomTypeName(TableNameUtility.GetEdgesTableName(model, edgeDirection, schema), schema);
         }
 
+        public static SqlTableName GetEdgeTableCustomTypeName(SqlTableName mainTableName, EdgeDirection edgeDirection, SqlName schema)
+        {
+            return GetCustomTypeName(TableNameUtility.GetEdgesTableName(mainTableName, edgeDirection, schema), schema);
+        }
+
         public static SqlTableName GetEdgePropertiesTableCustomTypeName(IReadOnlyStreamModel model, EdgeDirection edgeDirection, SqlName schema)
         {
             return GetCustomTypeName(TableNameUtility.GetEdgePropertiesTableName(model, edgeDirection, schema), schema);
@@ -36,6 +46,11 @@ namespace CluedIn.Connector.SqlServer.Utils
         public static SqlTableName GetEdgePropertiesTableCustomTypeName(IReadOnlyCreateContainerModelV2 model, EdgeDirection edgeDirection, SqlName schema)
         {
             return GetCustomTypeName(TableNameUtility.GetEdgePropertiesTableName(model, edgeDirection, schema), schema);
+        }
+
+        public static SqlTableName GetEdgePropertiesTableCustomTypeName(SqlTableName mainTableName, EdgeDirection edgeDirection, SqlName schema)
+        {
+            return GetCustomTypeName(TableNameUtility.GetEdgePropertiesTableName(mainTableName, edgeDirection, schema), schema);
         }
 
         public static SqlServerConnectorCommand BuildCodeTableCustomTypeCommand(IReadOnlyCreateContainerModelV2 model, SqlName schema)
