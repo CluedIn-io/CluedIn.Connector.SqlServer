@@ -37,6 +37,9 @@ namespace CluedIn.Connector.SqlServer.Utils
             if (ConnectorSqlType.Equals(SqlColumnHelper.DateTimeOffset7))
                 return new SqlMetaData(sanitizedName, SqlDbType.DateTimeOffset);
 
+            if (ConnectorSqlType.Equals(SqlColumnHelper.Bit))
+                return new SqlMetaData(sanitizedName, SqlDbType.Bit);
+
             throw new ArgumentOutOfRangeException();
         }
     }
