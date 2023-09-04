@@ -367,25 +367,25 @@ namespace CluedIn.Connector.SqlServer.Connector
                 {
                     CreateTableCommandUtility.BuildMainTableCommand(model, schema),
                     CreateTableCommandUtility.BuildCodeTableCommand(model, schema),
-                    CreateCustomTypeCommandUtility.BuildCodeTableCustomTypeCommand(model, schema)
+                    CreateCustomTypeCommandUtility.BuildCreateCodeTableCustomTypeCommand(model, schema)
                 };
 
                 if (model.OutgoingEdgesAreExported)
                 {
                     commands.Add(CreateTableCommandUtility.BuildEdgeTableCommand(model, EdgeDirection.Outgoing, schema));
-                    commands.Add(CreateCustomTypeCommandUtility.BuildEdgeTableCustomTypeCommand(model, EdgeDirection.Outgoing, schema));
+                    commands.Add(CreateCustomTypeCommandUtility.BuildCreateEdgeTableCustomTypeCommand(model, EdgeDirection.Outgoing, schema));
 
                     commands.Add(CreateTableCommandUtility.BuildEdgePropertiesTableCommand(model, EdgeDirection.Outgoing, schema));
-                    commands.Add(CreateCustomTypeCommandUtility.BuildEdgePropertiesTableCustomTypeCommand(model, EdgeDirection.Outgoing, schema));
+                    commands.Add(CreateCustomTypeCommandUtility.BuildCreateEdgePropertiesTableCustomTypeCommand(model, EdgeDirection.Outgoing, schema));
                 }
 
                 if (model.IncomingEdgesAreExported)
                 {
                     commands.Add(CreateTableCommandUtility.BuildEdgeTableCommand(model, EdgeDirection.Incoming, schema));
-                    commands.Add(CreateCustomTypeCommandUtility.BuildEdgeTableCustomTypeCommand(model, EdgeDirection.Incoming, schema));
+                    commands.Add(CreateCustomTypeCommandUtility.BuildCreateEdgeTableCustomTypeCommand(model, EdgeDirection.Incoming, schema));
 
                     commands.Add(CreateTableCommandUtility.BuildEdgePropertiesTableCommand(model, EdgeDirection.Incoming, schema));
-                    commands.Add(CreateCustomTypeCommandUtility.BuildEdgePropertiesTableCustomTypeCommand(model, EdgeDirection.Incoming, schema));
+                    commands.Add(CreateCustomTypeCommandUtility.BuildCreateEdgePropertiesTableCustomTypeCommand(model, EdgeDirection.Incoming, schema));
                 }
 
                 foreach (var command in commands)
@@ -457,7 +457,7 @@ namespace CluedIn.Connector.SqlServer.Connector
                 var newMainTableName = TableNameUtility.GetMainTableName(newMainTableNameWithDateAppended, schema);
 
                 var suffixDate = DateTimeOffset.UtcNow;
-                var renameCommands = GetRenameTablesCommands(streamModel, mainTableName, newMainTableName, suffixDate, schema);
+                var renameCommands = RenameTablesUtility.GetRenameTablesCommands(streamModel, mainTableName, newMainTableName, suffixDate, schema);
 
                 foreach (var renameCommand in renameCommands)
                 {
@@ -487,7 +487,7 @@ namespace CluedIn.Connector.SqlServer.Connector
                 var newMainTableName = TableNameUtility.GetMainTableName(streamModel, schema);
 
                 var suffixDate = DateTimeOffset.UtcNow;
-                var renameCommands = GetRenameTablesCommands(streamModel, oldMainTableName, newMainTableName, suffixDate, schema);
+                var renameCommands = RenameTablesUtility.GetRenameTablesCommands(streamModel, oldMainTableName, newMainTableName, suffixDate, schema);
 
                 foreach (var renameCommand in renameCommands)
                 {
@@ -506,45 +506,6 @@ namespace CluedIn.Connector.SqlServer.Connector
         public override Task<string> GetValidMappingDestinationPropertyName(ExecutionContext executionContext, Guid connectorProviderDefinitionId, string propertyName)
         {
             return Task.FromResult(propertyName.ToSanitizedSqlName());
-        }
-
-        private IEnumerable<SqlServerConnectorCommand> GetRenameTablesCommands(IReadOnlyStreamModel streamModel, SqlTableName oldMainTableName, SqlTableName newMainTableName, DateTimeOffset suffixDate, SqlName schema)
-        {
-            var builder = new StringBuilder();
-
-            if (streamModel.ExportOutgoingEdges)
-            {
-                var outgoingEdgesTableOldName = TableNameUtility.GetEdgesTableName(oldMainTableName, EdgeDirection.Outgoing, schema);
-                var outgoingEdgesTableNewName = TableNameUtility.GetEdgesTableName(newMainTableName, EdgeDirection.Outgoing, schema);
-                var renameOutgoingEdgesTableCommand = RenameTableCommandUtility.BuildTableRenameCommand(outgoingEdgesTableOldName, outgoingEdgesTableNewName, schema, suffixDate);
-                yield return  renameOutgoingEdgesTableCommand;
-
-                var outgoingEdgesPropertiesTableOldName = TableNameUtility.GetEdgePropertiesTableName(oldMainTableName, EdgeDirection.Outgoing, schema);
-                var outgoingEdgesPropertiesTableNewName = TableNameUtility.GetEdgePropertiesTableName(newMainTableName, EdgeDirection.Outgoing, schema);
-                var renameOutgoingEdgesPropertiesTableCommand = RenameTableCommandUtility.BuildTableRenameCommand(outgoingEdgesPropertiesTableOldName, outgoingEdgesPropertiesTableNewName, schema, suffixDate);
-                yield return renameOutgoingEdgesPropertiesTableCommand;
-            }
-
-            if (streamModel.ExportIncomingEdges)
-            {
-                var incomingEdgesTableOldName = TableNameUtility.GetEdgesTableName(oldMainTableName, EdgeDirection.Incoming, schema);
-                var incomingEdgesTableNewName = TableNameUtility.GetEdgesTableName(newMainTableName, EdgeDirection.Incoming, schema);
-                var renameIncomingEdgesTableCommand = RenameTableCommandUtility.BuildTableRenameCommand(incomingEdgesTableOldName, incomingEdgesTableNewName, schema, suffixDate);
-                yield return renameIncomingEdgesTableCommand;
-
-                var incomingEdgesPropertiesTableOldName = TableNameUtility.GetEdgePropertiesTableName(oldMainTableName, EdgeDirection.Incoming, schema);
-                var incomingEdgesPropertiesTableNewName = TableNameUtility.GetEdgePropertiesTableName(newMainTableName, EdgeDirection.Incoming, schema);
-                var renameIncomingEdgesPropertiesTableCommand = RenameTableCommandUtility.BuildTableRenameCommand(incomingEdgesPropertiesTableOldName, incomingEdgesPropertiesTableNewName, schema, suffixDate);
-                yield return renameIncomingEdgesPropertiesTableCommand;
-            }
-
-            var oldCodeTableName = TableNameUtility.GetCodeTableName(oldMainTableName, schema);
-            var newCodeTableName = TableNameUtility.GetCodeTableName(newMainTableName, schema);
-            var renameCodeTableCommand = RenameTableCommandUtility.BuildTableRenameCommand(oldCodeTableName, newCodeTableName, schema, suffixDate);
-            yield return renameCodeTableCommand;
-
-            var renameMainTableCommand = RenameTableCommandUtility.BuildTableRenameCommand(oldMainTableName, newMainTableName, schema, suffixDate);
-            yield return renameMainTableCommand;
         }
 
         public override async Task RemoveContainer(ExecutionContext executionContext, IReadOnlyStreamModel streamModel)
