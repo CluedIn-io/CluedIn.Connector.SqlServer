@@ -80,6 +80,7 @@ namespace CluedIn.Connector.SqlServer.Connector
                 var mainTableName = TableNameUtility.GetMainTableName(streamModel, schema);
 
                 await UpgradeTo370Utility.Upgrade(streamModel, mainTableName, schema, transaction, _logger);
+                await UpgradeCodeTableUtility.AddIsDataPartOriginEntityCodeToTable(streamModel, schema, transaction, _logger);
 
                 await transaction.CommitAsync();
             });

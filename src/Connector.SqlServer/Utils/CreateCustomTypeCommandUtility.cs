@@ -28,6 +28,16 @@ namespace CluedIn.Connector.SqlServer.Utils
             return GetCustomTypeName(TableNameUtility.GetCodeTableName(mainTableName, schema), schema);
         }
 
+        public static SqlServerConnectorCommand BuildCreateCodeTableCustomTypeCommand(IReadOnlyStreamModel model, SqlName schema)
+        {
+            var columnDefinitions = CodeTableDefinition.GetColumnDefinitions(model.Mode ?? StreamMode.Sync); // TODO
+            var customTypeName = GetCodeTableCustomTypeName(model, schema);
+
+            var command = CreateCommand(customTypeName, columnDefinitions);
+
+            return new SqlServerConnectorCommand { Text = command, Parameters = Array.Empty<SqlParameter>() };
+        }
+
         public static SqlServerConnectorCommand BuildCreateCodeTableCustomTypeCommand(IReadOnlyCreateContainerModelV2 model, SqlName schema)
         {
             var columnDefinitions = CodeTableDefinition.GetColumnDefinitions(model.StreamMode);
