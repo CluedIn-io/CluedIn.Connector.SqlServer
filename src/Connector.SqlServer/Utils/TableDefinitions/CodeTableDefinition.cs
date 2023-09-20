@@ -11,6 +11,8 @@ namespace CluedIn.Connector.SqlServer.Utils.TableDefinitions
 {
     internal static class CodeTableDefinition
     {
+        public static ColumnDefinition IsDataPartOriginEntityCodeColumnDefinition = new("IsDataPartOriginEntityCode", SqlColumnHelper.Bit, CanBeNull: true);
+
         public static ColumnDefinition[] GetColumnDefinitions(StreamMode mode)
         {
             switch (mode)
@@ -20,7 +22,7 @@ namespace CluedIn.Connector.SqlServer.Utils.TableDefinitions
                     {
                         new("EntityId", SqlColumnHelper.UniqueIdentifier, AddIndex: true),
                         new("Code", SqlColumnHelper.NVarchar1024),
-                        new("IsDataPartOriginEntityCode", SqlColumnHelper.Bit, CanBeNull: true),
+                        IsDataPartOriginEntityCodeColumnDefinition,
                         new("ChangeType", SqlColumnHelper.Int),
                         new("CorrelationId", SqlColumnHelper.UniqueIdentifier)
                     };
@@ -30,7 +32,7 @@ namespace CluedIn.Connector.SqlServer.Utils.TableDefinitions
                     {
                         new("EntityId", SqlColumnHelper.UniqueIdentifier, AddIndex: true),
                         new("Code", SqlColumnHelper.NVarchar1024),
-                        new("IsDataPartOriginEntityCode", SqlColumnHelper.Bit, CanBeNull: true),
+                        IsDataPartOriginEntityCodeColumnDefinition,
                     };
 
                 default:

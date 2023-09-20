@@ -36,19 +36,16 @@ namespace CluedIn.Connector.SqlServer.Utils.Upgrade
             var streamMode = streamModel.Mode ?? StreamMode.Sync;
             var expectedColumns = CodeTableDefinition.GetColumnDefinitions(streamMode).Select(c => c.Name).ToList();
             var missingColumns = expectedColumns.Except(actualColumns);
+            var isDataPartOriginEntityCodeColumnDefinition = CodeTableDefinition.IsDataPartOriginEntityCodeColumnDefinition;
 
-            if (missingColumns.Contains("IsDataPartOriginEntityCode"))
+            if (missingColumns.Contains(isDataPartOriginEntityCodeColumnDefinition.Name))
             {
                 // Upgrade table
                 {
-                    var columnDefinition = CodeTableDefinition
-                        .GetColumnDefinitions(streamMode)
-                        .First(column => column.Name == "IsDataPartOriginEntityCode");
-
-                    var nullString = columnDefinition.CanBeNull ? "NULL" : "NOT NULL";
+                    var nullString = isDataPartOriginEntityCodeColumnDefinition.CanBeNull ? "NULL" : "NOT NULL";
                     var alterCommandText = $"""
                     ALTER TABLE {codeTableName.LocalName}
-                    ADD {columnDefinition.Name} {columnDefinition.ConnectorSqlType.StringRepresentation} {nullString}
+                    ADD {isDataPartOriginEntityCodeColumnDefinition.Name} {isDataPartOriginEntityCodeColumnDefinition.ConnectorSqlType.StringRepresentation} {nullString}
                     """;
                     var alterCommand = new SqlServerConnectorCommand { Text = alterCommandText, Parameters = Array.Empty<SqlParameter>() };
 
