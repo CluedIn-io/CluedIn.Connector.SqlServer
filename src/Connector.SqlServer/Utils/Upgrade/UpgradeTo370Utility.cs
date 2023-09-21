@@ -65,6 +65,9 @@ namespace CluedIn.Connector.SqlServer.Utils.Upgrade
                         ON tables.object_id = columns.object_id AND 
                            tables.Name = '{mainTableName.LocalName}' AND
                            tables.type = 'U'
+                        INNER JOIN sys.schemas schemas
+                        ON tables.schema_id = schemas.schema_id
+                        WHERE schemas.name = '{mainTableName.Schema}'
                         """;
 
                     var tableCheckSqlConnectorCommand = new SqlServerConnectorCommand() { Text = tableColumnsSelectText, Parameters = Array.Empty<SqlParameter>() };
