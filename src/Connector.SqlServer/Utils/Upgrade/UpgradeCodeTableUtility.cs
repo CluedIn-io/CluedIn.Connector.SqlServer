@@ -32,7 +32,6 @@ namespace CluedIn.Connector.SqlServer.Utils.Upgrade
                 actualColumns.Add(reader[0].ToString());
             }
 
-            // TODO
             var streamMode = streamModel.Mode ?? StreamMode.Sync;
             var expectedColumns = CodeTableDefinition.GetColumnDefinitions(streamMode).Select(c => c.Name).ToList();
             var missingColumns = expectedColumns.Except(actualColumns);
