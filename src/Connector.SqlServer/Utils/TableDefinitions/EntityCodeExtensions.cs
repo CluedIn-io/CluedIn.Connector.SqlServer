@@ -17,7 +17,12 @@ internal static class EntityCodeExtensions
         {
             var activator = ReflectionUtility.GetProperty(code.GetType(), "IsOriginEntityCode", BindingFlags.Instance | BindingFlags.Public);
 
-            return (bool)activator.Invoke(code);
+            var result = (bool?)activator.Invoke(code);
+
+            if (result == null)
+                return DBNull.Value;
+
+            return result;
         }
         catch (InvalidOperationException)
         {
