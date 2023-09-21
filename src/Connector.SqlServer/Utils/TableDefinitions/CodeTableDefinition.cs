@@ -54,7 +54,7 @@ namespace CluedIn.Connector.SqlServer.Utils.TableDefinitions
                         var record = new SqlDataRecord(sqlMetaData);
                         record.SetGuid(0, connectorEntityData.EntityId);
                         record.SetString(1, code.Key);
-                        record.SetValue(2, code.IsOriginEntityCode());
+                        record.SetValue(2, code.GetIsOriginEntityCodeDBValue());
                         record.SetInt32(3, (int)connectorEntityData.ChangeType);
                         record.SetGuid(4, (Guid)connectorEntityData.CorrelationId.Value);
                         return record;
@@ -68,7 +68,7 @@ namespace CluedIn.Connector.SqlServer.Utils.TableDefinitions
                         var record = new SqlDataRecord(sqlMetaData);
                         record.SetGuid(0, connectorEntityData.EntityId);
                         record.SetString(1, code.Key);
-                        record.SetValue(2, code.IsOriginEntityCode());
+                        record.SetValue(2, code.GetIsOriginEntityCodeDBValue());
                         return record;
                     });
 
