@@ -82,7 +82,11 @@ namespace CluedIn.Connector.SqlServer.Utils.Upgrade
                     }
 
                     var expectedColumnNames = MainTableDefinition
-                        .GetColumnDefinitions(StreamMode.Sync, Array.Empty<(string, ConnectorPropertyDataType)>())
+                        // streamModel.Mode will always be populated, but is technically nullable.
+                        // Even if streamModel.Mode is null, it's okay to use StreamMode.Sync,
+                        // since the old schema did not contain all the column in current sync mode,
+                        // and sync mode is a subset of event mode.
+                        .GetColumnDefinitions(streamModel.Mode ?? StreamMode.Sync, Array.Empty<(string, ConnectorPropertyDataType)>())
                         .Select(columnDefinition => columnDefinition.Name);
 
                     var existingColumnsContainsAllExpectedColumns = expectedColumnNames.All(column => existingColumns.Contains(column));
