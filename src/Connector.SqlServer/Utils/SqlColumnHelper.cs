@@ -16,6 +16,7 @@ namespace CluedIn.Connector.SqlServer.Utils
         public static ConnectorSqlType NVarchar1024 => new(SqlDbType.NVarChar, "nvarchar(1024)");
         public static ConnectorSqlType NVarcharMax => new(SqlDbType.NVarChar, "nvarchar(max)");
         public static ConnectorSqlType DateTimeOffset7 => new(SqlDbType.DateTimeOffset, "datetimeoffset(7)");
+        public static ConnectorSqlType Bit => new(SqlDbType.Bit, "bit");
 
         public static ConnectorSqlType GetColumnType(ConnectorPropertyDataType type)
         {
