@@ -100,9 +100,15 @@ namespace CluedIn.Connector.SqlServer.Utils.TableDefinitions
             var codeTableName = TableNameUtility.GetCodeTableName(streamModel, schema);
             var codeTableType = CreateCustomTypeCommandUtility.GetCodeTableCustomTypeName(streamModel, schema);
 
+            var columns = GetColumnDefinitions(StreamMode.EventStream).Select(column => column.Name).ToArray();
+            var columnsConcatenated = string.Join(", ", columns);
+
+            var tableTypeValuesName = "newValues";
+            var columnsBoxedAndConcatenated = string.Join(", ", columns.Select(column => $"{tableTypeValuesName}.[{column}]"));
+
             var insertText = $"""
-                INSERT INTO {codeTableName.FullyQualifiedName}
-                SELECT * FROM @{codeTableType.LocalName}
+                INSERT INTO {codeTableName.FullyQualifiedName} ({columnsConcatenated})
+                SELECT {columnsBoxedAndConcatenated} FROM @{codeTableType.LocalName} {tableTypeValuesName}
                 """;
 
             var eventStreamRecords = GetSqlRecords(StreamMode.EventStream, connectorEntityData);
