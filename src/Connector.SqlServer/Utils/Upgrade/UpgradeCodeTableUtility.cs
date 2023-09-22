@@ -32,6 +32,12 @@ namespace CluedIn.Connector.SqlServer.Utils.Upgrade
                 actualColumns.Add(reader[0].ToString());
             }
 
+            if (!actualColumns.Any())
+            {
+                logger.LogInformation("Skipping adding IsDataPartOriginEntityCode to code table, since code table does not exist. This is most likely since `VerifyExistingContainer` is being ran before container is created");
+                return;
+            }
+
             var streamMode = streamModel.Mode ?? StreamMode.Sync;
             var expectedColumns = CodeTableDefinition.GetColumnDefinitions(streamMode).Select(c => c.Name).ToList();
             var missingColumns = expectedColumns.Except(actualColumns);
