@@ -11,6 +11,8 @@ namespace CluedIn.Connector.SqlServer.Utils.TableDefinitions
 {
     internal static class CodeTableDefinition
     {
+        public static ColumnDefinition IsDataPartOriginEntityCodeColumnDefinition = new("IsDataPartOriginEntityCode", SqlColumnHelper.Bit, CanBeNull: true);
+
         public static ColumnDefinition[] GetColumnDefinitions(StreamMode mode)
         {
             switch (mode)
@@ -20,6 +22,7 @@ namespace CluedIn.Connector.SqlServer.Utils.TableDefinitions
                     {
                         new("EntityId", SqlColumnHelper.UniqueIdentifier, AddIndex: true),
                         new("Code", SqlColumnHelper.NVarchar1024),
+                        IsDataPartOriginEntityCodeColumnDefinition,
                         new("ChangeType", SqlColumnHelper.Int),
                         new("CorrelationId", SqlColumnHelper.UniqueIdentifier)
                     };
@@ -29,6 +32,7 @@ namespace CluedIn.Connector.SqlServer.Utils.TableDefinitions
                     {
                         new("EntityId", SqlColumnHelper.UniqueIdentifier, AddIndex: true),
                         new("Code", SqlColumnHelper.NVarchar1024),
+                        IsDataPartOriginEntityCodeColumnDefinition,
                     };
 
                 default:
@@ -50,8 +54,9 @@ namespace CluedIn.Connector.SqlServer.Utils.TableDefinitions
                         var record = new SqlDataRecord(sqlMetaData);
                         record.SetGuid(0, connectorEntityData.EntityId);
                         record.SetString(1, code.Key);
-                        record.SetInt32(2, (int)connectorEntityData.ChangeType);
-                        record.SetGuid(3, (Guid)connectorEntityData.CorrelationId.Value);
+                        record.SetValue(2, code.GetIsOriginEntityCodeDBValue());
+                        record.SetInt32(3, (int)connectorEntityData.ChangeType);
+                        record.SetGuid(4, (Guid)connectorEntityData.CorrelationId.Value);
                         return record;
                     });
 
@@ -63,6 +68,7 @@ namespace CluedIn.Connector.SqlServer.Utils.TableDefinitions
                         var record = new SqlDataRecord(sqlMetaData);
                         record.SetGuid(0, connectorEntityData.EntityId);
                         record.SetString(1, code.Key);
+                        record.SetValue(2, code.GetIsOriginEntityCodeDBValue());
                         return record;
                     });
 
@@ -94,9 +100,15 @@ namespace CluedIn.Connector.SqlServer.Utils.TableDefinitions
             var codeTableName = TableNameUtility.GetCodeTableName(streamModel, schema);
             var codeTableType = CreateCustomTypeCommandUtility.GetCodeTableCustomTypeName(streamModel, schema);
 
+            var columns = GetColumnDefinitions(StreamMode.EventStream).Select(column => column.Name).ToArray();
+            var columnsConcatenated = string.Join(", ", columns);
+
+            var tableTypeValuesName = "newValues";
+            var columnsBoxedAndConcatenated = string.Join(", ", columns.Select(column => $"{tableTypeValuesName}.[{column}]"));
+
             var insertText = $"""
-                INSERT INTO {codeTableName.FullyQualifiedName}
-                SELECT * FROM @{codeTableType.LocalName}
+                INSERT INTO {codeTableName.FullyQualifiedName} ({columnsConcatenated})
+                SELECT {columnsBoxedAndConcatenated} FROM @{codeTableType.LocalName} {tableTypeValuesName}
                 """;
 
             var eventStreamRecords = GetSqlRecords(StreamMode.EventStream, connectorEntityData);
@@ -120,14 +132,14 @@ namespace CluedIn.Connector.SqlServer.Utils.TableDefinitions
                 WHERE
                 [EntityId] = @EntityId
                 AND
-                NOT EXISTS(SELECT 1 FROM @{codeTableType.LocalName} newValues WHERE newValues.[Code] = {codeTableName.FullyQualifiedName}.[Code])
+                NOT EXISTS(SELECT 1 FROM @{codeTableType.LocalName} newValues WHERE newValues.[Code] = {codeTableName.FullyQualifiedName}.[Code] AND newValues.[IsDataPartOriginEntityCode] = {codeTableName.FullyQualifiedName}.[IsDataPartOriginEntityCode])
                 
                 -- Add new columns
                 INSERT INTO {codeTableName.FullyQualifiedName}
-                SELECT @EntityId, newValues.[Code]
+                SELECT @EntityId, newValues.[Code], newValues.[IsDataPartOriginEntityCode]
                 FROM @{codeTableType.LocalName} newValues
                 LEFT JOIN {codeTableName.FullyQualifiedName} existingValues
-                ON existingValues.[EntityId] = @EntityId AND existingValues.[Code] = newValues.[Code]
+                ON existingValues.[EntityId] = @EntityId AND existingValues.[Code] = newValues.[Code] AND existingValues.[IsDataPartOriginEntityCode] = newValues.[IsDataPartOriginEntityCode]
                 WHERE existingValues.[EntityId] IS NULL
                 """;
 
