@@ -22,7 +22,7 @@ namespace CluedIn.Connector.SqlServer.Connector
                 DataSource = (string)config[SqlServerConstants.KeyName.Host],
                 InitialCatalog = (string)config[SqlServerConstants.KeyName.DatabaseName],
                 Pooling = true,
-                MultipleActiveResultSets = true,
+                MultipleActiveResultSets = false,
                 MaxPoolSize = 200
             };
 
