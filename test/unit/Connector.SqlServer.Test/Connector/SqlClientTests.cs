@@ -26,7 +26,7 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests.Connector
 
             var result = _sut.BuildConnectionString(properties);
 
-            Assert.Equal("Data Source=host,1433;Initial Catalog=database;User ID=user;Password=password;Pooling=True;Max Pool Size=200;Multiple Active Result Sets=True;Authentication=SqlPassword", result);
+            Assert.Equal("Data Source=host,1433;Initial Catalog=database;User ID=user;Password=password;Pooling=True;Max Pool Size=200;Authentication=SqlPassword", result);
         }
 
         [Fact]
@@ -43,7 +43,7 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests.Connector
 
             var result = _sut.BuildConnectionString(properties);
 
-            Assert.Equal("Data Source=host,9499;Initial Catalog=database;User ID=user;Password=password;Pooling=True;Max Pool Size=200;Multiple Active Result Sets=True;Authentication=SqlPassword", result);
+            Assert.Equal("Data Source=host,9499;Initial Catalog=database;User ID=user;Password=password;Pooling=True;Max Pool Size=200;Authentication=SqlPassword", result);
         }
 
         [Fact]
@@ -60,7 +60,7 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests.Connector
 
             var result = _sut.BuildConnectionString(properties);
 
-            Assert.Equal("Data Source=host,9499;Initial Catalog=database;User ID=user;Password=password;Pooling=True;Max Pool Size=200;Multiple Active Result Sets=True;Authentication=SqlPassword", result);
+            Assert.Equal("Data Source=host,9499;Initial Catalog=database;User ID=user;Password=password;Pooling=True;Max Pool Size=200;Authentication=SqlPassword", result);
         }
 
         [Fact]
@@ -77,7 +77,7 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests.Connector
 
             var result = _sut.BuildConnectionString(properties);
 
-            Assert.Equal("Data Source=host,1433;Initial Catalog=database;User ID=user;Password=password;Pooling=True;Max Pool Size=200;Multiple Active Result Sets=True;Authentication=SqlPassword", result);
+            Assert.Equal("Data Source=host,1433;Initial Catalog=database;User ID=user;Password=password;Pooling=True;Max Pool Size=200;Authentication=SqlPassword", result);
         }
     }
 }
