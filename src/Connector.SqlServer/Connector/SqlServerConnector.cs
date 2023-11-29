@@ -237,6 +237,8 @@ namespace CluedIn.Connector.SqlServer.Connector
                 var sqlCommand = command.ToSqlCommand(transaction);
                 var reader = await sqlCommand.ExecuteReaderAsync();
                 result = await LatestPersistInfoCommandUtility.ReadSinglePersistInfo(reader);
+
+                await reader.DisposeAsync();
             });
 
             return result;
@@ -257,6 +259,8 @@ namespace CluedIn.Connector.SqlServer.Connector
                 var sqlCommand = command.ToSqlCommand(transaction);
                 var reader = await sqlCommand.ExecuteReaderAsync();
                 result = LatestPersistInfoCommandUtility.ReadAllPersistInfos(reader);
+
+                await reader.DisposeAsync();
             });
 
             return result;

@@ -35,7 +35,7 @@ namespace CluedIn.Connector.SqlServer.Utils.Upgrade
                 var renameSqlConnectorCommand = new SqlServerConnectorCommand() { Text = tableRenameText, Parameters = Array.Empty<SqlParameter>() };
                 await renameSqlConnectorCommand
                     .ToSqlCommand(transaction)
-                    .ExecuteScalarAsync();
+                    .ExecuteNonQueryAsync();
             }
 
             // Check if old main table is present
@@ -100,6 +100,8 @@ namespace CluedIn.Connector.SqlServer.Utils.Upgrade
                         var exception = IncompatibleTableException.OldTableVersionExists(streamModel.Id, (Guid)streamModel.ConnectorProviderDefinitionId);
                         logger.LogError(exception, "Not all expected columns were present, most likely because the table was created in an old version");
                     }
+
+                    await reader.DisposeAsync();
                 }
             }
         }
