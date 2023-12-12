@@ -1,6 +1,7 @@
 ﻿using AutoFixture.Xunit2;
 using CluedIn.Connector.SqlServer.Utils;
 using FluentAssertions;
+using System;
 using Xunit;
 
 namespace CluedIn.Connector.SqlServer.Unit.Tests.Utils;
@@ -23,5 +24,18 @@ public class StringExtensionsTests
 
         // assert
         result.Should().Be(expectedOutput);
+    }
+
+    [Theory]
+    [InlineAutoData("!@#")]
+    [InlineAutoData("")]
+    public void ToSanitizedTableName_ShouldThrow(string input)
+    {
+        // Arrange
+        // Act
+        var action = () => input.ToSanitizedSqlName();
+
+        // Assert
+        action.Should().Throw<ArgumentException>();
     }
 }

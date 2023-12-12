@@ -1,4 +1,5 @@
-﻿using System.Text.RegularExpressions;
+﻿using System;
+using System.Text.RegularExpressions;
 
 namespace CluedIn.Connector.SqlServer.Utils
 {
@@ -11,8 +12,12 @@ namespace CluedIn.Connector.SqlServer.Utils
         {
             var withoutSpecialCharacters = Regex.Replace(value, @"[^_A-Za-z0-9]+", string.Empty);
 
-            if (withoutSpecialCharacters.Length > 0 &&
-                char.IsDigit(withoutSpecialCharacters[0]))
+            if (withoutSpecialCharacters.Length == 0)
+            {
+                throw new ArgumentException($"Input value contained only non-alphanumeric characters, or was empty: '{value}'", nameof(value));
+            }
+
+            if (char.IsDigit(withoutSpecialCharacters[0]))
             {
                 return $"Table{withoutSpecialCharacters}";
             }
