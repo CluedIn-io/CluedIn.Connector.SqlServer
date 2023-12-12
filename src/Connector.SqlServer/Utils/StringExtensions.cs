@@ -1,4 +1,5 @@
-﻿using System.Text.RegularExpressions;
+﻿using System;
+using System.Text.RegularExpressions;
 
 namespace CluedIn.Connector.SqlServer.Utils
 {
@@ -9,7 +10,19 @@ namespace CluedIn.Connector.SqlServer.Utils
         /// </summary>
         public static string ToSanitizedSqlName(this string value)
         {
-            return Regex.Replace(value, @"[^_A-Za-z0-9]+", string.Empty);
+            var sanitizedSqlName = Regex.Replace(value, @"[^_A-Za-z0-9]+", string.Empty);
+
+            if (sanitizedSqlName.Length == 0)
+            {
+                throw new ArgumentException($"Input value contained only non-alphanumeric characters, or was empty: '{value}'", nameof(value));
+            }
+
+            if (char.IsDigit(sanitizedSqlName[0]))
+            {
+                sanitizedSqlName = $"Table{sanitizedSqlName}";
+            }
+
+            return sanitizedSqlName;
         }
     }
 }
