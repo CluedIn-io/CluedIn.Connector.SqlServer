@@ -19,7 +19,7 @@ namespace CluedIn.Connector.SqlServer.Utils
 
             if (char.IsDigit(sanitizedSqlName[0]))
             {
-                sanitizedSqlName = $"Table{sanitizedSqlName}";
+                sanitizedSqlName = $"_{sanitizedSqlName}";
             }
 
             if (sanitizedSqlName.Length > 127) // 127 instead of 128, since we need space for parameter declaration '@'
