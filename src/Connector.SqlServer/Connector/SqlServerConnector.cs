@@ -154,8 +154,11 @@ namespace CluedIn.Connector.SqlServer.Connector
         {
             if (streamModel.ExportIncomingEdges)
             {
-                var deleteEdgeIncomingPropertiesCommand = StoreCommandBuilder.DeleteEdgePropertiesForEntity(streamModel, sqlConnectorEntityData, EdgeDirection.Incoming, schema);
-                await deleteEdgeIncomingPropertiesCommand.ToSqlCommand(transaction).ExecuteNonQueryAsync();
+                if (streamModel.ExportIncomingEdgeProperties)
+                {
+                    var deleteEdgeIncomingPropertiesCommand = StoreCommandBuilder.DeleteEdgePropertiesForEntity(streamModel, sqlConnectorEntityData, EdgeDirection.Incoming, schema);
+                    await deleteEdgeIncomingPropertiesCommand.ToSqlCommand(transaction).ExecuteNonQueryAsync();
+                }
 
                 var deleteEdgesIncomingCommand = StoreCommandBuilder.DeleteEdgesForEntity(streamModel, sqlConnectorEntityData, EdgeDirection.Incoming, schema);
                 await deleteEdgesIncomingCommand.ToSqlCommand(transaction).ExecuteNonQueryAsync();
@@ -163,8 +166,11 @@ namespace CluedIn.Connector.SqlServer.Connector
 
             if (streamModel.ExportOutgoingEdges)
             {
-                var deleteEdgeOutgoingPropertiesCommand = StoreCommandBuilder.DeleteEdgePropertiesForEntity(streamModel, sqlConnectorEntityData, EdgeDirection.Outgoing, schema);
-                await deleteEdgeOutgoingPropertiesCommand.ToSqlCommand(transaction).ExecuteNonQueryAsync();
+                if (streamModel.ExportOutgoingEdgeProperties)
+                {
+                    var deleteEdgeOutgoingPropertiesCommand = StoreCommandBuilder.DeleteEdgePropertiesForEntity(streamModel, sqlConnectorEntityData, EdgeDirection.Outgoing, schema);
+                    await deleteEdgeOutgoingPropertiesCommand.ToSqlCommand(transaction).ExecuteNonQueryAsync();
+                }
 
                 var deleteEdgesOutgoingCommand = StoreCommandBuilder.DeleteEdgesForEntity(streamModel, sqlConnectorEntityData, EdgeDirection.Outgoing, schema);
                 await deleteEdgesOutgoingCommand.ToSqlCommand(transaction).ExecuteNonQueryAsync();
@@ -197,7 +203,7 @@ namespace CluedIn.Connector.SqlServer.Connector
                 var incomingEdgesSqlCommand = incomingEdgesCommand.ToSqlCommand(transaction);
                 await incomingEdgesSqlCommand.ExecuteNonQueryAsync();
 
-                if (isSyncMode || sqlConnectorEntityData.IncomingEdges.Any(edge => edge.HasProperties))
+                if (streamModel.ExportIncomingEdgeProperties && (isSyncMode || sqlConnectorEntityData.IncomingEdges.Any(edge => edge.HasProperties)))
                 {
                     var incomingEdgePropertiesCommand = StoreCommandBuilder.EdgePropertiesCommand(streamModel, sqlConnectorEntityData, EdgeDirection.Incoming, schema);
                     var incomingEdgePropertiesSqlCommand = incomingEdgePropertiesCommand.ToSqlCommand(transaction);
@@ -211,7 +217,7 @@ namespace CluedIn.Connector.SqlServer.Connector
                 var outgoingEdgesSqlCommand = outgoingEdgesCommand.ToSqlCommand(transaction);
                 await outgoingEdgesSqlCommand.ExecuteNonQueryAsync();
 
-                if (isSyncMode || sqlConnectorEntityData.OutgoingEdges.Any(edge => edge.HasProperties))
+                if (streamModel.ExportOutgoingEdgeProperties && (isSyncMode || sqlConnectorEntityData.OutgoingEdges.Any(edge => edge.HasProperties)))
                 {
                     var outgoingEdgePropertiesCommand = StoreCommandBuilder.EdgePropertiesCommand(streamModel, sqlConnectorEntityData, EdgeDirection.Outgoing, schema);
                     var outgoingEdgePropertiesSqlCommand = outgoingEdgePropertiesCommand.ToSqlCommand(transaction);
@@ -304,8 +310,11 @@ namespace CluedIn.Connector.SqlServer.Connector
                     commands.Add(CreateTableCommandUtility.BuildEdgeTableCommand(model, EdgeDirection.Outgoing, schema));
                     commands.Add(CreateCustomTypeCommandUtility.BuildCreateEdgeTableCustomTypeCommand(model, EdgeDirection.Outgoing, schema));
 
-                    commands.Add(CreateTableCommandUtility.BuildEdgePropertiesTableCommand(model, EdgeDirection.Outgoing, schema));
-                    commands.Add(CreateCustomTypeCommandUtility.BuildCreateEdgePropertiesTableCustomTypeCommand(model, EdgeDirection.Outgoing, schema));
+                    if (model.OutgoingEdgePropertiesAreExported)
+                    {
+                        commands.Add(CreateTableCommandUtility.BuildEdgePropertiesTableCommand(model, EdgeDirection.Outgoing, schema));
+                        commands.Add(CreateCustomTypeCommandUtility.BuildCreateEdgePropertiesTableCustomTypeCommand(model, EdgeDirection.Outgoing, schema));
+                    }
                 }
 
                 if (model.IncomingEdgesAreExported)
@@ -313,8 +322,11 @@ namespace CluedIn.Connector.SqlServer.Connector
                     commands.Add(CreateTableCommandUtility.BuildEdgeTableCommand(model, EdgeDirection.Incoming, schema));
                     commands.Add(CreateCustomTypeCommandUtility.BuildCreateEdgeTableCustomTypeCommand(model, EdgeDirection.Incoming, schema));
 
-                    commands.Add(CreateTableCommandUtility.BuildEdgePropertiesTableCommand(model, EdgeDirection.Incoming, schema));
-                    commands.Add(CreateCustomTypeCommandUtility.BuildCreateEdgePropertiesTableCustomTypeCommand(model, EdgeDirection.Incoming, schema));
+                    if (model.IncomingEdgePropertiesAreExported)
+                    {
+                        commands.Add(CreateTableCommandUtility.BuildEdgePropertiesTableCommand(model, EdgeDirection.Incoming, schema));
+                        commands.Add(CreateCustomTypeCommandUtility.BuildCreateEdgePropertiesTableCustomTypeCommand(model, EdgeDirection.Incoming, schema));
+                    }
                 }
 
                 foreach (var command in commands)
@@ -343,9 +355,12 @@ namespace CluedIn.Connector.SqlServer.Connector
                     var emptyOutgoingEdgeTableCommand = BuildEmptyContainerSql(outgoingEdgesTableName);
                     await emptyOutgoingEdgeTableCommand.ToSqlCommand(transaction).ExecuteNonQueryAsync();
 
-                    var outgoingEdgesPropertiesTableName = TableNameUtility.GetEdgePropertiesTableName(streamModel, EdgeDirection.Outgoing, schema);
-                    var emptyOutgoingEdgesPropertiesTableCommand = BuildEmptyContainerSql(outgoingEdgesPropertiesTableName);
-                    await emptyOutgoingEdgesPropertiesTableCommand.ToSqlCommand(transaction).ExecuteNonQueryAsync();
+                    if (streamModel.ExportOutgoingEdgeProperties)
+                    {
+                        var outgoingEdgesPropertiesTableName = TableNameUtility.GetEdgePropertiesTableName(streamModel, EdgeDirection.Outgoing, schema);
+                        var emptyOutgoingEdgesPropertiesTableCommand = BuildEmptyContainerSql(outgoingEdgesPropertiesTableName);
+                        await emptyOutgoingEdgesPropertiesTableCommand.ToSqlCommand(transaction).ExecuteNonQueryAsync();
+                    }
                 }
 
                 if (streamModel.ExportIncomingEdges)
@@ -354,9 +369,12 @@ namespace CluedIn.Connector.SqlServer.Connector
                     var emptyIncomingEdgeTableCommand = BuildEmptyContainerSql(incomingEdgesTableName);
                     await emptyIncomingEdgeTableCommand.ToSqlCommand(transaction).ExecuteNonQueryAsync();
 
-                    var incomingEdgesPropertiesTableName = TableNameUtility.GetEdgePropertiesTableName(streamModel, EdgeDirection.Incoming, schema);
-                    var emptyIncomingEdgesPropertiesTableCommand = BuildEmptyContainerSql(incomingEdgesPropertiesTableName);
-                    await emptyIncomingEdgesPropertiesTableCommand.ToSqlCommand(transaction).ExecuteNonQueryAsync();
+                    if (streamModel.ExportIncomingEdgeProperties)
+                    {
+                        var incomingEdgesPropertiesTableName = TableNameUtility.GetEdgePropertiesTableName(streamModel, EdgeDirection.Incoming, schema);
+                        var emptyIncomingEdgesPropertiesTableCommand = BuildEmptyContainerSql(incomingEdgesPropertiesTableName);
+                        await emptyIncomingEdgesPropertiesTableCommand.ToSqlCommand(transaction).ExecuteNonQueryAsync();
+                    }
                 }
 
                 var codeTableName = TableNameUtility.GetCodeTableName(streamModel, schema);
@@ -455,9 +473,12 @@ namespace CluedIn.Connector.SqlServer.Connector
                     var dropOutgoingEdgesTable = BuildRemoveContainerSql(outgoingEdgesTableName);
                     builder.AppendLine(dropOutgoingEdgesTable);
 
-                    var outgoingEdgesPropertiesTableName = TableNameUtility.GetEdgePropertiesTableName(streamModel, EdgeDirection.Outgoing, schema);
-                    var dropOutgoingEdgesPropertiesTable = BuildRemoveContainerSql(outgoingEdgesPropertiesTableName);
-                    builder.AppendLine(dropOutgoingEdgesPropertiesTable);
+                    if (streamModel.ExportOutgoingEdgeProperties)
+                    {
+                        var outgoingEdgesPropertiesTableName = TableNameUtility.GetEdgePropertiesTableName(streamModel, EdgeDirection.Outgoing, schema);
+                        var dropOutgoingEdgesPropertiesTable = BuildRemoveContainerSql(outgoingEdgesPropertiesTableName);
+                        builder.AppendLine(dropOutgoingEdgesPropertiesTable);
+                    }
                 }
 
                 if (streamModel.ExportIncomingEdges)
@@ -466,9 +487,12 @@ namespace CluedIn.Connector.SqlServer.Connector
                     var dropIncomingEdgesTable = BuildRemoveContainerSql(incomingEdgesTableName);
                     builder.AppendLine(dropIncomingEdgesTable);
 
-                    var incomingEdgesPropertiesTableName = TableNameUtility.GetEdgePropertiesTableName(streamModel, EdgeDirection.Incoming, schema);
-                    var dropIncomingEdgesPropertiesTable = BuildRemoveContainerSql(incomingEdgesPropertiesTableName);
-                    builder.AppendLine(dropIncomingEdgesPropertiesTable);
+                    if (streamModel.ExportIncomingEdgeProperties)
+                    {
+                        var incomingEdgesPropertiesTableName = TableNameUtility.GetEdgePropertiesTableName(streamModel, EdgeDirection.Incoming, schema);
+                        var dropIncomingEdgesPropertiesTable = BuildRemoveContainerSql(incomingEdgesPropertiesTableName);
+                        builder.AppendLine(dropIncomingEdgesPropertiesTable);
+                    }
                 }
 
                 var codeTableName = TableNameUtility.GetCodeTableName(streamModel, schema);
