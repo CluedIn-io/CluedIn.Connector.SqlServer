@@ -24,8 +24,8 @@ namespace CluedIn.Connector.SqlServer.Utils
 
             if (sanitizedSqlName.Length > 127) // 127 instead of 128, since we need space for parameter declaration '@'
             {
-                var hashValue = Math.Abs(GetStableHashCode(value)).ToString().PadLeft(10, '0');
-                var postFix = $"_{hashValue}";
+                var hashValue = Math.Abs(GetStableHashCode(value));
+                var postFix = $"_{hashValue:x8}";
                 sanitizedSqlName = $"{sanitizedSqlName.Remove(127 - postFix.Length)}{postFix}";
             }
 
