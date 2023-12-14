@@ -13,9 +13,10 @@ public class StringExtensionsTests
     [InlineAutoData("TableName1", "TableName1")]
     [InlineAutoData("TableName+", "TableName")]
     [InlineAutoData("+TableName", "TableName")]
-    [InlineAutoData("1", "Table1")]
-    [InlineAutoData("123", "Table123")]
-    [InlineAutoData("1Table", "Table1Table")]
+    [InlineAutoData("1", "_1")]
+    [InlineAutoData("123", "_123")]
+    [InlineAutoData("1Table", "_1Table")]
+    [InlineAutoData("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa_1760cfe8")] // Expected result should not be changed, since we need to ensure that hash is stable
     public void ToSanitizedTableName_ShouldYieldName(string input, string expectedOutput)
     {
         // arrange
@@ -37,5 +38,19 @@ public class StringExtensionsTests
 
         // Assert
         action.Should().Throw<ArgumentException>();
+    }
+
+    [Theory]
+    [InlineAutoData("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")]
+    [InlineAutoData("bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb")]
+    [InlineAutoData("cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc")]
+    public void ToSanitizedTableName_ShouldLimitSize(string input)
+    {
+        // arrange
+        // act
+        var result = input.ToSanitizedSqlName();
+
+        // assert
+        result.Length.Should().Be(127);
     }
 }
