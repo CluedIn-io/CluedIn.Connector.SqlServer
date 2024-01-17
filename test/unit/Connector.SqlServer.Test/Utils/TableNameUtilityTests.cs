@@ -1,4 +1,5 @@
-﻿using CluedIn.Connector.SqlServer.Unit.Tests.Customizations;
+﻿using AutoFixture.Xunit2;
+using CluedIn.Connector.SqlServer.Unit.Tests.Customizations;
 using CluedIn.Connector.SqlServer.Utils;
 using CluedIn.Core.Connectors;
 using CluedIn.Core.Streams.Models;
@@ -10,6 +11,42 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests.Utils
 {
     public class TableNameUtilityTests
     {
+        [Theory]
+        [InlineAutoData("TestTableName", "TestTableName", "TestTableNameCodes", "TestTableNameOutgoingEdges", "TestTableNameOutgoingEdgeProperties", "TestTableNameIncomingEdges", "TestTableNameIncomingEdgeProperties")]
+        [InlineAutoData(
+            "TestTableName127CharactersAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+            "TestTableName127CharactersAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA_3b2a4bbe",
+            "TestTableName127CharactersAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA_3b2a4bbeCodes",
+            "TestTableName127CharactersAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA_3b2a4bbeOutgoingEdges",
+            "TestTableName127CharactersAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA_3b2a4bbeOutgoingEdgeProperties",
+            "TestTableName127CharactersAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA_3b2a4bbeIncomingEdges",
+            "TestTableName127CharactersAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA_3b2a4bbeIncomingEdgeProperties")]
+        internal void TableNamesShouldBeExpectedNames(
+            string containerName,
+            string expectedMainTableName, string expectedCodeTableName, string expectedOutgoingEdgeTableName, string expectedOutgoingEdgePropertiesTableName, string expectedIncomingEdgeTableName, string expectedIncomingEdgePropertiesTableName)
+        {
+            // arrange
+            var schema = new SqlName();
+            var streamModel = Substitute.For<IReadOnlyStreamModel>();
+            streamModel.ContainerName.Returns(containerName);
+
+            // act
+            var mainTableName                   = TableNameUtility.GetMainTableName(streamModel, schema);
+            var codeTableName                   = TableNameUtility.GetCodeTableName(streamModel, schema);
+            var outgoingEdgeTableName           = TableNameUtility.GetEdgesTableName(streamModel, EdgeDirection.Outgoing, schema);
+            var outgoingEdgePropertiesTableName = TableNameUtility.GetEdgePropertiesTableName(streamModel, EdgeDirection.Outgoing, schema);
+            var incomingEdgeTableName           = TableNameUtility.GetEdgesTableName(streamModel, EdgeDirection.Incoming, schema);
+            var incomingEdgePropertiesTableName = TableNameUtility.GetEdgePropertiesTableName(streamModel, EdgeDirection.Incoming, schema);
+
+            // assert
+            mainTableName.LocalName.Value.Should().BeEquivalentTo(expectedMainTableName);
+            codeTableName.LocalName.Value.Should().BeEquivalentTo(expectedCodeTableName);
+            outgoingEdgeTableName.LocalName.Value.Should().BeEquivalentTo(expectedOutgoingEdgeTableName);
+            outgoingEdgePropertiesTableName.LocalName.Value.Should().BeEquivalentTo(expectedOutgoingEdgePropertiesTableName);
+            incomingEdgeTableName.LocalName.Value.Should().BeEquivalentTo(expectedIncomingEdgeTableName);
+            incomingEdgePropertiesTableName.LocalName.Value.Should().BeEquivalentTo(expectedIncomingEdgePropertiesTableName);
+        }
+
         [Theory, AutoNData]
         internal void AllOverloadsShouldGiveSameMainTableName(IReadOnlyStreamModel streamModel, IReadOnlyCreateContainerModelV2 createContainerModel)
         {

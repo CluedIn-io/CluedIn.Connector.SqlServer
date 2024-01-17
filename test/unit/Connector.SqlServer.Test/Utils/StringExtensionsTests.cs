@@ -16,6 +16,7 @@ public class StringExtensionsTests
     [InlineAutoData("1", "_1")]
     [InlineAutoData("123", "_123")]
     [InlineAutoData("1Table", "_1Table")]
+    [InlineAutoData("PK_TestTableName127CharactersAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA", "PK_TestTableName127CharactersAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA_421fbb16")] // Expected result should not be changed, since we need to ensure that hash is stable
     [InlineAutoData("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa_1760cfe8")] // Expected result should not be changed, since we need to ensure that hash is stable
     public void ToSanitizedTableName_ShouldYieldName(string input, string expectedOutput)
     {

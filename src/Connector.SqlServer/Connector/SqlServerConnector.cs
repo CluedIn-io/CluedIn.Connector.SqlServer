@@ -44,7 +44,7 @@ namespace CluedIn.Connector.SqlServer.Connector
             await using var connectionAndTransaction = await _client.BeginTransaction(config.Authentication);
             var transaction = connectionAndTransaction.Transaction;
 
-            var cleanName = containerName.ToSanitizedSqlName();
+            var cleanName = containerName.ToSanitizedMainTableName();
 
             if (!await CheckTableExists(executionContext, connectorProviderDefinitionId, transaction, cleanName))
             {
