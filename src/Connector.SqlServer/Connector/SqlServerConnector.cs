@@ -44,7 +44,7 @@ namespace CluedIn.Connector.SqlServer.Connector
             await using var connectionAndTransaction = await _client.BeginTransaction(config.Authentication);
             var transaction = connectionAndTransaction.Transaction;
 
-            var cleanName = containerName.ToSanitizedSqlName();
+            var cleanName = containerName.ToSanitizedMainTableName();
 
             if (!await CheckTableExists(executionContext, connectorProviderDefinitionId, transaction, cleanName))
             {
@@ -57,7 +57,7 @@ namespace CluedIn.Connector.SqlServer.Connector
             do
             {
                 count++;
-                newName = $"{cleanName}{count}";
+                newName = $"{cleanName}{count}".ToSanitizedMainTableName();
             } while (await CheckTableExists(executionContext, connectorProviderDefinitionId, transaction, newName));
 
             return newName;

@@ -25,6 +25,20 @@ namespace CluedIn.Connector.SqlServer.Utils
             return new SqlName(sanitizedValue);
         }
 
+        public static SqlName FromUnsafeMainTable(string value)
+        {
+            if (string.IsNullOrEmpty(value))
+                throw new ArgumentException("Value cannot be null or empty.", nameof(value));
+
+            var sanitizedValue = value.ToSanitizedMainTableName();
+            if (string.IsNullOrEmpty(sanitizedValue))
+            {
+                throw new ArgumentException("Name cannot be empty after being sanitized", nameof(value));
+            }
+
+            return new SqlName(sanitizedValue);
+        }
+
         public static SqlName FromSanitized(string value)
         {
             if (string.IsNullOrEmpty(value)) throw new ArgumentException("Value cannot be null or empty.", nameof(value));
