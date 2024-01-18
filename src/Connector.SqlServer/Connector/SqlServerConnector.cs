@@ -57,7 +57,7 @@ namespace CluedIn.Connector.SqlServer.Connector
             do
             {
                 count++;
-                newName = $"{cleanName}{count}";
+                newName = $"{cleanName}{count}".ToSanitizedMainTableName();
             } while (await CheckTableExists(executionContext, connectorProviderDefinitionId, transaction, newName));
 
             return newName;
