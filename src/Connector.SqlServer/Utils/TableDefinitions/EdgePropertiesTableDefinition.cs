@@ -19,7 +19,7 @@ namespace CluedIn.Connector.SqlServer.Utils.TableDefinitions
                     return new ColumnDefinition[]
                     {
                         new("EdgeId", SqlColumnHelper.UniqueIdentifier, IsPrimaryKey: true),
-                        new("EntityId", SqlColumnHelper.UniqueIdentifier),
+                        new("EntityId", SqlColumnHelper.UniqueIdentifier, AddIndex: true),
                         new("KeyName", SqlColumnHelper.NVarchar256, IsPrimaryKey: true),
                         new("Value", SqlColumnHelper.GetColumnTypeForPropertyValue()),
                         new("ChangeType", SqlColumnHelper.Int),
@@ -30,7 +30,7 @@ namespace CluedIn.Connector.SqlServer.Utils.TableDefinitions
                     return new ColumnDefinition[]
                     {
                         new("EdgeId", SqlColumnHelper.UniqueIdentifier, IsPrimaryKey: true),
-                        new("EntityId", SqlColumnHelper.UniqueIdentifier),
+                        new("EntityId", SqlColumnHelper.UniqueIdentifier, AddIndex: true),
                         new("KeyName", SqlColumnHelper.NVarchar256, IsPrimaryKey: true),
                         new("Value", SqlColumnHelper.GetColumnTypeForPropertyValue()),
                     };
