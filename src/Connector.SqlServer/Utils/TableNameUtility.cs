@@ -15,7 +15,7 @@ namespace CluedIn.Connector.SqlServer.Utils
         [System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
         public static SqlTableName GetMainTableName(string name, SqlName schema)
         {
-            return SqlName.FromUnsafe(name).ToTableName(schema);
+            return SqlName.FromUnsafeMainTable(name).ToTableName(schema);
         }
 
         public static SqlTableName GetCodeTableName(IReadOnlyStreamModel model, SqlName schema)

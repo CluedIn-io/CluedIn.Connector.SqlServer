@@ -32,6 +32,8 @@ namespace CluedIn.Connector.SqlServer.Utils.Upgrade
                 actualColumns.Add(reader[0].ToString());
             }
 
+            await reader.DisposeAsync();
+
             if (!actualColumns.Any())
             {
                 logger.LogInformation("Skipping adding IsDataPartOriginEntityCode to code table, since code table does not exist. This is most likely since `VerifyExistingContainer` is being ran before container is created");

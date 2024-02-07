@@ -88,8 +88,9 @@ namespace CluedIn.Connector.SqlServer.Utils
 
             var keysJoinedWithUnderscore = string.Join("_", primaryKeys.Select(key => key.Name.ToSanitizedSqlName()));
             var keysJoinedWithComma = string.Join(", ", primaryKeys.Select(key => $"[{key.Name.ToSanitizedSqlName()}]"));
+            var primaryKeyName = $"PK_{tableName.LocalName}_{keysJoinedWithUnderscore}".ToSanitizedSqlName();
 
-            builder.AppendLine($"CONSTRAINT [PK_{tableName.LocalName}_{keysJoinedWithUnderscore}] PRIMARY KEY NONCLUSTERED ({keysJoinedWithComma})");
+            builder.AppendLine($"CONSTRAINT [{primaryKeyName}] PRIMARY KEY NONCLUSTERED ({keysJoinedWithComma})");
         }
 
         private static void AddIndexes(StringBuilder builder, SqlTableName tableName, IEnumerable<ColumnDefinition> indexKeys)
@@ -104,7 +105,8 @@ namespace CluedIn.Connector.SqlServer.Utils
         {
             var clusteredString = "NONCLUSTERED";
             var sanitizedName = indexKey.Name.ToSanitizedSqlName();
-            builder.AppendLine($"CREATE {clusteredString} INDEX [IX_{tableName.LocalName}_{sanitizedName}] ON {tableName.FullyQualifiedName} ([{sanitizedName}])");
+            var sanitizedIndexName = $"IX_{tableName.LocalName}_{sanitizedName}".ToSanitizedSqlName();
+            builder.AppendLine($"CREATE {clusteredString} INDEX [{sanitizedIndexName}] ON {tableName.FullyQualifiedName} ([{sanitizedName}])");
         }
     }
 }
