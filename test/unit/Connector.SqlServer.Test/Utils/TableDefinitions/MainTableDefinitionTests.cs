@@ -105,11 +105,11 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests.Utils.TableDefinitions
             // arrange
             var properties = new (string, ConnectorPropertyDataType)[]
             {
-                ("DiscoveryDate", new EntityPropertyConnectorPropertyDataType(typeof(DateTime))),
+                ("DiscoveryDate", new EntityPropertyConnectorPropertyDataType(typeof(DateTimeOffset))),
             };
             var dateValue = new DateTimeOffset(2000, 1, 1, 1, 1, 1, 0, offset: TimeSpan.FromHours(1));
 
-            var discoveryDatePropertyDate = new ConnectorPropertyData("DiscoveryDate", dateValue, new EntityPropertyConnectorPropertyDataType(typeof(DateTime)));
+            var discoveryDatePropertyDate = new ConnectorPropertyData("DiscoveryDate", dateValue, new EntityPropertyConnectorPropertyDataType(typeof(DateTimeOffset)));
             var connectorEntityData = new ConnectorEntityData(versionChangeType, StreamMode.Sync, entityId, null, null, null, null, new[] { discoveryDatePropertyDate }, Array.Empty<IEntityCode>(), Array.Empty<EntityEdge>(), Array.Empty<EntityEdge>());
             var sqlDiscoveryDatePropertyDate = new SqlConnectorEntityData(connectorEntityData, correlationId, timestamp: DateTimeOffset.Now);
 
