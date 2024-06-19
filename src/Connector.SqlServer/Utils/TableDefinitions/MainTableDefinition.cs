@@ -72,6 +72,11 @@ namespace CluedIn.Connector.SqlServer.Utils.TableDefinitions
                                 return $"[{string.Join(", ", enumerable)}]";
                             }
 
+                            if (propertyValue is DateTime dateTimeValue)
+                            {
+                                return dateTimeValue.ToString("O");
+                            }
+
                             if (propertyValue is DateTimeOffset dateTimeOffsetValue)
                             {
                                 return dateTimeOffsetValue.ToString("O");
