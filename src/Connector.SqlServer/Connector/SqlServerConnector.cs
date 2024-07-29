@@ -152,16 +152,18 @@ namespace CluedIn.Connector.SqlServer.Connector
 
         private async Task<SaveResult> ExecuteDelete(IReadOnlyStreamModel streamModel, SqlConnectorEntityData sqlConnectorEntityData, SqlName schema, SqlTransaction transaction)
         {
+            var commandsToRun = new List<SqlServerConnectorCommand>();
+
             if (streamModel.ExportIncomingEdges)
             {
                 if (streamModel.ExportIncomingEdgeProperties)
                 {
                     var deleteEdgeIncomingPropertiesCommand = StoreCommandBuilder.DeleteEdgePropertiesForEntity(streamModel, sqlConnectorEntityData, EdgeDirection.Incoming, schema);
-                    await deleteEdgeIncomingPropertiesCommand.ToSqlCommand(transaction).ExecuteNonQueryAsync();
+                    commandsToRun.Add(deleteEdgeIncomingPropertiesCommand);
                 }
 
                 var deleteEdgesIncomingCommand = StoreCommandBuilder.DeleteEdgesForEntity(streamModel, sqlConnectorEntityData, EdgeDirection.Incoming, schema);
-                await deleteEdgesIncomingCommand.ToSqlCommand(transaction).ExecuteNonQueryAsync();
+                commandsToRun.Add(deleteEdgesIncomingCommand);
             }
 
             if (streamModel.ExportOutgoingEdges)
@@ -169,18 +171,35 @@ namespace CluedIn.Connector.SqlServer.Connector
                 if (streamModel.ExportOutgoingEdgeProperties)
                 {
                     var deleteEdgeOutgoingPropertiesCommand = StoreCommandBuilder.DeleteEdgePropertiesForEntity(streamModel, sqlConnectorEntityData, EdgeDirection.Outgoing, schema);
-                    await deleteEdgeOutgoingPropertiesCommand.ToSqlCommand(transaction).ExecuteNonQueryAsync();
+                    commandsToRun.Add(deleteEdgeOutgoingPropertiesCommand);
                 }
 
                 var deleteEdgesOutgoingCommand = StoreCommandBuilder.DeleteEdgesForEntity(streamModel, sqlConnectorEntityData, EdgeDirection.Outgoing, schema);
-                await deleteEdgesOutgoingCommand.ToSqlCommand(transaction).ExecuteNonQueryAsync();
+                commandsToRun.Add(deleteEdgesOutgoingCommand);
             }
 
             var deleteCodesCommand = StoreCommandBuilder.DeleteCodesForEntity(streamModel, sqlConnectorEntityData, schema);
-            await deleteCodesCommand.ToSqlCommand(transaction).ExecuteNonQueryAsync();
+            commandsToRun.Add(deleteCodesCommand);
 
             var deleteMainCommand = StoreCommandBuilder.DeleteEntity(streamModel, sqlConnectorEntityData, schema);
-            await deleteMainCommand.ToSqlCommand(transaction).ExecuteNonQueryAsync();
+            commandsToRun.Add(deleteMainCommand);
+
+            var gatheredCommandText = string.Join($"""
+
+
+                                                  -- Command split
+
+
+                                                  """, commandsToRun.Select(command => command.Text));
+
+            var gatheredParameters = commandsToRun.SelectMany(command => command.Parameters);
+
+            var gatheredCommand = transaction.Connection.CreateCommand();
+            gatheredCommand.CommandText = gatheredCommandText;
+            gatheredCommand.Parameters.AddRange(gatheredParameters.ToArray());
+            gatheredCommand.Transaction = transaction;
+
+            await gatheredCommand.ExecuteNonQueryAsync();
 
             return SaveResult.Success;
         }
@@ -189,41 +208,54 @@ namespace CluedIn.Connector.SqlServer.Connector
         {
             var isSyncMode = streamModel.Mode == StreamMode.Sync;
 
+            var commandsToRun = new List<SqlServerConnectorCommand>();
+
             var updateCommand = StoreCommandBuilder.MainTableCommand(streamModel, sqlConnectorEntityData, schema);
-            var updateSqlCommand = updateCommand.ToSqlCommand(transaction);
-            await updateSqlCommand.ExecuteNonQueryAsync();
+            commandsToRun.Add(updateCommand);
 
             var insertCodesCommand = StoreCommandBuilder.CodesInsertCommand(streamModel, sqlConnectorEntityData, schema);
-            var insertCodeSqlCommand = insertCodesCommand.ToSqlCommand(transaction);
-            await insertCodeSqlCommand.ExecuteNonQueryAsync();
+            commandsToRun.Add(insertCodesCommand);
 
             if (streamModel.ExportIncomingEdges && (isSyncMode || sqlConnectorEntityData.IncomingEdges.Any()))
             {
                 var incomingEdgesCommand = StoreCommandBuilder.EdgesCommand(streamModel, sqlConnectorEntityData, EdgeDirection.Incoming, schema);
-                var incomingEdgesSqlCommand = incomingEdgesCommand.ToSqlCommand(transaction);
-                await incomingEdgesSqlCommand.ExecuteNonQueryAsync();
+                commandsToRun.Add(incomingEdgesCommand);
 
                 if (streamModel.ExportIncomingEdgeProperties && (isSyncMode || sqlConnectorEntityData.IncomingEdges.Any(edge => edge.HasProperties)))
                 {
                     var incomingEdgePropertiesCommand = StoreCommandBuilder.EdgePropertiesCommand(streamModel, sqlConnectorEntityData, EdgeDirection.Incoming, schema);
-                    var incomingEdgePropertiesSqlCommand = incomingEdgePropertiesCommand.ToSqlCommand(transaction);
-                    await incomingEdgePropertiesSqlCommand.ExecuteNonQueryAsync();
+                    commandsToRun.Add(incomingEdgePropertiesCommand);
                 }
             }
 
             if (streamModel.ExportOutgoingEdges && (isSyncMode || sqlConnectorEntityData.OutgoingEdges.Any()))
             {
                 var outgoingEdgesCommand = StoreCommandBuilder.EdgesCommand(streamModel, sqlConnectorEntityData, EdgeDirection.Outgoing, schema);
-                var outgoingEdgesSqlCommand = outgoingEdgesCommand.ToSqlCommand(transaction);
-                await outgoingEdgesSqlCommand.ExecuteNonQueryAsync();
+                commandsToRun.Add(outgoingEdgesCommand);
 
                 if (streamModel.ExportOutgoingEdgeProperties && (isSyncMode || sqlConnectorEntityData.OutgoingEdges.Any(edge => edge.HasProperties)))
                 {
                     var outgoingEdgePropertiesCommand = StoreCommandBuilder.EdgePropertiesCommand(streamModel, sqlConnectorEntityData, EdgeDirection.Outgoing, schema);
-                    var outgoingEdgePropertiesSqlCommand = outgoingEdgePropertiesCommand.ToSqlCommand(transaction);
-                    await outgoingEdgePropertiesSqlCommand.ExecuteNonQueryAsync();
+                    commandsToRun.Add(outgoingEdgePropertiesCommand);
                 }
             }
+
+            var gatheredCommandText = string.Join("""
+
+
+                                                  -- Command split
+
+
+                                                  """, commandsToRun.Select(command => command.Text));
+
+            var gatheredParameters = commandsToRun.SelectMany(command => command.Parameters);
+
+            var gatheredCommand = transaction.Connection.CreateCommand();
+            gatheredCommand.CommandText = gatheredCommandText;
+            gatheredCommand.Parameters.AddRange(gatheredParameters.ToArray());
+            gatheredCommand.Transaction = transaction;
+
+            await gatheredCommand.ExecuteNonQueryAsync();
 
             return SaveResult.Success;
         }

@@ -11,6 +11,8 @@ namespace CluedIn.Connector.SqlServer.Utils.TableDefinitions
 {
     internal static class CodeTableDefinition
     {
+        private static readonly string variablePrefix = "code_table_";
+
         public static ColumnDefinition IsDataPartOriginEntityCodeColumnDefinition = new("IsDataPartOriginEntityCode", SqlColumnHelper.Bit, CanBeNull: true);
 
         public static ColumnDefinition[] GetColumnDefinitions(StreamMode mode)
@@ -103,12 +105,12 @@ namespace CluedIn.Connector.SqlServer.Utils.TableDefinitions
             var columns = GetColumnDefinitions(StreamMode.EventStream).Select(column => column.Name).ToArray();
             var columnsConcatenated = string.Join(", ", columns);
 
-            var tableTypeValuesName = "newValues";
+            var tableTypeValuesName = $"{variablePrefix}newValues";
             var columnsBoxedAndConcatenated = string.Join(", ", columns.Select(column => $"{tableTypeValuesName}.[{column}]"));
 
             var insertText = $"""
                 INSERT INTO {codeTableName.FullyQualifiedName} ({columnsConcatenated})
-                SELECT {columnsBoxedAndConcatenated} FROM @{codeTableType.LocalName} {tableTypeValuesName}
+                SELECT {columnsBoxedAndConcatenated} FROM @{variablePrefix}{codeTableType.LocalName} {tableTypeValuesName}
                 """;
 
             var eventStreamRecords = GetSqlRecords(StreamMode.EventStream, connectorEntityData);
@@ -117,7 +119,7 @@ namespace CluedIn.Connector.SqlServer.Utils.TableDefinitions
                 eventStreamRecords = null;
             }
 
-            var eventStreamRecordsParameter = new SqlParameter($"@{codeTableType.LocalName}", SqlDbType.Structured) { Value = eventStreamRecords, TypeName = codeTableType.FullyQualifiedName };
+            var eventStreamRecordsParameter = new SqlParameter($"@{variablePrefix}{codeTableType.LocalName}", SqlDbType.Structured) { Value = eventStreamRecords, TypeName = codeTableType.FullyQualifiedName };
             return new SqlServerConnectorCommand { Text = insertText, Parameters = new[] { eventStreamRecordsParameter } };
         }
 
@@ -130,16 +132,16 @@ namespace CluedIn.Connector.SqlServer.Utils.TableDefinitions
                 -- Delete existing columns that no longer exist
                 DELETE {codeTableName.FullyQualifiedName}
                 WHERE
-                [EntityId] = @EntityId
+                [EntityId] = @{variablePrefix}EntityId
                 AND
-                NOT EXISTS(SELECT 1 FROM @{codeTableType.LocalName} newValues WHERE newValues.[Code] = {codeTableName.FullyQualifiedName}.[Code] AND newValues.[IsDataPartOriginEntityCode] = {codeTableName.FullyQualifiedName}.[IsDataPartOriginEntityCode])
+                NOT EXISTS(SELECT 1 FROM @{variablePrefix}{codeTableType.LocalName} newValues WHERE newValues.[Code] = {codeTableName.FullyQualifiedName}.[Code] AND newValues.[IsDataPartOriginEntityCode] = {codeTableName.FullyQualifiedName}.[IsDataPartOriginEntityCode])
                 
                 -- Add new columns
                 INSERT INTO {codeTableName.FullyQualifiedName}
-                SELECT @EntityId, newValues.[Code], newValues.[IsDataPartOriginEntityCode]
-                FROM @{codeTableType.LocalName} newValues
+                SELECT @{variablePrefix}EntityId, newValues.[Code], newValues.[IsDataPartOriginEntityCode]
+                FROM @{variablePrefix}{codeTableType.LocalName} newValues
                 LEFT JOIN {codeTableName.FullyQualifiedName} existingValues
-                ON existingValues.[EntityId] = @EntityId AND existingValues.[Code] = newValues.[Code] AND existingValues.[IsDataPartOriginEntityCode] = newValues.[IsDataPartOriginEntityCode]
+                ON existingValues.[EntityId] = @{variablePrefix}EntityId AND existingValues.[Code] = newValues.[Code] AND existingValues.[IsDataPartOriginEntityCode] = newValues.[IsDataPartOriginEntityCode]
                 WHERE existingValues.[EntityId] IS NULL
                 """;
 
@@ -149,8 +151,8 @@ namespace CluedIn.Connector.SqlServer.Utils.TableDefinitions
                 sqlRecords = null;
             }
 
-            var entityIdParameter = new SqlParameter("@EntityId", SqlDbType.UniqueIdentifier) { Value = connectorEntityData.EntityId };
-            var recordsParameter = new SqlParameter($"@{codeTableType.LocalName}", SqlDbType.Structured) { Value = sqlRecords, TypeName = codeTableType.FullyQualifiedName };
+            var entityIdParameter = new SqlParameter($"@{variablePrefix}EntityId", SqlDbType.UniqueIdentifier) { Value = connectorEntityData.EntityId };
+            var recordsParameter = new SqlParameter($"@{variablePrefix}{codeTableType.LocalName}", SqlDbType.Structured) { Value = sqlRecords, TypeName = codeTableType.FullyQualifiedName };
 
             return new SqlServerConnectorCommand { Text = commandText, Parameters = new[] { entityIdParameter, recordsParameter } };
         }

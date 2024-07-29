@@ -33,15 +33,16 @@ namespace CluedIn.Connector.SqlServer.Utils
         {
             var edgeTableName = TableNameUtility.GetEdgesTableName(streamModel, edgeDirection, schema);
             var edgePropertiesTableName = TableNameUtility.GetEdgePropertiesTableName(streamModel, edgeDirection, schema);
+            var variablePrefix = $"{edgeDirection}_edge_properties_table_";
 
             var commandText = $"""
                 DELETE edgeProperties
-                FROM (SELECT [Id] as [Id] FROM {edgeTableName.FullyQualifiedName} WHERE [EntityId] = @EntityId) edges
+                FROM (SELECT [Id] as [Id] FROM {edgeTableName.FullyQualifiedName} WHERE [EntityId] = @{variablePrefix}EntityId) edges
                 INNER JOIN {edgePropertiesTableName.FullyQualifiedName} edgeProperties
                 ON edges.[Id] = edgeProperties.[EdgeId]
                 """;
 
-            var entityIdParameter = new SqlParameter("@EntityId", SqlDbType.UniqueIdentifier) { Value = connectorEntityData.EntityId };
+            var entityIdParameter = new SqlParameter($"@{variablePrefix}EntityId", SqlDbType.UniqueIdentifier) { Value = connectorEntityData.EntityId };
 
             return new SqlServerConnectorCommand() { Text = commandText, Parameters = new[] { entityIdParameter } };
         }
@@ -49,10 +50,11 @@ namespace CluedIn.Connector.SqlServer.Utils
         public static SqlServerConnectorCommand DeleteEdgesForEntity(IReadOnlyStreamModel streamModel, SqlConnectorEntityData connectorEntityData, EdgeDirection edgeDirection, SqlName schema)
         {
             var edgeTableName = TableNameUtility.GetEdgesTableName(streamModel, edgeDirection, schema);
+            var variablePrefix = $"{edgeDirection}_edge_table_";
 
-            var commandText = $"DELETE FROM {edgeTableName} WHERE [EntityId] = @EntityId";
+            var commandText = $"DELETE FROM {edgeTableName} WHERE [EntityId] = @{variablePrefix}EntityId";
 
-            var entityIdParameter = new SqlParameter("@EntityId", SqlDbType.UniqueIdentifier) { Value = connectorEntityData.EntityId };
+            var entityIdParameter = new SqlParameter($"@{variablePrefix}EntityId", SqlDbType.UniqueIdentifier) { Value = connectorEntityData.EntityId };
 
             return new SqlServerConnectorCommand() { Text = commandText, Parameters = new[] { entityIdParameter } };
         }
@@ -60,10 +62,11 @@ namespace CluedIn.Connector.SqlServer.Utils
         public static SqlServerConnectorCommand DeleteCodesForEntity(IReadOnlyStreamModel streamModel, SqlConnectorEntityData connectorEntityData, SqlName schema)
         {
             var codeTableName = TableNameUtility.GetCodeTableName(streamModel, schema);
+            var variablePrefix = "code_table_";
 
-            var commandText = $"DELETE FROM {codeTableName} WHERE [EntityId] = @EntityId";
+            var commandText = $"DELETE FROM {codeTableName} WHERE [EntityId] = @{variablePrefix}EntityId";
 
-            var entityIdParameter = new SqlParameter("@EntityId", SqlDbType.UniqueIdentifier) { Value = connectorEntityData.EntityId };
+            var entityIdParameter = new SqlParameter($"@{variablePrefix}EntityId", SqlDbType.UniqueIdentifier) { Value = connectorEntityData.EntityId };
 
             return new SqlServerConnectorCommand() { Text = commandText, Parameters = new[] { entityIdParameter } };
         }

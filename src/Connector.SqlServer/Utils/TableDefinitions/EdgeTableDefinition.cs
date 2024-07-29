@@ -144,10 +144,11 @@ namespace CluedIn.Connector.SqlServer.Utils.TableDefinitions
         {
             var edgeTableName = TableNameUtility.GetEdgesTableName(streamModel, direction, schema);
             var edgeTableType = CreateCustomTypeCommandUtility.GetEdgeTableCustomTypeName(streamModel, direction, schema);
+            var variablePrefix = $"{direction}_edge_table_";
 
             var insertText = $"""
                 INSERT INTO {edgeTableName.FullyQualifiedName}
-                SELECT * FROM @{edgeTableType.LocalName}
+                SELECT * FROM @{variablePrefix}{edgeTableType.LocalName}
                 """;
 
             var eventStreamRecords = GetSqlRecords(StreamMode.EventStream, direction, connectorEntityData);
@@ -156,7 +157,7 @@ namespace CluedIn.Connector.SqlServer.Utils.TableDefinitions
                 eventStreamRecords = null;
             }
 
-            var eventStreamRecordsParameter = new SqlParameter($"@{edgeTableType.LocalName}", SqlDbType.Structured) { Value = eventStreamRecords, TypeName = edgeTableType.FullyQualifiedName };
+            var eventStreamRecordsParameter = new SqlParameter($"@{variablePrefix}{edgeTableType.LocalName}", SqlDbType.Structured) { Value = eventStreamRecords, TypeName = edgeTableType.FullyQualifiedName };
             return new SqlServerConnectorCommand { Text = insertText, Parameters = new[] { eventStreamRecordsParameter } };
         }
 
@@ -164,9 +165,10 @@ namespace CluedIn.Connector.SqlServer.Utils.TableDefinitions
         {
             var edgeTableName = TableNameUtility.GetEdgesTableName(streamModel, direction, schema);
             var edgeTableType = CreateCustomTypeCommandUtility.GetEdgeTableCustomTypeName(streamModel, direction, schema);
+            var variablePrefix = $"{direction}_edge_table_";
 
             var sqlRecords = GetSqlRecords(StreamMode.Sync, direction, connectorEntityData);
-            var entityIdParameter = new SqlParameter("@EntityId", SqlDbType.UniqueIdentifier) { Value = connectorEntityData.EntityId };
+            var entityIdParameter = new SqlParameter($"@{variablePrefix}EntityId", SqlDbType.UniqueIdentifier) { Value = connectorEntityData.EntityId };
 
             if (!sqlRecords.Any())
             {
@@ -174,7 +176,7 @@ namespace CluedIn.Connector.SqlServer.Utils.TableDefinitions
                 // than if we have to potentially both delete and insert edges.
                 var simpleCommandText = $"""
                     DELETE {edgeTableName.FullyQualifiedName}
-                    WHERE [EntityId] = @EntityId
+                    WHERE [EntityId] = @{variablePrefix}EntityId
                     """;
 
                 return new SqlServerConnectorCommand { Text = simpleCommandText, Parameters = new[] { entityIdParameter } };
@@ -188,13 +190,13 @@ namespace CluedIn.Connector.SqlServer.Utils.TableDefinitions
                 -- Delete existing columns that no longer exist
                 DELETE {edgeTableName.FullyQualifiedName}
                 WHERE
-                    [EntityId] = @EntityId
+                    [EntityId] = @{variablePrefix}EntityId
                     AND
                     NOT EXISTS(
                         SELECT
                         1
                         FROM
-                            @{edgeTableType.LocalName} newValues
+                            @{variablePrefix}{edgeTableType.LocalName} newValues
                         WHERE
                             newValues.[Id] = {edgeTableName.FullyQualifiedName}.[Id]
                     )
@@ -207,13 +209,13 @@ namespace CluedIn.Connector.SqlServer.Utils.TableDefinitions
                     newValues.[EdgeType],
                     newValues.[{codeColumnName}]
                 FROM
-                    @{edgeTableType.LocalName} newValues
+                    @{variablePrefix}{edgeTableType.LocalName} newValues
                     LEFT JOIN {edgeTableName.FullyQualifiedName} existingValues
                     ON newValues.[Id] = existingValues.[Id]
                 WHERE existingValues.[Id] IS NULL
                 """;
 
-            var recordsParameter = new SqlParameter($"@{edgeTableType.LocalName}", SqlDbType.Structured) { Value = sqlRecords, TypeName = edgeTableType.FullyQualifiedName };
+            var recordsParameter = new SqlParameter($"@{variablePrefix}{edgeTableType.LocalName}", SqlDbType.Structured) { Value = sqlRecords, TypeName = edgeTableType.FullyQualifiedName };
 
             return new SqlServerConnectorCommand { Text = commandText, Parameters = new[] { entityIdParameter, recordsParameter } };
         }
