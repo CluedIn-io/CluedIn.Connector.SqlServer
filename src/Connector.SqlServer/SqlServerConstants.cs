@@ -29,7 +29,7 @@ namespace CluedIn.Connector.SqlServer
             About = "Supports publishing of data to external SQL databases.";
             AuthMethods = SqlServerAuthMethods;
             GuideDetails = "Provides connectivity to a Microsoft Sql Server database";
-            Properties = Enumerable.Empty<Control>();
+            Properties = SqlServerProperties;
             Type = IntegrationType.Connector;
             GuideInstructions = "Provide authentication instructions here, if applicable";
             FeatureCategory = "Connectivity";
@@ -57,7 +57,17 @@ namespace CluedIn.Connector.SqlServer
             Value = new List<string> { About },
             Details = GuideDetails
         };
-
+        private static IEnumerable<Control> SqlServerProperties =>
+        new []
+        {
+            new Control
+            {
+                name = "poolSize",
+                displayName = "POOOOOOOOOOL SIZEEEEEEEEEEE",
+                type = "input",
+                isRequired = true
+            }
+        };
         private static AuthMethods SqlServerAuthMethods => new AuthMethods
         {
             token = new[]
