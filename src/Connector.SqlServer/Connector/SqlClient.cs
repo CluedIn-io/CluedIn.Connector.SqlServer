@@ -78,7 +78,7 @@ namespace CluedIn.Connector.SqlServer.Connector
 
                     if (parsedPoolSize > 32767)
                     {
-                        configurationError = new ConnectionConfigurationError($"Connection pool size was set to a value higher than 32767");
+                        configurationError = new ConnectionConfigurationError("Connection pool size was set to a value higher than 32767");
                         return false;
                     }
                 }

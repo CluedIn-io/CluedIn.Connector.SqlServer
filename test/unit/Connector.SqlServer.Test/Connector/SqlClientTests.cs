@@ -163,5 +163,47 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests.Connector
             result.Should().BeFalse();
             connectionConfigurationError.ErrorMessage.Should().Be("Connection pool size was set, but could not be read as a number");
         }
+
+        [Fact]
+        public void VerifyConnectionProperties_With0ConnectionPoolSize_ReturnsFalse()
+        {
+            // arrange
+            var properties = new Dictionary<string, object>
+            {
+                [SqlServerConstants.KeyName.Password] = "password",
+                [SqlServerConstants.KeyName.Username] = "user",
+                [SqlServerConstants.KeyName.Host] = "host",
+                [SqlServerConstants.KeyName.DatabaseName] = "database",
+                [SqlServerConstants.KeyName.ConnectionPoolSize] = "0",
+            };
+
+            // act
+            var result = _sut.VerifyConnectionProperties(properties, out var connectionConfigurationError);
+
+            // assert
+            result.Should().BeFalse();
+            connectionConfigurationError.ErrorMessage.Should().Be("Connection pool size was set to a value smaller than 1");
+        }
+
+        [Fact]
+        public void VerifyConnectionProperties_With32768ConnectionPoolSize_ReturnsFalse()
+        {
+            // arrange
+            var properties = new Dictionary<string, object>
+            {
+                [SqlServerConstants.KeyName.Password] = "password",
+                [SqlServerConstants.KeyName.Username] = "user",
+                [SqlServerConstants.KeyName.Host] = "host",
+                [SqlServerConstants.KeyName.DatabaseName] = "database",
+                [SqlServerConstants.KeyName.ConnectionPoolSize] = "32768",
+            };
+
+            // act
+            var result = _sut.VerifyConnectionProperties(properties, out var connectionConfigurationError);
+
+            // assert
+            result.Should().BeFalse();
+            connectionConfigurationError.ErrorMessage.Should().Be("Connection pool size was set to a value higher than 32767");
+        }
     }
 }
