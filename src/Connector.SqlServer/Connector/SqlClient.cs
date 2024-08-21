@@ -76,6 +76,8 @@ namespace CluedIn.Connector.SqlServer.Connector
                         return false;
                     }
 
+                    // Validate that connection pool size is not attempted to be set to bigger than 32767,
+                    // since that is the max value allowed by SQL server.
                     if (parsedPoolSize > 32767)
                     {
                         configurationError = new ConnectionConfigurationError("Connection pool size was set to a value higher than 32767");
