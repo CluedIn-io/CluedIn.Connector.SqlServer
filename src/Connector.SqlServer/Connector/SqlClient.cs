@@ -68,7 +68,21 @@ namespace CluedIn.Connector.SqlServer.Connector
 
             if (config.TryGetValue(SqlServerConstants.KeyName.ConnectionPoolSize, out var connectionPoolSizeEntry) && !string.IsNullOrEmpty(connectionPoolSizeEntry.ToString()))
             {
-                if (!int.TryParse(connectionPoolSizeEntry.ToString(), out _))
+                if (int.TryParse(connectionPoolSizeEntry.ToString(), out var parsedPoolSize))
+                {
+                    if (parsedPoolSize < 1)
+                    {
+                        configurationError = new ConnectionConfigurationError("Connection pool size was set to a value smaller than 1");
+                        return false;
+                    }
+
+                    if (parsedPoolSize > 32767)
+                    {
+                        configurationError = new ConnectionConfigurationError($"Connection pool size was set to a value higher than 32767");
+                        return false;
+                    }
+                }
+                else
                 {
                     configurationError = new ConnectionConfigurationError("Connection pool size was set, but could not be read as a number");
                     return false;
