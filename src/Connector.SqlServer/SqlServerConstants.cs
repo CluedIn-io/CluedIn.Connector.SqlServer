@@ -104,6 +104,13 @@ namespace CluedIn.Connector.SqlServer
                     displayName = "Schema",
                     type = "input",
                     isRequired = false
+                },
+                new Control
+                {
+                    name = KeyName.ConnectionPoolSize,
+                    displayName = "Connection pool size",
+                    type = "input",
+                    isRequired = false
                 }
             }
         };
