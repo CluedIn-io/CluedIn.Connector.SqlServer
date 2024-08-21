@@ -17,6 +17,7 @@ namespace CluedIn.Connector.SqlServer
             public const string Username = "username";
             public const string Password = "password";
             public const string PortNumber = "portNumber";
+            public const string ConnectionPoolSize = "connectionPoolSize";
         }
 
         public SqlServerConstants()

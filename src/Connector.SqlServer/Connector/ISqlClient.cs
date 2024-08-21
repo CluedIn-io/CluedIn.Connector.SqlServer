@@ -5,8 +5,12 @@ using System.Threading.Tasks;
 
 namespace CluedIn.Connector.SqlServer.Connector
 {
+    public record ConnectionConfigurationError(string ErrorMessage);
+
     public interface ISqlClient
     {
+        bool VerifyConnectionProperties(IReadOnlyDictionary<string, object> config, out ConnectionConfigurationError configurationError);
+
         Task<SqlConnection> BeginConnection(IReadOnlyDictionary<string, object> config);
 
         Task<DataTable> GetTableColumns(SqlConnection connection, string tableName, string schema);
