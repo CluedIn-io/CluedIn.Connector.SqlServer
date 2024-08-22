@@ -17,6 +17,7 @@ namespace CluedIn.Connector.SqlServer
             public const string Username = "username";
             public const string Password = "password";
             public const string PortNumber = "portNumber";
+            public const string ConnectionPoolSize = "connectionPoolSize";
         }
 
         public SqlServerConstants()
@@ -101,6 +102,13 @@ namespace CluedIn.Connector.SqlServer
                 {
                     name = KeyName.Schema,
                     displayName = "Schema",
+                    type = "input",
+                    isRequired = false
+                },
+                new Control
+                {
+                    name = KeyName.ConnectionPoolSize,
+                    displayName = "Connection pool size",
                     type = "input",
                     isRequired = false
                 }

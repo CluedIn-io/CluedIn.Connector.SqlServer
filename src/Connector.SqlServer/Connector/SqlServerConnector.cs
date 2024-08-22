@@ -308,6 +308,11 @@ namespace CluedIn.Connector.SqlServer.Connector
         {
             try
             {
+                if (!_client.VerifyConnectionProperties(configurationData, out var configurationError))
+                {
+                    return new ConnectionVerificationResult(success: false, errorMessage: configurationError.ErrorMessage);
+                }
+
                 await using var connectionAndTransaction = await _client.BeginTransaction(configurationData);
                 var connectionIsOpen = connectionAndTransaction.Connection.State == ConnectionState.Open;
                 await connectionAndTransaction.DisposeAsync();
