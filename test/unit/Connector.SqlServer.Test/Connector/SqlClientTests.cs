@@ -186,7 +186,7 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests.Connector
         }
 
         [Fact]
-        public void VerifyConnectionProperties_With32768ConnectionPoolSize_ReturnsFalse()
+        public void VerifyConnectionProperties_With201ConnectionPoolSize_ReturnsFalse()
         {
             // arrange
             var properties = new Dictionary<string, object>
@@ -195,7 +195,7 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests.Connector
                 [SqlServerConstants.KeyName.Username] = "user",
                 [SqlServerConstants.KeyName.Host] = "host",
                 [SqlServerConstants.KeyName.DatabaseName] = "database",
-                [SqlServerConstants.KeyName.ConnectionPoolSize] = "32768",
+                [SqlServerConstants.KeyName.ConnectionPoolSize] = "201",
             };
 
             // act
@@ -203,7 +203,7 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests.Connector
 
             // assert
             result.Should().BeFalse();
-            connectionConfigurationError.ErrorMessage.Should().Be("Connection pool size was set to a value higher than 32767");
+            connectionConfigurationError.ErrorMessage.Should().Be("Connection pool size was set to a value higher than 200");
         }
     }
 }
