@@ -148,5 +148,39 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests.Utils.TableDefinitions
             columnDefinitionNames.Should().Contain("testvocabularyname");
             columnDefinitionNames.Should().Contain("testvocabularyname_1");
         }
+
+        [Theory, AutoNData]
+        public void DifferentOrderVocabularyProperties_ShouldNotImpactOrderOfColumnDefinition(
+            IVocabulary vocabulary1,
+            IVocabulary vocabulary2)
+        {
+            // arrange
+            vocabulary1.KeyPrefix = "test--vocabulary";
+            vocabulary2.KeyPrefix = "test-.vocabulary";
+            var vocabularyKey1 = new VocabularyKey("name") { Vocabulary = vocabulary1 };
+            var vocabularyKey2 = new VocabularyKey("name") { Vocabulary = vocabulary2 };
+
+            var properties1 = new (string, ConnectorPropertyDataType)[]
+            {
+                ("testvocabularyname", new VocabularyKeyConnectorPropertyDataType(vocabularyKey1)),
+                ("testvocabularyname", new VocabularyKeyConnectorPropertyDataType(vocabularyKey2)),
+            };
+
+            var properties2 = new (string, ConnectorPropertyDataType)[]
+            {
+                ("testvocabularyname", new VocabularyKeyConnectorPropertyDataType(vocabularyKey2)),
+                ("testvocabularyname", new VocabularyKeyConnectorPropertyDataType(vocabularyKey1)),
+            };
+
+            // act
+            var syncColumnDefinitions1 = MainTableDefinition.GetColumnDefinitions(StreamMode.Sync, properties1);
+            var syncColumnDefinitions2 = MainTableDefinition.GetColumnDefinitions(StreamMode.Sync, properties2);
+
+            // assert
+            var syncColumnDefinitions1Names = syncColumnDefinitions1.Select(x => (x.Name));
+            var syncColumnDefinitions2Names = syncColumnDefinitions2.Select(x => (x.Name));
+
+            syncColumnDefinitions1Names.Should().BeEquivalentTo(syncColumnDefinitions2Names);
+        }
     }
 }

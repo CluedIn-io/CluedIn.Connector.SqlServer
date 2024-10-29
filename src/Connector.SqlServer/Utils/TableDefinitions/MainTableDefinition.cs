@@ -54,6 +54,9 @@ namespace CluedIn.Connector.SqlServer.Utils.TableDefinitions
             var propertyColumns = properties
                 // We need to filter out any properties, that are contained in the default columns.
                 .Where(property => !defaultColumnNamesHashSet.Contains(property.name.ToSanitizedSqlName()))
+                .OrderBy(property => property.dataType is VocabularyKeyConnectorPropertyDataType x
+                    ? $"{x.VocabularyKey.Vocabulary.KeyPrefix}.{x.VocabularyKey.Name}"
+                    : property.name)
                 .Select(property =>
                 {
                     var nameToUse = GetNameToUse(property, alreadyUsedNames);
