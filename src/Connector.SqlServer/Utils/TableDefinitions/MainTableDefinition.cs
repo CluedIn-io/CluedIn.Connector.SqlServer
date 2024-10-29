@@ -49,15 +49,18 @@ namespace CluedIn.Connector.SqlServer.Utils.TableDefinitions
 
             var defaultColumnNamesHashSet = defaultColumns.Select(x => x.Name).ToHashSet();
 
+            var alreadyUsedNames = new HashSet<string>();
+
             var propertyColumns = properties
                 // We need to filter out any properties, that are contained in the default columns.
                 .Where(property => !defaultColumnNamesHashSet.Contains(property.name.ToSanitizedSqlName()))
                 .Select(property =>
                 {
-                    var name = property.name.ToSanitizedSqlName();
+                    var nameToUse = GetNameToUse(property, alreadyUsedNames);
+
                     var sqlType = SqlColumnHelper.GetColumnType(property.dataType);
                     return new MainTableColumnDefinition(
-                        name,
+                        nameToUse,
                         sqlType,
                         input =>
                         {
@@ -90,6 +93,37 @@ namespace CluedIn.Connector.SqlServer.Utils.TableDefinitions
             var allColumns = defaultColumns.Concat(propertyColumns).ToArray();
 
             return allColumns;
+        }
+
+        private static string GetNameToUse((string name, ConnectorPropertyDataType dataType) property, HashSet<string> alreadyUsedNames)
+        {
+            string rawName;
+            switch (property.dataType)
+            {
+                case VocabularyKeyConnectorPropertyDataType vocabularyKeyConnectorPropertyDataType:
+                    var vocabularyKey = vocabularyKeyConnectorPropertyDataType.VocabularyKey;
+                    rawName = $"{vocabularyKey.Vocabulary.KeyPrefix}.{vocabularyKey.Name}";
+                    break;
+                default:
+                    rawName = property.name;
+                    break;
+            }
+
+            rawName = rawName.ToSanitizedSqlName();
+
+            var number = 0;
+
+            var nameToUse = rawName;
+            while (alreadyUsedNames.Contains(nameToUse))
+            {
+                number++;
+                nameToUse = $"{rawName}_{number}";
+            }
+
+            alreadyUsedNames.Add(nameToUse);
+
+            // We need to call ToSanitizedSqlName again, in case adding numbers pushed length of name over the maximum
+            return nameToUse.ToSanitizedSqlName();
         }
 
         public static SqlServerConnectorCommand CreateUpsertCommand(IReadOnlyStreamModel streamModel, SqlConnectorEntityData connectorEntityData, SqlName schema)

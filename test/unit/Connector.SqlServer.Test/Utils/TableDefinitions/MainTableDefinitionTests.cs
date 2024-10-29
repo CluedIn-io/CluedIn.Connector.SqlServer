@@ -121,5 +121,32 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests.Utils.TableDefinitions
             var sqlDateValue = discoveryDateColumnDefinition.GetValueFunc(sqlDiscoveryDatePropertyDate);
             sqlDateValue.Should().Be("2000-01-01T01:01:01.0000000+01:00");
         }
+
+        [Theory, AutoNData]
+        public void VocabularyPropertiesBeingSanitizedToTheSameName_ShouldHaveNumbersAddedAtTheEnd(
+            IVocabulary vocabulary1,
+            IVocabulary vocabulary2)
+        {
+            // arrange
+            vocabulary1.KeyPrefix = "test--vocabulary";
+            vocabulary2.KeyPrefix = "test-.vocabulary";
+            var vocabularyKey1 = new VocabularyKey("name") { Vocabulary = vocabulary1 };
+            var vocabularyKey2 = new VocabularyKey("name") { Vocabulary = vocabulary2 };
+
+            var properties = new (string, ConnectorPropertyDataType)[]
+            {
+                ("testvocabularyname", new VocabularyKeyConnectorPropertyDataType(vocabularyKey1)),
+                ("testvocabularyname", new VocabularyKeyConnectorPropertyDataType(vocabularyKey2)),
+            };
+
+            // act
+            var syncColumnDefinitions = MainTableDefinition.GetColumnDefinitions(StreamMode.Sync, properties);
+
+            // assert
+            var columnDefinitionNames = syncColumnDefinitions.Select(x => x.Name).ToList();
+
+            columnDefinitionNames.Should().Contain("testvocabularyname");
+            columnDefinitionNames.Should().Contain("testvocabularyname_1");
+        }
     }
 }
