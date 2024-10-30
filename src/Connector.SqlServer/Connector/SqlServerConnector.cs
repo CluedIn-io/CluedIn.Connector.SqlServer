@@ -489,7 +489,7 @@ namespace CluedIn.Connector.SqlServer.Connector
 
         public override Task<string> GetValidMappingDestinationPropertyName(ExecutionContext executionContext, Guid connectorProviderDefinitionId, string propertyName)
         {
-            return Task.FromResult(propertyName.ToSanitizedSqlName());
+            return Task.FromResult(propertyName);
         }
 
         public override async Task RemoveContainer(ExecutionContext executionContext, IReadOnlyStreamModel streamModel)
