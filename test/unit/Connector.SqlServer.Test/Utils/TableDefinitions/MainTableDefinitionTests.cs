@@ -182,5 +182,31 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests.Utils.TableDefinitions
 
             syncColumnDefinitions1Names.Should().BeEquivalentTo(syncColumnDefinitions2Names);
         }
+
+        [Theory, AutoNData]
+        public void EntityTypePropertyValues_ShouldBeMadeIntoStrings(
+            VersionChangeType versionChangeType,
+            Guid entityId,
+            Guid correlationId)
+        {
+            // arrange
+            var properties = new (string, ConnectorPropertyDataType)[]
+            {
+                ("Type", new EntityPropertyConnectorPropertyDataType(typeof(EntityType))),
+            };
+            var entityTypeValue = EntityType.Person;
+
+            var entityTypePropertyDate = new ConnectorPropertyData("Type", entityTypeValue, new EntityPropertyConnectorPropertyDataType(typeof(EntityType)));
+            var connectorEntityData = new ConnectorEntityData(versionChangeType, StreamMode.Sync, entityId, null, null, null, null, new[] { entityTypePropertyDate }, Array.Empty<IEntityCode>(), Array.Empty<EntityEdge>(), Array.Empty<EntityEdge>());
+            var sqlEntityTypePropertyDate = new SqlConnectorEntityData(connectorEntityData, correlationId, timestamp: DateTimeOffset.Now);
+
+            // act
+            var syncColumnDefinitions = MainTableDefinition.GetColumnDefinitions(StreamMode.Sync, properties);
+
+            // assert
+            var discoveryDateColumnDefinition = syncColumnDefinitions.Where(column => column.Name == "Type").Should().ContainSingle().And.Subject.First();
+            var sqlDateValue = discoveryDateColumnDefinition.GetValueFunc(sqlEntityTypePropertyDate);
+            sqlDateValue.Should().Be("/Person");
+        }
     }
 }
