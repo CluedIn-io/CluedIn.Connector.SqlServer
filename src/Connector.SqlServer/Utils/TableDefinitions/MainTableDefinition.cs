@@ -1,5 +1,6 @@
 ﻿using CluedIn.Connector.SqlServer.Connector;
 using CluedIn.Core.Connectors;
+using CluedIn.Core.Data;
 using CluedIn.Core.Streams.Models;
 using Microsoft.Data.SqlClient;
 using System;
@@ -86,6 +87,11 @@ namespace CluedIn.Connector.SqlServer.Utils.TableDefinitions
                             if (propertyValue is DateTimeOffset dateTimeOffsetValue)
                             {
                                 return dateTimeOffsetValue.ToString("O");
+                            }
+
+                            if (propertyValue is EntityType entityTypeValue)
+                            {
+                                return entityTypeValue.ToString();
                             }
 
                             return propertyValue;
