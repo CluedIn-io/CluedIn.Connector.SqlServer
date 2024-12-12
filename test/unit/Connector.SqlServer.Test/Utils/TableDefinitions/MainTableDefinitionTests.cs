@@ -121,5 +121,92 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests.Utils.TableDefinitions
             var sqlDateValue = discoveryDateColumnDefinition.GetValueFunc(sqlDiscoveryDatePropertyDate);
             sqlDateValue.Should().Be("2000-01-01T01:01:01.0000000+01:00");
         }
+
+        [Theory, AutoNData]
+        public void VocabularyPropertiesBeingSanitizedToTheSameName_ShouldHaveNumbersAddedAtTheEnd(
+            IVocabulary vocabulary1,
+            IVocabulary vocabulary2)
+        {
+            // arrange
+            vocabulary1.KeyPrefix = "test--vocabulary";
+            vocabulary2.KeyPrefix = "test-.vocabulary";
+            var vocabularyKey1 = new VocabularyKey("name") { Vocabulary = vocabulary1 };
+            var vocabularyKey2 = new VocabularyKey("name") { Vocabulary = vocabulary2 };
+
+            var properties = new (string, ConnectorPropertyDataType)[]
+            {
+                ("testvocabularyname", new VocabularyKeyConnectorPropertyDataType(vocabularyKey1)),
+                ("testvocabularyname", new VocabularyKeyConnectorPropertyDataType(vocabularyKey2)),
+            };
+
+            // act
+            var syncColumnDefinitions = MainTableDefinition.GetColumnDefinitions(StreamMode.Sync, properties);
+
+            // assert
+            var columnDefinitionNames = syncColumnDefinitions.Select(x => x.Name).ToList();
+
+            columnDefinitionNames.Should().Contain("testvocabularyname");
+            columnDefinitionNames.Should().Contain("testvocabularyname_1");
+        }
+
+        [Theory, AutoNData]
+        public void DifferentOrderVocabularyProperties_ShouldNotImpactOrderOfColumnDefinition(
+            IVocabulary vocabulary1,
+            IVocabulary vocabulary2)
+        {
+            // arrange
+            vocabulary1.KeyPrefix = "test--vocabulary";
+            vocabulary2.KeyPrefix = "test-.vocabulary";
+            var vocabularyKey1 = new VocabularyKey("name") { Vocabulary = vocabulary1 };
+            var vocabularyKey2 = new VocabularyKey("name") { Vocabulary = vocabulary2 };
+
+            var properties1 = new (string, ConnectorPropertyDataType)[]
+            {
+                ("testvocabularyname", new VocabularyKeyConnectorPropertyDataType(vocabularyKey1)),
+                ("testvocabularyname", new VocabularyKeyConnectorPropertyDataType(vocabularyKey2)),
+            };
+
+            var properties2 = new (string, ConnectorPropertyDataType)[]
+            {
+                ("testvocabularyname", new VocabularyKeyConnectorPropertyDataType(vocabularyKey2)),
+                ("testvocabularyname", new VocabularyKeyConnectorPropertyDataType(vocabularyKey1)),
+            };
+
+            // act
+            var syncColumnDefinitions1 = MainTableDefinition.GetColumnDefinitions(StreamMode.Sync, properties1);
+            var syncColumnDefinitions2 = MainTableDefinition.GetColumnDefinitions(StreamMode.Sync, properties2);
+
+            // assert
+            var syncColumnDefinitions1Names = syncColumnDefinitions1.Select(x => (x.Name));
+            var syncColumnDefinitions2Names = syncColumnDefinitions2.Select(x => (x.Name));
+
+            syncColumnDefinitions1Names.Should().BeEquivalentTo(syncColumnDefinitions2Names);
+        }
+
+        [Theory, AutoNData]
+        public void EntityTypePropertyValues_ShouldBeMadeIntoStrings(
+            VersionChangeType versionChangeType,
+            Guid entityId,
+            Guid correlationId)
+        {
+            // arrange
+            var properties = new (string, ConnectorPropertyDataType)[]
+            {
+                ("Type", new EntityPropertyConnectorPropertyDataType(typeof(EntityType))),
+            };
+            var entityTypeValue = EntityType.Person;
+
+            var entityTypePropertyDate = new ConnectorPropertyData("Type", entityTypeValue, new EntityPropertyConnectorPropertyDataType(typeof(EntityType)));
+            var connectorEntityData = new ConnectorEntityData(versionChangeType, StreamMode.Sync, entityId, null, null, null, null, new[] { entityTypePropertyDate }, Array.Empty<IEntityCode>(), Array.Empty<EntityEdge>(), Array.Empty<EntityEdge>());
+            var sqlEntityTypePropertyDate = new SqlConnectorEntityData(connectorEntityData, correlationId, timestamp: DateTimeOffset.Now);
+
+            // act
+            var syncColumnDefinitions = MainTableDefinition.GetColumnDefinitions(StreamMode.Sync, properties);
+
+            // assert
+            var discoveryDateColumnDefinition = syncColumnDefinitions.Where(column => column.Name == "Type").Should().ContainSingle().And.Subject.First();
+            var sqlDateValue = discoveryDateColumnDefinition.GetValueFunc(sqlEntityTypePropertyDate);
+            sqlDateValue.Should().Be("/Person");
+        }
     }
 }

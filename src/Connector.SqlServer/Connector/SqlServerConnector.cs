@@ -308,6 +308,11 @@ namespace CluedIn.Connector.SqlServer.Connector
         {
             try
             {
+                if (!_client.VerifyConnectionProperties(configurationData, out var configurationError))
+                {
+                    return new ConnectionVerificationResult(success: false, errorMessage: configurationError.ErrorMessage);
+                }
+
                 await using var connectionAndTransaction = await _client.BeginTransaction(configurationData);
                 var connectionIsOpen = connectionAndTransaction.Connection.State == ConnectionState.Open;
                 await connectionAndTransaction.DisposeAsync();
@@ -484,7 +489,7 @@ namespace CluedIn.Connector.SqlServer.Connector
 
         public override Task<string> GetValidMappingDestinationPropertyName(ExecutionContext executionContext, Guid connectorProviderDefinitionId, string propertyName)
         {
-            return Task.FromResult(propertyName.ToSanitizedSqlName());
+            return Task.FromResult(propertyName);
         }
 
         public override async Task RemoveContainer(ExecutionContext executionContext, IReadOnlyStreamModel streamModel)

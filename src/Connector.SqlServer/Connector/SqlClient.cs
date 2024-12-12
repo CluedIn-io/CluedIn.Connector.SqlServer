@@ -11,6 +11,7 @@ namespace CluedIn.Connector.SqlServer.Connector
     public class SqlClient : ISqlClient
     {
         private readonly int _defaultPort = 1433;
+        private readonly int _defaultConnectionPoolSize = 200;
 
         public string BuildConnectionString(IReadOnlyDictionary<string, object> config)
         {
@@ -22,15 +23,74 @@ namespace CluedIn.Connector.SqlServer.Connector
                 DataSource = (string)config[SqlServerConstants.KeyName.Host],
                 InitialCatalog = (string)config[SqlServerConstants.KeyName.DatabaseName],
                 Pooling = true,
-                MaxPoolSize = 200
             };
 
-            if (config.TryGetValue(SqlServerConstants.KeyName.PortNumber, out var portEntry) && int.TryParse(portEntry.ToString(), out var port))
+            // Configure port
+            {
+                var port = _defaultPort;
+                if (config.TryGetValue(SqlServerConstants.KeyName.PortNumber, out var portEntry) &&
+                    !string.IsNullOrEmpty(portEntry.ToString()) &&
+                    int.TryParse(portEntry.ToString(), out var parsedPort))
+                {
+                    port = parsedPort;
+                }
+
                 connectionStringBuilder.DataSource = $"{connectionStringBuilder.DataSource},{port}";
-            else
-                connectionStringBuilder.DataSource = $"{connectionStringBuilder.DataSource},{_defaultPort}";
+            }
+
+            // Configure connection pool size
+            {
+                var connectionPoolSize = _defaultConnectionPoolSize;
+                if (config.TryGetValue(SqlServerConstants.KeyName.ConnectionPoolSize, out var connectionPoolSizeEntry) &&
+                    !string.IsNullOrEmpty(connectionPoolSizeEntry.ToString()) &&
+                    int.TryParse(connectionPoolSizeEntry.ToString(), out var parsedConnectionPoolSize))
+                {
+                    connectionPoolSize = parsedConnectionPoolSize;
+                }
+
+                connectionStringBuilder.MaxPoolSize = connectionPoolSize;
+            }
+
 
             return connectionStringBuilder.ToString();
+        }
+
+        public bool VerifyConnectionProperties(IReadOnlyDictionary<string, object> config, out ConnectionConfigurationError configurationError)
+        {
+            if (config.TryGetValue(SqlServerConstants.KeyName.PortNumber, out var portEntry) && !string.IsNullOrEmpty(portEntry.ToString()))
+            {
+                if (!int.TryParse(portEntry.ToString(), out _))
+                {
+                    configurationError = new ConnectionConfigurationError("Port number was set, but could not be read as a number");
+                    return false;
+                }
+            }
+
+            if (config.TryGetValue(SqlServerConstants.KeyName.ConnectionPoolSize, out var connectionPoolSizeEntry) && !string.IsNullOrEmpty(connectionPoolSizeEntry.ToString()))
+            {
+                if (int.TryParse(connectionPoolSizeEntry.ToString(), out var parsedPoolSize))
+                {
+                    if (parsedPoolSize < 1)
+                    {
+                        configurationError = new ConnectionConfigurationError("Connection pool size was set to a value smaller than 1");
+                        return false;
+                    }
+
+                    if (parsedPoolSize > _defaultConnectionPoolSize)
+                    {
+                        configurationError = new ConnectionConfigurationError("Connection pool size was set to a value higher than 200");
+                        return false;
+                    }
+                }
+                else
+                {
+                    configurationError = new ConnectionConfigurationError("Connection pool size was set, but could not be read as a number");
+                    return false;
+                }
+            }
+
+            configurationError = null;
+            return true;
         }
 
         public async Task<SqlConnection> BeginConnection(IReadOnlyDictionary<string, object> config)
