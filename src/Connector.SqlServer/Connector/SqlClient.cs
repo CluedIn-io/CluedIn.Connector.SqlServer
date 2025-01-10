@@ -95,6 +95,7 @@ namespace CluedIn.Connector.SqlServer.Connector
 
         public async Task<bool> VerifySchemaExists(SqlTransaction transaction, string schema)
         {
+            // INFORMATION_SCHEMA.SCHEMATA contains all the views accessible to the current user in SQL Server.
             var schemaQuery = $"SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = '{schema}'";
 
             var command = transaction.Connection.CreateCommand();
