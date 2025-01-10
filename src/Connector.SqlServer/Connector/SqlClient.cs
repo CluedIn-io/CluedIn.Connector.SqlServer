@@ -93,6 +93,20 @@ namespace CluedIn.Connector.SqlServer.Connector
             return true;
         }
 
+        public async Task<bool> VerifySchemaExists(SqlTransaction transaction, string schema)
+        {
+            var schemaQuery = $"SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = '{schema}'";
+
+            var command = transaction.Connection.CreateCommand();
+            command.CommandText = schemaQuery;
+            command.Transaction = transaction;
+
+            await using (var reader = await command.ExecuteReaderAsync())
+            {
+                return reader.HasRows;
+            }
+        }
+
         public async Task<SqlConnection> BeginConnection(IReadOnlyDictionary<string, object> config)
         {
             var connectionString = BuildConnectionString(config);

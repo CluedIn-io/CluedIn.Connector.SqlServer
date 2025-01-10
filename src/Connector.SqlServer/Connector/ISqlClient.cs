@@ -11,6 +11,8 @@ namespace CluedIn.Connector.SqlServer.Connector
     {
         bool VerifyConnectionProperties(IReadOnlyDictionary<string, object> config, out ConnectionConfigurationError configurationError);
 
+        Task<bool> VerifySchemaExists(SqlTransaction transaction, string schema);
+
         Task<SqlConnection> BeginConnection(IReadOnlyDictionary<string, object> config);
 
         Task<DataTable> GetTableColumns(SqlConnection connection, string tableName, string schema);
