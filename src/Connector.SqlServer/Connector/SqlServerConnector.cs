@@ -319,7 +319,7 @@ namespace CluedIn.Connector.SqlServer.Connector
                 if (!connectionIsOpen)
                 {
                     _logger.LogError("SqlServerConnector connection verification failed, connection could not be opened");
-                    return new ConnectionVerificationResult(false);
+                    return new ConnectionVerificationResult(false, "Connection could not be opened");
                 }
 
                 var schema = configurationData.GetValue(SqlServerConstants.KeyName.Schema, (string)null);
@@ -336,7 +336,7 @@ namespace CluedIn.Connector.SqlServer.Connector
                 if (!schemaExists)
                 {
                     _logger.LogError("SqlServerConnector connection verification failed, schema '{schema}' does not exist", schema);
-                    return new ConnectionVerificationResult(false);
+                    return new ConnectionVerificationResult(false, "Schema does not exist");
                 }
 
                 return new ConnectionVerificationResult(true);
