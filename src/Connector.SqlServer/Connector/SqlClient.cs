@@ -23,6 +23,9 @@ namespace CluedIn.Connector.SqlServer.Connector
                 DataSource = (string)config[SqlServerConstants.KeyName.Host],
                 InitialCatalog = (string)config[SqlServerConstants.KeyName.DatabaseName],
                 Pooling = true,
+                // Turn off unconditionally for now. Later maybe should be coming from configuration.
+                // Is needed as new SqlClient library encrypts by default.
+                Encrypt = false
             };
 
             // Configure port
