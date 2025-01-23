@@ -234,5 +234,32 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests.Utils.TableDefinitions
             var sqlDataValue = personReferenceColumnDefinition.GetValueFunc(sqlEntityTypePropertyDate);
             sqlDataValue.Should().Be("PersonName");
         }
+
+        [Theory, AutoNData]
+        public void EntityReferencePropertyValues_ShouldBeMadeIntoStrings(
+            VersionChangeType versionChangeType,
+            Guid entityId,
+            Guid correlationId)
+        {
+            // arrange
+            var properties = new (string, ConnectorPropertyDataType)[]
+            {
+                ("LastChangedBy", new EntityPropertyConnectorPropertyDataType(typeof(EntityReference))),
+            };
+            var entityCode = new EntityCode(EntityType.Person, CodeOrigin.CluedIn, "PersonName");
+            var entityReferenceValue = new EntityReference(entityCode);
+
+            var entityReferencePropertyData = new ConnectorPropertyData("LastChangedBy", entityReferenceValue, new EntityPropertyConnectorPropertyDataType(typeof(EntityType)));
+            var connectorEntityData = new ConnectorEntityData(versionChangeType, StreamMode.Sync, entityId, null, null, null, null, new[] { entityReferencePropertyData }, Array.Empty<IEntityCode>(), Array.Empty<EntityEdge>(), Array.Empty<EntityEdge>());
+            var sqlEntityTypePropertyDate = new SqlConnectorEntityData(connectorEntityData, correlationId, timestamp: DateTimeOffset.Now);
+
+            // act
+            var syncColumnDefinitions = MainTableDefinition.GetColumnDefinitions(StreamMode.Sync, properties);
+
+            // assert
+            var entityReferenceColumnDefinition = syncColumnDefinitions.Where(column => column.Name == "LastChangedBy").Should().ContainSingle().And.Subject.First();
+            var sqlDataValue = entityReferenceColumnDefinition.GetValueFunc(sqlEntityTypePropertyDate);
+            sqlDataValue.Should().Be("/Person#CluedIn:PersonName");
+        }
     }
 }
