@@ -25,7 +25,7 @@ namespace CluedIn.Connector.SqlServer.Connector
                 Pooling = true,
                 // Turn off unconditionally for now. Later maybe should be coming from configuration.
                 // Is needed as new SqlClient library encrypts by default.
-                Encrypt = false
+                Encrypt = SqlConnectionEncryptOption.Optional
             };
 
             // Configure port
