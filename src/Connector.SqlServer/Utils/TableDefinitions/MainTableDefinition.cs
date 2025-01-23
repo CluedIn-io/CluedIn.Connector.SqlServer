@@ -94,6 +94,11 @@ namespace CluedIn.Connector.SqlServer.Utils.TableDefinitions
                                 return entityTypeValue.ToString();
                             }
 
+                            if (propertyValue is PersonReference personReference)
+                            {
+                                return personReference.Name;
+                            }
+
                             return propertyValue;
                         },
                         CanBeNull: true);
