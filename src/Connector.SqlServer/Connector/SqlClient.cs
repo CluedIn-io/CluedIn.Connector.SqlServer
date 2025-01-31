@@ -23,6 +23,9 @@ namespace CluedIn.Connector.SqlServer.Connector
                 DataSource = (string)config[SqlServerConstants.KeyName.Host],
                 InitialCatalog = (string)config[SqlServerConstants.KeyName.DatabaseName],
                 Pooling = true,
+                // Turn off unconditionally for now. Later maybe should be coming from configuration.
+                // Is needed as new SqlClient library encrypts by default.
+                Encrypt = false
             };
 
             // Configure port
@@ -91,6 +94,21 @@ namespace CluedIn.Connector.SqlServer.Connector
 
             configurationError = null;
             return true;
+        }
+
+        public async Task<bool> VerifySchemaExists(SqlTransaction transaction, string schema)
+        {
+            // INFORMATION_SCHEMA.SCHEMATA contains all the views accessible to the current user in SQL Server.
+            var schemaQuery = $"SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = '{schema}'";
+
+            var command = transaction.Connection.CreateCommand();
+            command.CommandText = schemaQuery;
+            command.Transaction = transaction;
+
+            await using (var reader = await command.ExecuteReaderAsync())
+            {
+                return reader.HasRows;
+            }
         }
 
         public async Task<SqlConnection> BeginConnection(IReadOnlyDictionary<string, object> config)

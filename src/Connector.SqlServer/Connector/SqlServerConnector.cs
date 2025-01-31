@@ -315,9 +315,31 @@ namespace CluedIn.Connector.SqlServer.Connector
 
                 await using var connectionAndTransaction = await _client.BeginTransaction(configurationData);
                 var connectionIsOpen = connectionAndTransaction.Connection.State == ConnectionState.Open;
+
+                if (!connectionIsOpen)
+                {
+                    _logger.LogError("SqlServerConnector connection verification failed, connection could not be opened");
+                    return new ConnectionVerificationResult(false, "Connection could not be opened");
+                }
+
+                var schema = configurationData.GetValue(SqlServerConstants.KeyName.Schema, (string)null);
+                if (string.IsNullOrEmpty(schema))
+                {
+                    schema = SqlTableName.DefaultSchema;
+                }
+
+
+                var schemaExists = await _client.VerifySchemaExists(connectionAndTransaction.Transaction, schema);
+
                 await connectionAndTransaction.DisposeAsync();
 
-                return new ConnectionVerificationResult(connectionIsOpen);
+                if (!schemaExists)
+                {
+                    _logger.LogError("SqlServerConnector connection verification failed, schema '{schema}' does not exist", schema);
+                    return new ConnectionVerificationResult(false, "Schema does not exist");
+                }
+
+                return new ConnectionVerificationResult(true);
             }
             catch (Exception e)
             {

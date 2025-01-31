@@ -9,14 +9,12 @@ namespace CluedIn.Connector.SqlServer.Utils
         /// </summary>
         public static SqlName GetSchema(this IConnectorConnectionV2 config)
         {
-            if (config.Authentication.TryGetValue(SqlServerConstants.KeyName.Schema, out var value) && value is string schema)
+            if (config.Authentication.TryGetValue(SqlServerConstants.KeyName.Schema, out var value) &&
+                value is string schema &&
+                !string.IsNullOrEmpty(schema))
             {
                 var sanitizedSchema = schema.ToSanitizedSqlName();
-
-                if (!string.IsNullOrEmpty(sanitizedSchema))
-                {
-                    return SqlName.FromSanitized(schema);
-                }
+                return SqlName.FromSanitized(sanitizedSchema);
             }
 
             return SqlName.FromSanitized(SqlTableName.DefaultSchema);
