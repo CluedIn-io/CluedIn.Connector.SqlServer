@@ -15,6 +15,11 @@ namespace CluedIn.Connector.SqlServer.Connector
 
         public string BuildConnectionString(IReadOnlyDictionary<string, object> config)
         {
+            var trustServerCertificate =
+                config.TryGetValue(SqlServerConstants.KeyName.TrustServerCertificate, out var value) &&
+                bool.TryParse(value?.ToString(), out var result) &&
+                result;
+
             var connectionStringBuilder = new SqlConnectionStringBuilder
             {
                 Authentication = SqlAuthenticationMethod.SqlPassword,
@@ -25,7 +30,8 @@ namespace CluedIn.Connector.SqlServer.Connector
                 Pooling = true,
                 // Turn off unconditionally for now. Later maybe should be coming from configuration.
                 // Is needed as new SqlClient library encrypts by default.
-                Encrypt = SqlConnectionEncryptOption.Optional
+                Encrypt = SqlConnectionEncryptOption.Optional,
+                TrustServerCertificate = trustServerCertificate
             };
 
             // Configure port

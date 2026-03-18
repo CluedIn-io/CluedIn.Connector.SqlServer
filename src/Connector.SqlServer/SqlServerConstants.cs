@@ -18,6 +18,7 @@ namespace CluedIn.Connector.SqlServer
             public const string Password = "password";
             public const string PortNumber = "portNumber";
             public const string ConnectionPoolSize = "connectionPoolSize";
+            public const string TrustServerCertificate = "trustServerCertificate";
         }
 
         public SqlServerConstants()
@@ -110,6 +111,13 @@ namespace CluedIn.Connector.SqlServer
                     name = KeyName.ConnectionPoolSize,
                     displayName = "Connection pool size",
                     type = "input",
+                    isRequired = false
+                },
+                new Control
+                {
+                    name = KeyName.TrustServerCertificate,
+                    displayName = "Trust Server Certificate",
+                    type = "checkbox",
                     isRequired = false
                 }
             }
