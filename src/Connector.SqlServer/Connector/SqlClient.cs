@@ -28,6 +28,19 @@ namespace CluedIn.Connector.SqlServer.Connector
                 Encrypt = SqlConnectionEncryptOption.Optional
             };
 
+            // Configure trust server certificate
+            {
+                var trustServerCertificate =
+                    config.TryGetValue(SqlServerConstants.KeyName.TrustServerCertificate, out var value) &&
+                    bool.TryParse(value?.ToString(), out var result) &&
+                    result;
+
+                if (trustServerCertificate)
+                {
+                    connectionStringBuilder.TrustServerCertificate = true;
+                }
+            }
+
             // Configure port
             {
                 var port = _defaultPort;
