@@ -1,6 +1,7 @@
-﻿using System.Collections.Generic;
+﻿using AutoFixture.Xunit2;
 using CluedIn.Connector.SqlServer.Connector;
 using FluentAssertions;
+using System.Collections.Generic;
 using Xunit;
 
 namespace CluedIn.Connector.SqlServer.Unit.Tests.Connector
@@ -28,6 +29,25 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests.Connector
             var result = _sut.BuildConnectionString(properties);
 
             Assert.Equal("Data Source=host,1433;Initial Catalog=database;User ID=user;Password=password;Pooling=True;Max Pool Size=200;Encrypt=False;Authentication=SqlPassword", result);
+        }
+
+        [Theory]
+        [InlineAutoData(true)]
+        [InlineAutoData(false)]
+        public void BuildConnectionString_Sets_From_DictionaryEx(bool trustServerCertificate)
+        {
+            var properties = new Dictionary<string, object>
+            {
+                [SqlServerConstants.KeyName.Password] = "password",
+                [SqlServerConstants.KeyName.Username] = "user",
+                [SqlServerConstants.KeyName.Host] = "host",
+                [SqlServerConstants.KeyName.DatabaseName] = "database",
+                [SqlServerConstants.KeyName.TrustServerCertificate] = trustServerCertificate,
+            };
+
+            var result = _sut.BuildConnectionString(properties);
+
+            Assert.Equal($"Data Source=host,1433;Initial Catalog=database;User ID=user;Password=password;Pooling=True;Max Pool Size=200;Encrypt=False;{(trustServerCertificate ? "Trust Server Certificate=True;" : "")}Authentication=SqlPassword", result);
         }
 
         [Fact]
