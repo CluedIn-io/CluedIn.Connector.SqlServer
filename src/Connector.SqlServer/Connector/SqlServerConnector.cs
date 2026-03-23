@@ -338,6 +338,7 @@ namespace CluedIn.Connector.SqlServer.Connector
 
                 // Only perform detailed permission checks when explicitly invoked by a user
                 // This avoids running heavy checks every 30 seconds during automatic health checks
+                // additionally existing installations may be working fine without all permissions, so we don't want to break them by enforcing permission checks in health checks
                 if (executionContext.Principal != null)
                 {
                     var permissionResult = await VerifyRequiredPermissions(connectionAndTransaction.Transaction, schema);
@@ -374,16 +375,30 @@ namespace CluedIn.Connector.SqlServer.Connector
                 missingPermissions.Add("SELECT on INFORMATION_SCHEMA.COLUMNS");
             }
 
-            // Check CREATE TABLE permission on the schema
-            if (!await CheckSchemaPermission(transaction, "CREATE TABLE", schema))
+            // To create a table in a schema, user needs:
+            // 1. CREATE TABLE permission at the database level
+            // 2. ALTER permission on the schema
+            if (!await CheckDatabasePermission(transaction, "CREATE TABLE"))
             {
-                missingPermissions.Add($"CREATE TABLE on schema [{schema}]");
+                missingPermissions.Add("CREATE TABLE on database");
             }
 
-            // Check ALTER permission on the schema (required for ALTER TABLE during upgrades)
+            // Check CREATE TYPE permission at the database level (required for table-valued parameters used in bulk operations)
+            if (!await CheckDatabasePermission(transaction, "CREATE TYPE"))
+            {
+                missingPermissions.Add("CREATE TYPE on database");
+            }
+
+            // Check ALTER permission on the schema (required for CREATE TABLE in schema and ALTER TABLE during upgrades)
             if (!await CheckSchemaPermission(transaction, "ALTER", schema))
             {
                 missingPermissions.Add($"ALTER on schema [{schema}]");
+            }
+
+            // Check EXECUTE permission on the schema (required to execute table-valued types created in the schema)
+            if (!await CheckSchemaPermission(transaction, "EXECUTE", schema))
+            {
+                missingPermissions.Add($"EXECUTE on schema [{schema}]");
             }
 
             // Check SELECT permission on the schema
@@ -443,6 +458,27 @@ SELECT HAS_PERMS_BY_NAME('[{schemaName}].[{objectName}]', 'OBJECT', '{permission
             catch (Exception ex)
             {
                 _logger.LogWarning(ex, "Failed to check permission {Permission} on [{Schema}].[{Object}]", permission, schemaName, objectName);
+                return false;
+            }
+        }
+
+        private async Task<bool> CheckDatabasePermission(SqlTransaction transaction, string permission)
+        {
+            try
+            {
+                var commandText = $@"
+SELECT HAS_PERMS_BY_NAME(DB_NAME(), 'DATABASE', '{permission}')";
+
+                var command = transaction.Connection.CreateCommand();
+                command.Transaction = transaction;
+                command.CommandText = commandText;
+
+                var result = await command.ExecuteScalarAsync();
+                return result is int permissionValue && permissionValue == 1;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to check database permission {Permission}", permission);
                 return false;
             }
         }
