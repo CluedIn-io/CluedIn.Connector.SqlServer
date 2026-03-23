@@ -115,7 +115,7 @@ GRANT CREATE TABLE TO [CluedInConnector];
 GRANT CREATE TYPE TO [CluedInConnector];
 ```
 
-Then configure the connector to use the `cluedin` schema in the connection settings.
+Then configure the connector to use the `YourSchema` schema in the connection settings.
 
 ## Troubleshooting
 

@@ -445,15 +445,18 @@ namespace CluedIn.Connector.SqlServer.Connector
         {
             try
             {
-                var commandText = $@"
-SELECT HAS_PERMS_BY_NAME('[{schemaName}].[{objectName}]', 'OBJECT', '{permission}')";
+                // Use QUOTENAME to safely escape identifiers and prevent SQL injection
+                const string commandText = "SELECT HAS_PERMS_BY_NAME(QUOTENAME(@SchemaName) + '.' + QUOTENAME(@ObjectName), 'OBJECT', @Permission)";
 
                 var command = transaction.Connection.CreateCommand();
                 command.Transaction = transaction;
                 command.CommandText = commandText;
+                command.Parameters.AddWithValue("@SchemaName", schemaName);
+                command.Parameters.AddWithValue("@ObjectName", objectName);
+                command.Parameters.AddWithValue("@Permission", permission);
 
                 var result = await command.ExecuteScalarAsync();
-                return result is int permissionValue && permissionValue == 1;
+                return result is 1;
             }
             catch (Exception ex)
             {
@@ -466,15 +469,15 @@ SELECT HAS_PERMS_BY_NAME('[{schemaName}].[{objectName}]', 'OBJECT', '{permission
         {
             try
             {
-                var commandText = $@"
-SELECT HAS_PERMS_BY_NAME(DB_NAME(), 'DATABASE', '{permission}')";
+                const string commandText = "SELECT HAS_PERMS_BY_NAME(DB_NAME(), 'DATABASE', @Permission)";
 
                 var command = transaction.Connection.CreateCommand();
                 command.Transaction = transaction;
                 command.CommandText = commandText;
+                command.Parameters.AddWithValue("@Permission", permission);
 
                 var result = await command.ExecuteScalarAsync();
-                return result is int permissionValue && permissionValue == 1;
+                return result is 1;
             }
             catch (Exception ex)
             {
@@ -487,15 +490,17 @@ SELECT HAS_PERMS_BY_NAME(DB_NAME(), 'DATABASE', '{permission}')";
         {
             try
             {
-                var commandText = $@"
-SELECT HAS_PERMS_BY_NAME('[{schemaName}]', 'SCHEMA', '{permission}')";
+                // Use QUOTENAME to safely escape identifiers and prevent SQL injection
+                const string commandText = "SELECT HAS_PERMS_BY_NAME(QUOTENAME(@SchemaName), 'SCHEMA', @Permission)";
 
                 var command = transaction.Connection.CreateCommand();
                 command.Transaction = transaction;
                 command.CommandText = commandText;
+                command.Parameters.AddWithValue("@SchemaName", schemaName);
+                command.Parameters.AddWithValue("@Permission", permission);
 
                 var result = await command.ExecuteScalarAsync();
-                return result is int permissionValue && permissionValue == 1;
+                return result is 1;
             }
             catch (Exception ex)
             {
@@ -508,16 +513,17 @@ SELECT HAS_PERMS_BY_NAME('[{schemaName}]', 'SCHEMA', '{permission}')";
         {
             try
             {
+                // Use QUOTENAME to safely escape identifiers and prevent SQL injection
                 // sp_rename is in sys schema
-                var commandText = $@"
-SELECT HAS_PERMS_BY_NAME('[sys].[{procedureName}]', 'OBJECT', 'EXECUTE')";
+                const string commandText = "SELECT HAS_PERMS_BY_NAME(QUOTENAME('sys') + '.' + QUOTENAME(@ProcedureName), 'OBJECT', 'EXECUTE')";
 
                 var command = transaction.Connection.CreateCommand();
                 command.Transaction = transaction;
                 command.CommandText = commandText;
+                command.Parameters.AddWithValue("@ProcedureName", procedureName);
 
                 var result = await command.ExecuteScalarAsync();
-                return result is int permissionValue && permissionValue == 1;
+                return result is 1;
             }
             catch (Exception ex)
             {
