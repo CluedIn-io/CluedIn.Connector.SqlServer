@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using AutoFixture.Xunit2;
+using AutoFixture.Xunit3;
 using CluedIn.Core.Crawling;
 using CluedIn.Core.Webhooks;
 using FluentAssertions;
@@ -34,7 +34,7 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests
         }
 
         [Theory, AutoData]
-        public async void GetCrawlJobData_NullContext_ReturnsGiven(Guid orgId, Guid userId, Guid providerDefId)
+        public async Task GetCrawlJobData_NullContext_ReturnsGiven(Guid orgId, Guid userId, Guid providerDefId)
         {
             var sut = new SqlServerConnectorProvider(_testContext.AppContext.Object, _constants, _logger);
 
@@ -55,7 +55,7 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests
         }
 
         [Theory, AutoData]
-        public async void GetCrawlJobData_NullConfiguration_SetsNull(Guid orgId, Guid userId, Guid providerDefId)
+        public async Task GetCrawlJobData_NullConfiguration_SetsNull(Guid orgId, Guid userId, Guid providerDefId)
         {
             var sut = new SqlServerConnectorProvider(_testContext.AppContext.Object, _constants, _logger);
 
@@ -67,7 +67,7 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests
         }
 
         [Theory, AutoData]
-        public async void GetCrawlJobData_CamelCaseKeys_MatchesConstantsAndReturnsValues(Guid orgId, Guid userId, Guid providerDefId)
+        public async Task GetCrawlJobData_CamelCaseKeys_MatchesConstantsAndReturnsValues(Guid orgId, Guid userId, Guid providerDefId)
         {
             var sut = new SqlServerConnectorProvider(_testContext.AppContext.Object, _constants, _logger);
             var values = new Dictionary<string, object>
@@ -117,7 +117,7 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests
         }
 
         [Theory, AutoData]
-        public async void GetHelperConfiguration_NullContext_ReturnsEmpty(Guid orgId, Guid userId, Guid providerDefId)
+        public async Task GetHelperConfiguration_NullContext_ReturnsEmpty(Guid orgId, Guid userId, Guid providerDefId)
         {
             var sut = new SqlServerConnectorProvider(_testContext.AppContext.Object, _constants, _logger);
             var data = new CrawlJobDataWrapper(new Dictionary<string, object>());
@@ -129,7 +129,7 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests
         }
 
         [Theory, AutoData]
-        public async void GetHelperConfiguration_NullData_Throws(Guid orgId, Guid userId, Guid providerDefId)
+        public async Task GetHelperConfiguration_NullData_Throws(Guid orgId, Guid userId, Guid providerDefId)
         {
             var sut = new SqlServerConnectorProvider(_testContext.AppContext.Object, _constants, _logger);
 
@@ -139,7 +139,7 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests
         }
 
         [Theory, AutoData]
-        public async void GetHelperConfiguration_CamelCaseKeys_MatchesConstantsAndReturnsValues(Guid orgId, Guid userId, Guid providerDefId)
+        public async Task GetHelperConfiguration_CamelCaseKeys_MatchesConstantsAndReturnsValues(Guid orgId, Guid userId, Guid providerDefId)
         {
             var sut = new SqlServerConnectorProvider(_testContext.AppContext.Object, _constants, _logger);
             var data = new CrawlJobDataWrapper(new Dictionary<string, object> {
@@ -201,7 +201,7 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests
         }
 
         [Theory, AutoData]
-        public async void GetAccountInformation_EmptyJobData_ReturnsEmpty(Guid orgId, Guid userId, Guid providerDefId)
+        public async Task GetAccountInformation_EmptyJobData_ReturnsEmpty(Guid orgId, Guid userId, Guid providerDefId)
         {
             var sut = new SqlServerConnectorProvider(_testContext.AppContext.Object, _constants, _logger);
             var data = new CrawlJobDataWrapper(new Dictionary<string, object>());
@@ -214,7 +214,7 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests
         }
 
         [Theory, AutoData]
-        public async void GetAccountInformation_WithJobData_ReturnsValue(Guid orgId, Guid userId, Guid providerDefId)
+        public async Task GetAccountInformation_WithJobData_ReturnsValue(Guid orgId, Guid userId, Guid providerDefId)
         {
             var sut = new SqlServerConnectorProvider(_testContext.AppContext.Object, _constants, _logger);
             var data = new CrawlJobDataWrapper(new Dictionary<string, object> {
@@ -285,7 +285,7 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests
         }
 
         [Theory, AutoData]
-        public async void GetRemainingApiAllowance_WithJobData_Throws(Guid orgId, Guid userId, Guid providerDefId)
+        public async Task GetRemainingApiAllowance_WithJobData_Throws(Guid orgId, Guid userId, Guid providerDefId)
         {
             var sut = new SqlServerConnectorProvider(_testContext.AppContext.Object, _constants, _logger);
 
