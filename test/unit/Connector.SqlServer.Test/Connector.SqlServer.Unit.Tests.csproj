@@ -9,6 +9,7 @@
     <PackageReference Include="AutoFixture.Xunit3" />
     <PackageReference Include="AutoFixture.AutoNSubstitute" />
     <PackageReference Include="CluedIn.DataStore" />
+    <PackageReference Include="CluedIn.Testing.Base" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
     <PackageReference Include="coverlet.msbuild" />
     <PackageReference Include="xunit.v3" />

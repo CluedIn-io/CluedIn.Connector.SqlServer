@@ -1,9 +1,13 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using AutoFixture.Xunit3;
+using CluedIn.Core;
 using CluedIn.Core.Crawling;
+using CluedIn.Core.Providers;
 using CluedIn.Core.Webhooks;
+using CluedIn.Testing.Base.Dummy;
+using TestContext = CluedIn.Testing.Base.Context.TestContext;
 using FluentAssertions;
 using Microsoft.Extensions.Logging;
 using Moq;
@@ -16,6 +20,13 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests
         private readonly TestContext _testContext;
         private readonly SqlServerConstants _constants;
         private readonly ILogger<SqlServerConnectorProvider> _logger;
+        private ProviderUpdateContext _providerUpdateContext;
+
+        private ProviderUpdateContext ProviderUpdateContext =>
+            _providerUpdateContext ??= new ProviderUpdateContext(
+                _testContext.AppContext.Object,
+                new DummyOrganization(_testContext.Container.Resolve<ApplicationContext>(), Constants.SystemOrganizationId),
+                _testContext.Logger);
 
         public SqlServerConnectorProviderTests()
         {
@@ -59,7 +70,7 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests
         {
             var sut = new SqlServerConnectorProvider(_testContext.AppContext.Object, _constants, _logger);
 
-            var result = await sut.GetCrawlJobData(_testContext.ProviderUpdateContext, null, orgId, userId, providerDefId);
+            var result = await sut.GetCrawlJobData(ProviderUpdateContext, null, orgId, userId, providerDefId);
 
             result.Should().BeOfType<CrawlJobDataWrapper>();
             var typedResult = result as CrawlJobDataWrapper;
@@ -80,7 +91,7 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests
             };
 
 
-            var result = await sut.GetCrawlJobData(_testContext.ProviderUpdateContext,
+            var result = await sut.GetCrawlJobData(ProviderUpdateContext,
                values, orgId, userId, providerDefId);
 
             result.Should().BeOfType<CrawlJobDataWrapper>();
@@ -101,7 +112,7 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests
         {
             var sut = new SqlServerConnectorProvider(_testContext.AppContext.Object, _constants, _logger);
 
-            Func<Task> action = () => sut.TestAuthentication(_testContext.ProviderUpdateContext, null, orgId, userId, providerDefId);
+            Func<Task> action = () => sut.TestAuthentication(ProviderUpdateContext, null, orgId, userId, providerDefId);
 
             action.Should().Throw<NotImplementedException>();
         }
@@ -111,7 +122,7 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests
         {
             var sut = new SqlServerConnectorProvider(_testContext.AppContext.Object, _constants, _logger);
 
-            Func<Task> action = () => sut.FetchUnSyncedEntityStatistics(_testContext.ProviderUpdateContext, null, orgId, userId, providerDefId);
+            Func<Task> action = () => sut.FetchUnSyncedEntityStatistics(ProviderUpdateContext, null, orgId, userId, providerDefId);
 
             action.Should().Throw<NotImplementedException>();
         }
@@ -133,7 +144,7 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests
         {
             var sut = new SqlServerConnectorProvider(_testContext.AppContext.Object, _constants, _logger);
 
-            var result = await sut.GetHelperConfiguration(_testContext.ProviderUpdateContext, null, orgId, userId, providerDefId);            
+            var result = await sut.GetHelperConfiguration(ProviderUpdateContext, null, orgId, userId, providerDefId);
 
             result.Should().BeEmpty();
         }
@@ -152,7 +163,7 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests
 
 
 
-            var result = await sut.GetHelperConfiguration(_testContext.ProviderUpdateContext, data, orgId, userId, providerDefId);
+            var result = await sut.GetHelperConfiguration(ProviderUpdateContext, data, orgId, userId, providerDefId);
 
             result.Should().Equal(
                 new Dictionary<string, object>
@@ -181,7 +192,7 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests
         {
             var sut = new SqlServerConnectorProvider(_testContext.AppContext.Object, _constants, _logger);
 
-            Func<Task> action = () => sut.GetAccountInformation(_testContext.ProviderUpdateContext, null, orgId, userId, providerDefId);
+            Func<Task> action = () => sut.GetAccountInformation(ProviderUpdateContext, null, orgId, userId, providerDefId);
 
             action.Should().Throw<ArgumentNullException>()
                 .And.ParamName.Should().Be("jobData");
@@ -193,7 +204,7 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests
             var sut = new SqlServerConnectorProvider(_testContext.AppContext.Object, _constants, _logger);
 
             Func<Task> action = () => sut.GetAccountInformation(
-                _testContext.ProviderUpdateContext, new CrawlJobData(), orgId, userId, providerDefId);
+                ProviderUpdateContext, new CrawlJobData(), orgId, userId, providerDefId);
 
             action.Should().Throw<ArgumentException>()
                 .And.ParamName.Should().Be("jobData");
@@ -207,7 +218,7 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests
             var data = new CrawlJobDataWrapper(new Dictionary<string, object>());
 
             var result = await sut.GetAccountInformation(
-                _testContext.ProviderUpdateContext, data, orgId, userId, providerDefId);
+                ProviderUpdateContext, data, orgId, userId, providerDefId);
 
             result.AccountId.Should().Be(".");
             result.AccountId.Should().Be(".");
@@ -226,7 +237,7 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests
             });
 
             var result = await sut.GetAccountInformation(
-                _testContext.ProviderUpdateContext, data, orgId, userId, providerDefId);
+                ProviderUpdateContext, data, orgId, userId, providerDefId);
 
             result.AccountId.Should().Be("host.database");
             result.AccountId.Should().Be("host.database");
@@ -259,7 +270,7 @@ namespace CluedIn.Connector.SqlServer.Unit.Tests
         {
             var sut = new SqlServerConnectorProvider(_testContext.AppContext.Object, _constants, _logger);
 
-            Func<Task> action = () => sut.GetWebHooks(_testContext.ProviderUpdateContext);
+            Func<Task> action = () => sut.GetWebHooks(ProviderUpdateContext);
 
             action.Should().Throw<NotImplementedException>();
         }
