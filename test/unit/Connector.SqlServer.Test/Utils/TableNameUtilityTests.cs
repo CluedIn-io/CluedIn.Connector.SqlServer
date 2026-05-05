@@ -1,4 +1,4 @@
-﻿using AutoFixture.Xunit2;
+﻿using AutoFixture.Xunit3;
 using CluedIn.Connector.SqlServer.Unit.Tests.Customizations;
 using CluedIn.Connector.SqlServer.Utils;
 using CluedIn.Core.Connectors;
