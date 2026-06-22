@@ -328,7 +328,10 @@ namespace CluedIn.Connector.SqlServer.Connector
                     schema = SqlTableName.DefaultSchema;
                 }
 
+
                 var schemaExists = await _client.VerifySchemaExists(connectionAndTransaction.Transaction, schema);
+
+                await connectionAndTransaction.DisposeAsync();
 
                 if (!schemaExists)
                 {
@@ -336,199 +339,12 @@ namespace CluedIn.Connector.SqlServer.Connector
                     return new ConnectionVerificationResult(false, "Schema does not exist");
                 }
 
-                // Only perform detailed permission checks when explicitly invoked by a user
-                // This avoids running heavy checks every 30 seconds during automatic health checks
-                // additionally existing installations may be working fine without all permissions, so we don't want to break them by enforcing permission checks in health checks
-                if (executionContext.Principal != null)
-                {
-                    var permissionResult = await VerifyRequiredPermissions(connectionAndTransaction.Transaction, schema);
-                    if (!permissionResult.Success)
-                    {
-                        return permissionResult;
-                    }
-                }
-
-                await connectionAndTransaction.DisposeAsync();
-
                 return new ConnectionVerificationResult(true);
             }
             catch (Exception e)
             {
                 _logger.LogWarning(e, "Error verifying connection");
                 return new ConnectionVerificationResult(false, e.Message);
-            }
-        }
-
-        private async Task<ConnectionVerificationResult> VerifyRequiredPermissions(SqlTransaction transaction, string schema)
-        {
-            var missingPermissions = new List<string>();
-
-            // Check SELECT permission on INFORMATION_SCHEMA.TABLES (required for table existence checks and GetContainers)
-            if (!await CheckPermission(transaction, "SELECT", "INFORMATION_SCHEMA", "TABLES"))
-            {
-                missingPermissions.Add("SELECT on INFORMATION_SCHEMA.TABLES");
-            }
-
-            // Check SELECT permission on INFORMATION_SCHEMA.COLUMNS (required for schema upgrades and GetContainers)
-            if (!await CheckPermission(transaction, "SELECT", "INFORMATION_SCHEMA", "COLUMNS"))
-            {
-                missingPermissions.Add("SELECT on INFORMATION_SCHEMA.COLUMNS");
-            }
-
-            // To create a table in a schema, user needs:
-            // 1. CREATE TABLE permission at the database level
-            // 2. ALTER permission on the schema
-            if (!await CheckDatabasePermission(transaction, "CREATE TABLE"))
-            {
-                missingPermissions.Add("CREATE TABLE on database");
-            }
-
-            // Check CREATE TYPE permission at the database level (required for table-valued parameters used in bulk operations)
-            if (!await CheckDatabasePermission(transaction, "CREATE TYPE"))
-            {
-                missingPermissions.Add("CREATE TYPE on database");
-            }
-
-            // Check ALTER permission on the schema (required for CREATE TABLE in schema and ALTER TABLE during upgrades)
-            if (!await CheckSchemaPermission(transaction, "ALTER", schema))
-            {
-                missingPermissions.Add($"ALTER on schema [{schema}]");
-            }
-
-            // Check EXECUTE permission on the schema (required to execute table-valued types created in the schema)
-            if (!await CheckSchemaPermission(transaction, "EXECUTE", schema))
-            {
-                missingPermissions.Add($"EXECUTE on schema [{schema}]");
-            }
-
-            // Check SELECT permission on the schema
-            if (!await CheckSchemaPermission(transaction, "SELECT", schema))
-            {
-                missingPermissions.Add($"SELECT on schema [{schema}]");
-            }
-
-            // Check INSERT permission on the schema
-            if (!await CheckSchemaPermission(transaction, "INSERT", schema))
-            {
-                missingPermissions.Add($"INSERT on schema [{schema}]");
-            }
-
-            // Check UPDATE permission on the schema
-            if (!await CheckSchemaPermission(transaction, "UPDATE", schema))
-            {
-                missingPermissions.Add($"UPDATE on schema [{schema}]");
-            }
-
-            // Check DELETE permission on the schema
-            if (!await CheckSchemaPermission(transaction, "DELETE", schema))
-            {
-                missingPermissions.Add($"DELETE on schema [{schema}]");
-            }
-
-            // Check EXECUTE permission on sp_rename (required for Archive and Rename operations)
-            if (!await CheckExecutePermission(transaction, "sp_rename"))
-            {
-                missingPermissions.Add("EXECUTE on sp_rename");
-            }
-
-            if (missingPermissions.Any())
-            {
-                var errorMessage = $"Missing required SQL permissions: {string.Join(", ", missingPermissions)}";
-                _logger.LogError("SqlServerConnector connection verification failed: {ErrorMessage}", errorMessage);
-                return new ConnectionVerificationResult(false, errorMessage);
-            }
-
-            return new ConnectionVerificationResult(true);
-        }
-
-        private async Task<bool> CheckPermission(SqlTransaction transaction, string permission, string schemaName, string objectName)
-        {
-            try
-            {
-                // Use QUOTENAME to safely escape identifiers and prevent SQL injection
-                const string commandText = "SELECT HAS_PERMS_BY_NAME(QUOTENAME(@SchemaName) + '.' + QUOTENAME(@ObjectName), 'OBJECT', @Permission)";
-
-                var command = transaction.Connection.CreateCommand();
-                command.Transaction = transaction;
-                command.CommandText = commandText;
-                command.Parameters.AddWithValue("@SchemaName", schemaName);
-                command.Parameters.AddWithValue("@ObjectName", objectName);
-                command.Parameters.AddWithValue("@Permission", permission);
-
-                var result = await command.ExecuteScalarAsync();
-                return result is 1;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Failed to check permission {Permission} on [{Schema}].[{Object}]", permission, schemaName, objectName);
-                return false;
-            }
-        }
-
-        private async Task<bool> CheckDatabasePermission(SqlTransaction transaction, string permission)
-        {
-            try
-            {
-                const string commandText = "SELECT HAS_PERMS_BY_NAME(DB_NAME(), 'DATABASE', @Permission)";
-
-                var command = transaction.Connection.CreateCommand();
-                command.Transaction = transaction;
-                command.CommandText = commandText;
-                command.Parameters.AddWithValue("@Permission", permission);
-
-                var result = await command.ExecuteScalarAsync();
-                return result is 1;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Failed to check database permission {Permission}", permission);
-                return false;
-            }
-        }
-
-        private async Task<bool> CheckSchemaPermission(SqlTransaction transaction, string permission, string schemaName)
-        {
-            try
-            {
-                // Use QUOTENAME to safely escape identifiers and prevent SQL injection
-                const string commandText = "SELECT HAS_PERMS_BY_NAME(QUOTENAME(@SchemaName), 'SCHEMA', @Permission)";
-
-                var command = transaction.Connection.CreateCommand();
-                command.Transaction = transaction;
-                command.CommandText = commandText;
-                command.Parameters.AddWithValue("@SchemaName", schemaName);
-                command.Parameters.AddWithValue("@Permission", permission);
-
-                var result = await command.ExecuteScalarAsync();
-                return result is 1;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Failed to check schema permission {Permission} on schema [{Schema}]", permission, schemaName);
-                return false;
-            }
-        }
-
-        private async Task<bool> CheckExecutePermission(SqlTransaction transaction, string procedureName)
-        {
-            try
-            {
-                // Use QUOTENAME to safely escape identifiers and prevent SQL injection
-                // sp_rename is in sys schema
-                const string commandText = "SELECT HAS_PERMS_BY_NAME(QUOTENAME('sys') + '.' + QUOTENAME(@ProcedureName), 'OBJECT', 'EXECUTE')";
-
-                var command = transaction.Connection.CreateCommand();
-                command.Transaction = transaction;
-                command.CommandText = commandText;
-                command.Parameters.AddWithValue("@ProcedureName", procedureName);
-
-                var result = await command.ExecuteScalarAsync();
-                return result is 1;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Failed to check EXECUTE permission on {Procedure}", procedureName);
-                return false;
             }
         }
 
