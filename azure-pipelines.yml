@@ -1,4 +1,25 @@
 name: $(Date:yyyyMMdd)$(Rev:.r)
+parameters:
+  # The integration test project isn't part of the .sln and its test code doesn't compile against
+  # the current SqlServerConnector API at all (pre-existing bug, identical failure on every
+  # CluedIn version including the local-dev default - unrelated to multi-version targeting, out of
+  # scope to fix here). Defaults to false, matching its real historical (never actually run) state.
+  - name: runIntegrationTests
+    displayName: Run Integration Tests
+    type: boolean
+    default: false
+
+  - name: pipelineTemplateRef
+    displayName: Pipeline Template Ref
+    type: string
+    default: refs/heads/feature/multi-version-packaging
+
+  # Manual, one-off check that this repo still builds and tests cleanly against a CluedIn.Core
+  # version outside multiVersionCluedInTargets below - leave blank for a normal run.
+  - name: probeCluedInVersion
+    displayName: Probe CluedIn Version (leave blank for a normal run)
+    type: string
+    default: ''
 
 trigger:
   branches:
@@ -20,10 +41,7 @@ resources:
       type: github
       name: CluedIn-io/AzurePipelines.Templates
       endpoint: 'CluedIn-io'
-      ref: refs/heads/refactor
-
-pool:
-  vmImage: 'windows-latest'
+      ref: ${{ parameters.pipelineTemplateRef }}
 
 variables:
   - name: testFolderPath
@@ -35,15 +53,23 @@ variables:
   - name: buildConfiguration
     value: Release
 
-steps:
-
-  - task: UseDotNet@2
-    displayName: Install .NET SDK 6.0
-    inputs:
-      version: 6.0.x
-
-  # Configure NuGet
-  - task: NuGetAuthenticate@1
-    displayName: 'Authenticate with nuget'
-
-  - template: crawler.build.yml@templates
+# jobs:, not pool:/steps: - crawler.build.jobs.yml is a jobs template, the only one with
+# multi-version support (crawler.build.yml has none).
+jobs:
+  - template: crawler.build.jobs.yml@templates
+    parameters:
+      pool:
+        vmImage: 'ubuntu-22.04'
+      githubReleaseInMaster: true
+      publicReleaseForMaster: true
+      publishCodeCoverage: true
+      useGitVersionDotNetTool: true
+      publishToDevFeed: true
+      probeCluedInVersion: ${{ parameters.probeCluedInVersion }}
+      executeIntegrationTests: ${{ parameters.runIntegrationTests }}
+      # 4.6.0 excluded - no stream-repository/execution-context API usage in this connector that
+      # would require it, matching the exclusion default used across this migration effort.
+      multiVersionCluedInTargets:
+        - cluedInVersion: '4.7.0'
+        - cluedInVersion: '4.8.0'
+        - cluedInVersion: '5.0.0-beta.*'

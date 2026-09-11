@@ -1,6 +1,18 @@
 <Project>
   <PropertyGroup Label="Dependency Versions">
-    <_CluedIn>5.0.0-*</_CluedIn>
+    <!-- Guarded so the pipeline's -p:_CluedIn=<version> per build leg wins. -->
+    <_CluedIn Condition="'$(_CluedIn)' == ''">5.0.0-*</_CluedIn>
+    <!-- CluedIn.Testing.Base publishes a version-suffixed package ID per CluedIn generation
+         (.470/.480/.500 - the dotless Major.Minor.Patch), not a single ID with $(_CluedIn) as the
+         version (unlike CluedIn.Core). Computed here once. -->
+    <_HyphenIndex>$(_CluedIn.IndexOf('-'))</_HyphenIndex>
+    <_CluedInVersionOnly Condition="'$(_HyphenIndex)' != '-1'">$(_CluedIn.Substring(0, $(_HyphenIndex)))</_CluedInVersionOnly>
+    <_CluedInVersionOnly Condition="'$(_HyphenIndex)' == '-1'">$(_CluedIn)</_CluedInVersionOnly>
+    <_CluedInPackageSuffix>$(_CluedInVersionOnly.Replace('.', ''))</_CluedInPackageSuffix>
+
+    <DefineConstants Condition="$([System.Version]::Parse($(_CluedInVersionOnly))) &gt;= $([System.Version]::Parse('4.7.0'))">$(DefineConstants);CLUEDIN_V47</DefineConstants>
+    <DefineConstants Condition="$([System.Version]::Parse($(_CluedInVersionOnly))) &gt;= $([System.Version]::Parse('4.8.0'))">$(DefineConstants);CLUEDIN_V48</DefineConstants>
+    <DefineConstants Condition="$([System.Version]::Parse($(_CluedInVersionOnly))) &gt;= $([System.Version]::Parse('5.0.0'))">$(DefineConstants);CLUEDIN_V50</DefineConstants>
   </PropertyGroup>
 
   <ItemGroup>
@@ -17,15 +29,46 @@
 
         MUST SPECIFY IN CSPROJ AS <PackageReference Name="<depName>" />
     -->
+    <PackageReference Update="coverlet.msbuild" Version="2.8.0" />
+    <!-- CluedIn.DataStore has never been published for the 4.x line (only a single floating
+         net10.0-only build exists) - not fixable from this repo. Not actually imported by any test
+         source (only the unrelated CluedIn.Core.DataStore namespace is used), so the reference
+         itself is gated to the 5.0 leg only in the test csprojs. -->
+    <PackageReference Update="CluedIn.DataStore" Version="$(_CluedIn)" />
+    <PackageReference Update="CluedIn.Testing.Base.$(_CluedInPackageSuffix)" Version="1.0.0-*" />
+    <PackageReference Update="Moq" Version="4.13.1" />
+    <PackageReference Update="FluentAssertions" Version="5.10.3" />
+    <!-- Pre-existing gap, not previously caught: the integration test project (not part of the
+         .sln, apparently never actually restored by CI before this migration) referenced these
+         with no matching Update entry at all - `dotnet restore` errors outright
+         ("must have a version defined in Packages.props"), unrelated to multi-version targeting. -->
+    <PackageReference Update="AutoFixture.Idioms" Version="4.18.1" />
+    <PackageReference Update="AutoFixture.AutoMoq" Version="4.18.1" />
+  </ItemGroup>
+  <!-- EF Core 8+ requires net8.0+; net6.0 (CluedIn 4.7/4.8) needs the last net6.0-compatible line. -->
+  <ItemGroup Condition="!$(DefineConstants.Contains('CLUEDIN_V50'))">
+    <PackageReference Update="Microsoft.EntityFrameworkCore" Version="6.0.16" />
+    <PackageReference Update="Microsoft.EntityFrameworkCore.InMemory" Version="6.0.16" />
+  </ItemGroup>
+  <ItemGroup Condition="$(DefineConstants.Contains('CLUEDIN_V50'))">
+    <PackageReference Update="Microsoft.EntityFrameworkCore" Version="10.0.7" />
+    <PackageReference Update="Microsoft.EntityFrameworkCore.InMemory" Version="10.0.7" />
+  </ItemGroup>
+  <!-- Microsoft Testing Platform-based tooling (xunit v3) - net10.0 (CluedIn 5.0+) only. -->
+  <ItemGroup Condition="$(DefineConstants.Contains('CLUEDIN_V50'))">
     <PackageReference Update="Microsoft.NET.Test.Sdk" Version="18.3.0" />
     <PackageReference Update="AutoFixture.Xunit3" Version="5.0.0-preview0012" />
     <PackageReference Update="AutoFixture.AutoNSubstitute" Version="5.0.0-preview0012" />
-    <PackageReference Update="coverlet.msbuild" Version="2.8.0" />
-    <PackageReference Update="CluedIn.DataStore" Version="$(_CluedIn)" />
-    <PackageReference Update="CluedIn.Testing.Base" Version="$(_CluedIn)" />
     <PackageReference Update="xunit.v3" Version="3.2.2" />
     <PackageReference Update="xunit.runner.visualstudio" Version="3.1.5" />
-    <PackageReference Update="Moq" Version="4.13.1" />
-    <PackageReference Update="FluentAssertions" Version="5.10.3" />
+  </ItemGroup>
+  <!-- Legacy vstest-based tooling (xunit v2) - net6.0 (CluedIn 4.7/4.8) only; the newer tooling
+       above does not support net6.0. -->
+  <ItemGroup Condition="!$(DefineConstants.Contains('CLUEDIN_V50'))">
+    <PackageReference Update="Microsoft.NET.Test.Sdk" Version="17.12.0" />
+    <PackageReference Update="AutoFixture.Xunit2" Version="4.18.0" />
+    <PackageReference Update="AutoFixture.AutoNSubstitute" Version="4.18.0" />
+    <PackageReference Update="xunit" Version="2.9.3" />
+    <PackageReference Update="xunit.runner.visualstudio" Version="2.8.2" />
   </ItemGroup>
 </Project>
