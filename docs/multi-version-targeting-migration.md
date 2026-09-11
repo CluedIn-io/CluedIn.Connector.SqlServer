@@ -153,4 +153,4 @@ effort). Verified with the pipeline's actual pinned `GitVersion.Tool 5.9.0`: res
 - [x] Integration tests — restore-level gaps fixed, but left disabled by default: pre-existing, version-independent compile failure against current production API, out of scope to fix here
 - [x] Source (`src/Connector.SqlServer`) — builds clean (0 errors) on all three legs, no `#if` guards needed
 - [x] `GitVersion.yml` — `next-version: 1.0`; `ignore.commits-before: 2026-06-25T00:00:00`; verified `1.0.0` with pinned GitVersion.Tool 5.9.0
-- [ ] Push branch and confirm the actual Azure DevOps pipeline run is green end-to-end
+- [x] Push branch and confirm the actual Azure DevOps pipeline run is green end-to-end — PR #149, build 151999: all three legs + `Multi-version: publish` passed on the first push
