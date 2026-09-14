@@ -13,6 +13,20 @@
     <DefineConstants Condition="$([System.Version]::Parse($(_CluedInVersionOnly))) &gt;= $([System.Version]::Parse('4.7.0'))">$(DefineConstants);CLUEDIN_V47</DefineConstants>
     <DefineConstants Condition="$([System.Version]::Parse($(_CluedInVersionOnly))) &gt;= $([System.Version]::Parse('4.8.0'))">$(DefineConstants);CLUEDIN_V48</DefineConstants>
     <DefineConstants Condition="$([System.Version]::Parse($(_CluedInVersionOnly))) &gt;= $([System.Version]::Parse('5.0.0'))">$(DefineConstants);CLUEDIN_V50</DefineConstants>
+
+    <!-- PackageId is derived here (this repo computes _CluedIn/_CluedInPackageSuffix in
+         Packages.props, not Directory.Build.props, which is imported earlier - a PackageId
+         assignment placed in Directory.Build.props would read _CluedInPackageSuffix before it
+         exists), not passed as a raw -p:PackageId= pipeline override - a raw override on an outer
+         project doesn't reach a ProjectReference's own package identity when NuGet computes that
+         dependency for the nuspec. Confirmed via a real repro across multiple repos
+         (CluedIn-io/Azure-Extensions#631, CluedIn-io/CluedIn.Enricher.CVR#50,
+         CluedIn-io/CluedIn.Crawling.MasterDataServices#80). Also fixes a related regression:
+         AzurePipelines.Templates#30 removed the -p:PackageId= pipeline override entirely, so
+         without this property this repo's package would pack with a bare, unsuffixed PackageId.
+         Gated on CluedInMultiVersionTargetFramework so local development (no pipeline overrides)
+         keeps the plain $(AssemblyName) as PackageId. -->
+    <PackageId Condition="'$(CluedInMultiVersionTargetFramework)' != ''">$(AssemblyName).$(_CluedInPackageSuffix)</PackageId>
   </PropertyGroup>
 
   <ItemGroup>
