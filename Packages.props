@@ -1,6 +1,27 @@
 <Project>
   <PropertyGroup Label="Dependency Versions">
     <_CluedIn>5.0.0-*</_CluedIn>
+
+    <!-- Strip pre-release suffix for a path-safe package-id suffix (_CluedIn may be a
+         floating/prerelease value, e.g. "5.0.0-beta.*", which isn't valid in a PackageId). -->
+    <_HyphenIndex>$(_CluedIn.IndexOf('-'))</_HyphenIndex>
+    <_CluedInVersionOnly Condition="'$(_HyphenIndex)' != '-1'">$(_CluedIn.Substring(0, $(_HyphenIndex)))</_CluedInVersionOnly>
+    <_CluedInVersionOnly Condition="'$(_HyphenIndex)' == '-1'">$(_CluedIn)</_CluedInVersionOnly>
+
+    <!-- PackageId is derived here (this repo computes _CluedIn in Packages.props, not
+         Directory.Build.props, which is imported earlier - a PackageId assignment placed in
+         Directory.Build.props would read _CluedInVersionOnly before it exists), not passed as a
+         raw -p:PackageId= pipeline override - a raw override on an outer project doesn't reach a
+         ProjectReference's own package identity when NuGet computes that dependency for the
+         nuspec. Confirmed via a real repro across multiple repos (CluedIn-io/Azure-Extensions#631,
+         CluedIn-io/CluedIn.Enricher.CVR#50, CluedIn-io/CluedIn.Crawling.MasterDataServices#80).
+         Also fixes a related regression: AzurePipelines.Templates#30 removed the -p:PackageId=
+         pipeline override entirely, so without this property this repo's package would pack with a
+         bare, unsuffixed PackageId. Gated on CluedInMultiVersionTargetFramework (always set by the
+         pipeline, even though this repo's own TargetFramework is currently hardcoded rather than
+         multi-version-aware) so local development (no pipeline overrides) keeps the plain
+         $(AssemblyName) as PackageId. -->
+    <PackageId Condition="'$(CluedInMultiVersionTargetFramework)' != ''">$(AssemblyName).$(_CluedInVersionOnly.Replace('.', ''))</PackageId>
   </PropertyGroup>
 
   <ItemGroup>
