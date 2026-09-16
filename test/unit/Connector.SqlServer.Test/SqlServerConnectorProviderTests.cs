@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using AutoFixture.Xunit3;
 using CluedIn.Core;
 using CluedIn.Core.Crawling;
 using CluedIn.Core.Providers;

@@ -1,5 +1,4 @@
 using AutoFixture;
-using AutoFixture.Xunit3;
 using AutoFixture.AutoNSubstitute;
 using System;
 

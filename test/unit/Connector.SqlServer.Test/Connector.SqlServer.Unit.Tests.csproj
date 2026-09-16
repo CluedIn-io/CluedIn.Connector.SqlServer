@@ -6,16 +6,24 @@
     <None Remove="D:\Projects\CluedIn\CluedIn.Connector.SqlServer\build\assets\nugetlogo.png" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="AutoFixture.Xunit3" />
     <PackageReference Include="AutoFixture.AutoNSubstitute" />
-    <PackageReference Include="CluedIn.DataStore" />
-    <PackageReference Include="CluedIn.Testing.Base" />
+    <PackageReference Include="CluedIn.DataStore" Condition="$(DefineConstants.Contains('CLUEDIN_V50'))" />
+    <PackageReference Include="CluedIn.Testing.Base.$(_CluedInPackageSuffix)" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
     <PackageReference Include="coverlet.msbuild" />
-    <PackageReference Include="xunit.v3" />
-    <PackageReference Include="xunit.runner.visualstudio" />
     <PackageReference Include="Moq" />
     <PackageReference Include="FluentAssertions" />
+  </ItemGroup>
+  <ItemGroup Condition="$(DefineConstants.Contains('CLUEDIN_V50'))">
+    <PackageReference Include="xunit.v3" />
+    <PackageReference Include="AutoFixture.Xunit3" />
+  </ItemGroup>
+  <ItemGroup Condition="!$(DefineConstants.Contains('CLUEDIN_V50'))">
+    <PackageReference Include="xunit" />
+    <PackageReference Include="AutoFixture.Xunit2" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="xunit.runner.visualstudio" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\..\src\Connector.SqlServer\Connector.SqlServer.csproj" />

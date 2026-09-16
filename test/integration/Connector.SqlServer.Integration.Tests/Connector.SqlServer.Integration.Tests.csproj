@@ -1,16 +1,22 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <ItemGroup>
-    <PackageReference Include="AutoFixture.Xunit3" />
-    <PackageReference Include="CluedIn.DataStore" />
+    <PackageReference Include="CluedIn.DataStore" Condition="$(DefineConstants.Contains('CLUEDIN_V50'))" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
     <PackageReference Include="AutoFixture.Idioms" />
     <PackageReference Include="AutoFixture.AutoMoq" />
     <PackageReference Include="coverlet.msbuild" />
-    <PackageReference Include="xunit.v3" />
     <PackageReference Include="xunit.runner.visualstudio" />
     <PackageReference Include="Moq" />
+  </ItemGroup>
+  <ItemGroup Condition="$(DefineConstants.Contains('CLUEDIN_V50'))">
+    <PackageReference Include="xunit.v3" />
+    <PackageReference Include="AutoFixture.Xunit3" />
+  </ItemGroup>
+  <ItemGroup Condition="!$(DefineConstants.Contains('CLUEDIN_V50'))">
+    <PackageReference Include="xunit" />
+    <PackageReference Include="AutoFixture.Xunit2" />
   </ItemGroup>
 
   <ItemGroup>
