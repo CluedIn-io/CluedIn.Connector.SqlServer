@@ -130,6 +130,10 @@ the actual test logic won't also have to redo this plumbing.
 
 ## Step 6 — Reset the semantic version (`GitVersion.yml`)
 
+> **Superseded — see the addendum below.** This step originally reset the version to `1.0`; the
+> whole migration effort later moved the baseline to `100.0` instead, before this PR merged, so
+> `next-version: 1.0` was never actually shipped for this repo. Left here for history.
+
 ```yaml
 next-version: 1.0
 ignore:
@@ -152,5 +156,35 @@ effort). Verified with the pipeline's actual pinned `GitVersion.Tool 5.9.0`: res
 - [x] Unit tests — conditional xunit v2/v3 + AutoFixture selection; `GlobalUsings.cs` added; explicit `using AutoFixture.Xunit3;` removed from 6 files; builds clean on all three legs
 - [x] Integration tests — restore-level gaps fixed, but left disabled by default: pre-existing, version-independent compile failure against current production API, out of scope to fix here
 - [x] Source (`src/Connector.SqlServer`) — builds clean (0 errors) on all three legs, no `#if` guards needed
-- [x] `GitVersion.yml` — `next-version: 1.0`; `ignore.commits-before: 2026-06-25T00:00:00`; verified `1.0.0` with pinned GitVersion.Tool 5.9.0
+- [x] `GitVersion.yml` — baseline moved to `next-version: 100.0` before this PR merged (see addendum below); no `ignore.commits-before` trick needed for this value
 - [x] Push branch and confirm the actual Azure DevOps pipeline run is green end-to-end — PR #149, build 151999: all three legs + `Multi-version: publish` passed on the first push
+- [x] `docs/100.0.0-release-notes.md` added; old per-CluedIn-version release notes left in place (this repo never removed them, unlike repos migrated before the 100.0.0 pivot)
+
+---
+
+## Addendum — version baseline set directly at 100.0.0, not 1.0.0
+
+Status: **Done**
+
+By the time this PR was brought up to date, the rest of the migration effort had already moved from
+resetting the version to `1.0.0` to starting at `100.0.0` instead, across the other ~33 repos.
+Reason: repos that were previously at 4.x/5.x under the old single-version-targeting scheme would
+appear to "go backwards" if their next version showed as `1.0.0` — `100.0.0` is unambiguously higher
+than any prior single-version release number this repo ever had (`4.5.3`).
+
+This repo went straight to the `100.0` baseline rather than going through `1.0` first, since PR #149
+hadn't merged yet when the org-wide pivot happened:
+
+```yaml
+next-version: 100.0
+```
+
+No `ignore.commits-before` trick is needed: `next-version` only needs help overriding an existing
+tag when the configured value is *lower* than that tag (`1.0` vs the pre-existing `4.5.3` tag would
+have needed it), and `100.0` is already higher than every pre-existing tag here.
+
+Unlike every other migrated repo, this one's original docs step never removed the old
+per-CluedIn-version release notes (`docs/3.2.0-release-notes.md` through `docs/4.5.2-release-notes.md`)
+— they were simply never touched. So there was nothing to restore; `docs/100.0.0-release-notes.md`
+was added fresh alongside the existing historical files, matching the end state every other repo
+converged on (historical notes kept, current notes at the new baseline version).
