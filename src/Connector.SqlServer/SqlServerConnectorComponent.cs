@@ -10,11 +10,11 @@ namespace CluedIn.Connector.SqlServer
     {
         public SqlServerConnectorComponent(ComponentInfo componentInfo) : base(componentInfo)
         {
+            Container.Install(new InstallComponents());
         }
 
         public override void Start()
         {
-            Container.Install(new InstallComponents());
             Log.LogInformation($"{ComponentName} Registered");
             State = ServiceState.Started;
         }
