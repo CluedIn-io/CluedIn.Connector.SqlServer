@@ -1,4 +1,3 @@
-﻿using AutoFixture.Xunit2;
 using CluedIn.Connector.SqlServer.Utils;
 using FluentAssertions;
 using System;

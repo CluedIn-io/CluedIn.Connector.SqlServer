@@ -1,4 +1,5 @@
 using CluedIn.Connector.SqlServer.Connector;
+using TestContext = CluedIn.Testing.Base.Context.TestContext;
 using Microsoft.Extensions.Logging;
 using Moq;
 
